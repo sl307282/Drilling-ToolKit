@@ -6,9 +6,9 @@ window.addEventListener('error', (event) => {
       console.log('ERROR STACK:', event.error.stack);
     }
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => { });
     }
-  } catch (e) {}
+  } catch (e) { }
 });
 
 // Safe JSON parser to prevent startup crashes from malformed localStorage data
@@ -127,7 +127,7 @@ let state = {
       pumpEfficiency: 100
     };
     const saved = safeJSONParse(localStorage.getItem('drillingToolkitReferences'), defaults);
-    
+
     // Ensure subsea fields always exist even on old localStorage data
     if (saved.riserAnnular === undefined || saved.riserAnnular === null) saved.riserAnnular = defaults.riserAnnular;
     if (saved.chokeCapacity === undefined || saved.chokeCapacity === null) saved.chokeCapacity = defaults.chokeCapacity;
@@ -948,10 +948,10 @@ async function checkForUpdates() {
     }
 
     const remoteConfig = firebase.remoteConfig();
-    
+
     // Set minimal fetch interval to 0 in development/testing, or 1 hour for production
-    remoteConfig.settings.minimumFetchIntervalMillis = 0; 
-    
+    remoteConfig.settings.minimumFetchIntervalMillis = 0;
+
     // Set default config
     remoteConfig.defaultConfig = {
       latest_version: APP_VERSION,
@@ -1079,7 +1079,7 @@ const initApp = () => {
   // Safe helper to hide native splash screen
   const hideSplash = () => {
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => { });
     }
   };
 
@@ -1107,9 +1107,9 @@ const initApp = () => {
     // Set up header events & drawers
     const drawerCtrl = initDrawer();
     initThemeToggler();
-    initSettingsPage(drawerCtrl ? drawerCtrl.closeDrawer : () => {});
-    initRateModal(drawerCtrl ? drawerCtrl.closeDrawer : () => {});
-    initShareModal(drawerCtrl ? drawerCtrl.closeDrawer : () => {});
+    initSettingsPage(drawerCtrl ? drawerCtrl.closeDrawer : () => { });
+    initRateModal(drawerCtrl ? drawerCtrl.closeDrawer : () => { });
+    initShareModal(drawerCtrl ? drawerCtrl.closeDrawer : () => { });
 
     // Close modals if backdrop (overlay) is clicked
     window.addEventListener('click', (e) => {
@@ -1211,7 +1211,7 @@ const initApp = () => {
       touchStartX = t.clientX;
       touchStartY = t.clientY;
       touchStartTime = Date.now();
-      
+
       const width = window.innerWidth;
       // Only enable if we have history to navigate back to
       if (state.screenHistory.length > 0) {
@@ -1233,7 +1233,7 @@ const initApp = () => {
 
     document.addEventListener('touchmove', (e) => {
       if (!swipeEdge) return;
-      
+
       // Stop Android WebView from scroll-cancelling our edge swipe back
       if (e.cancelable) {
         e.preventDefault();
@@ -1244,7 +1244,7 @@ const initApp = () => {
       const dx = t.clientX - touchStartX;
       const dist = Math.abs(dx);
       const progress = Math.min(dist / MIN_SWIPE_X, 1);
-      
+
       if (swipeEdge === 'left') {
         leftHandle.style.opacity = (0.6 + progress * 0.4).toString();
         leftHandle.style.width = (6 + progress * 12) + 'px';
@@ -1259,17 +1259,17 @@ const initApp = () => {
       leftHandle.style.width = '4px';
       rightHandle.style.opacity = '0';
       rightHandle.style.width = '4px';
-      
+
       if (!swipeEdge) return;
 
       const t = e.changedTouches[0];
       const dx = t.clientX - touchStartX;
       const dy = Math.abs(t.clientY - touchStartY);
       const dt = Date.now() - touchStartTime;
-      
+
       const dist = Math.abs(dx);
       const vx = dist / dt;
-      
+
       const isValidDirection = (swipeEdge === 'left' && dx > 0) || (swipeEdge === 'right' && dx < 0);
 
       if (isValidDirection && dist > MIN_SWIPE_X && dy < MAX_SWIPE_Y && vx > MIN_VELOCITY) {
@@ -2017,7 +2017,7 @@ function renderDrillstringSetup() {
         state.reference.chokeCapacity = DB.pipeData["CHOKE LINE"].capacity;
       }
     }
-    
+
     // Save to localStorage
     localStorage.setItem('drillstringSetup', JSON.stringify(state.drillstring));
     localStorage.setItem('selectedHoleSize', state.selectedHoleSize);
@@ -3611,14 +3611,14 @@ function renderKillDataSheet() {
     if (state.flowType === 'subsea') {
       document.getElementById('kd-out-dyn-maasp').innerHTML = `${Math.floor(dynMaasp * 100) / 100} <span class="unit-lbl">${pressUnit}</span>`;
       document.getElementById('kd-out-dyn-sicp').innerHTML = `${Math.round(dynSicp)} <span class="unit-lbl">${pressUnit}</span>`;
-      
+
       const isBblFt = (state.globalUnit === 'bbl/ft');
       const riserLengthMeters = isBblFt ? (parseFloat(state.calcInputs.riserLength || 0) / 3.28084) : parseFloat(state.calcInputs.riserLength || 0);
       const riserVolLiters = riserLengthMeters * (state.reference.riserAnnular || 0);
       const riserVolSelectedUnit = convertVolume(riserVolLiters, state.globalUnit);
       const riserStrokes = state.reference.pumpOutput > 0 ? (riserVolLiters / state.reference.pumpOutput) : 0;
       const volLabel = (state.globalUnit === 'bbl/m' || state.globalUnit === 'bbl/ft') ? 'bbl' : 'L';
-      
+
       document.getElementById('kd-out-riser-disp').innerHTML = `
         <div style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.2;">
           <span>${Math.round(riserStrokes)} <span class="unit-lbl">stks</span></span>
