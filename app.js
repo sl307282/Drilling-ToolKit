@@ -1006,9 +1006,7 @@ async function checkForUpdates() {
     const forceUpdate = isOutdatedSemantic(localVersion, minimumVersion) || (localVersionCode < minimumVersionCode);
     const optionalUpdate = isOutdatedSemantic(localVersion, latestVersion) || (localVersionCode < latestVersionCode);
 
-    if (forceUpdate) {
-      showUpdatePopup(localVersion, latestVersion, true, releaseNotes);
-    } else if (optionalUpdate) {
+    if (forceUpdate || optionalUpdate) {
       showUpdatePopup(localVersion, latestVersion, false, releaseNotes);
     }
   } catch (error) {
