@@ -931,6 +931,24 @@ async function checkForUpdates() {
   }
 
   try {
+    let localVersion = APP_VERSION;
+    let localVersionCode = APP_VERSION_CODE;
+
+    // Dynamically retrieve the actual installed app version from the device
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+      try {
+        const info = await window.Capacitor.Plugins.App.getInfo();
+        if (info && info.version) {
+          localVersion = info.version;
+        }
+        if (info && info.build) {
+          localVersionCode = Number(info.build) || APP_VERSION_CODE;
+        }
+      } catch (e) {
+        console.error('Failed to get native app version:', e);
+      }
+    }
+
     // Real Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyC2zZvMHMyDeSECABaOPBw0Ufc58D9o07A",
@@ -954,10 +972,10 @@ async function checkForUpdates() {
 
     // Set default config
     remoteConfig.defaultConfig = {
-      latest_version: APP_VERSION,
-      minimum_version: APP_VERSION,
-      latest_version_code: APP_VERSION_CODE,
-      minimum_version_code: APP_VERSION_CODE,
+      latest_version: localVersion,
+      minimum_version: localVersion,
+      latest_version_code: localVersionCode,
+      minimum_version_code: localVersionCode,
       release_notes: "• Bug fixes and stability improvements\n• Performance enhancements"
     };
 
@@ -969,7 +987,7 @@ async function checkForUpdates() {
     const minimumVersionCode = remoteConfig.getValue('minimum_version_code').asNumber();
     const releaseNotes = remoteConfig.getValue('release_notes').asString();
 
-    console.log(`Update check - Local: ${APP_VERSION} (code: ${APP_VERSION_CODE}), Latest Remote: ${latestVersion} (code: ${latestVersionCode}), Min Req Remote: ${minimumVersion} (code: ${minimumVersionCode})`);
+    console.log(`Update check - Local: ${localVersion} (code: ${localVersionCode}), Latest Remote: ${latestVersion} (code: ${latestVersionCode}), Min Req Remote: ${minimumVersion} (code: ${minimumVersionCode})`);
 
     // Helper function to compare semantic version numbers (e.g. 1.0.1 vs 1.0.0)
     const isOutdatedSemantic = (current, target) => {
@@ -985,13 +1003,13 @@ async function checkForUpdates() {
       return false;
     };
 
-    const forceUpdate = isOutdatedSemantic(APP_VERSION, minimumVersion) || (APP_VERSION_CODE < minimumVersionCode);
-    const optionalUpdate = isOutdatedSemantic(APP_VERSION, latestVersion) || (APP_VERSION_CODE < latestVersionCode);
+    const forceUpdate = isOutdatedSemantic(localVersion, minimumVersion) || (localVersionCode < minimumVersionCode);
+    const optionalUpdate = isOutdatedSemantic(localVersion, latestVersion) || (localVersionCode < latestVersionCode);
 
     if (forceUpdate) {
-      showUpdatePopup(APP_VERSION, latestVersion, true, releaseNotes);
+      showUpdatePopup(localVersion, latestVersion, true, releaseNotes);
     } else if (optionalUpdate) {
-      showUpdatePopup(APP_VERSION, latestVersion, false, releaseNotes);
+      showUpdatePopup(localVersion, latestVersion, false, releaseNotes);
     }
   } catch (error) {
     console.error('Failed to perform update check:', error);
