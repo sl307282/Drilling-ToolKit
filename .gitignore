@@ -1,0 +1,12 @@
+node_modules/
+www/
+.DS_Store
+Thumbs.db
+*.log
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+ios/App/build/
+ios/App/Pods/
