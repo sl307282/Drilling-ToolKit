@@ -914,8 +914,8 @@ CardOverrideManager.register('.menu-grid .toolkit-card', (el) => {
   }
 });
 
-const APP_VERSION = '1.0.1';
-const APP_VERSION_CODE = 2;
+const APP_VERSION = '1.0.2';
+const APP_VERSION_CODE = 3;
 
 async function checkForUpdates() {
   // If no internet connection, skip silently and continue normally
