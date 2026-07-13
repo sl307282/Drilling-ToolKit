@@ -773,24 +773,30 @@
           </div>
           <div class="input-group">
             <label class="input-label">Manufacturer</label>
-            <input type="text" id="bit-info-mfg" class="toolkit-input" placeholder="e.g. NOV">
+            <input type="text" id="bit-info-mfg" class="toolkit-input" placeholder="e.g. SLB, BH, HM">
           </div>
           <div class="input-group">
             <label class="input-label">Serial Number</label>
-            <input type="text" id="bit-info-sn" class="toolkit-input" placeholder="e.g. 12345">
+            <input type="text" id="bit-info-sn" class="toolkit-input" placeholder="Serial number">
           </div>
         </div>
       </div>
 
       <!-- IADC dull grading select boxes -->
       <div class="content-card">
-        <h3 class="card-section-title">IADC Grading Codes</h3>
-        <div class="input-grid" style="grid-template-columns: repeat(4, 1fr); gap: 10px;">
-          <!-- 1. Inner Rows -->
+        <h3 class="card-section-title" style="display:flex; align-items:center; gap:8px;">
+          <span class="material-icons" style="font-size: 20px; color: var(--text-secondary);">grid_on</span>
+          IADC Dull Grading
+        </h3>
+        <div class="input-grid">
+          <!-- 1. Inner Wear -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">I (Inner)</label>
+            <label class="input-label" style="display:flex; align-items:center; gap:4px;">
+              I - INNER WEAR
+              <span class="material-icons" style="font-size: 15px; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('inner')">info</span>
+            </label>
             <select id="bit-grade-i" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="0">0</option>
+              <option value="0">0 - No Wear</option>
               <option value="1">1</option>
               <option value="2">2</option>
               <option value="3">3</option>
@@ -801,11 +807,14 @@
               <option value="8">8</option>
             </select>
           </div>
-          <!-- 2. Outer Rows -->
+          <!-- 2. Outer Wear -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">O (Outer)</label>
+            <label class="input-label" style="display:flex; align-items:center; gap:4px;">
+              O - OUTER WEAR
+              <span class="material-icons" style="font-size: 15px; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('outer')">info</span>
+            </label>
             <select id="bit-grade-o" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="0">0</option>
+              <option value="0">0 - No Wear</option>
               <option value="1">1</option>
               <option value="2">2</option>
               <option value="3">3</option>
@@ -818,58 +827,59 @@
           </div>
           <!-- 3. Dull Characteristics -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">D (Dull)</label>
+            <label class="input-label">D - DULL CHARACTERISTIC</label>
             <select id="bit-grade-d" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="NO">NO</option>
-              <option value="BC">BC</option>
-              <option value="BF">BF</option>
-              <option value="BT">BT</option>
-              <option value="BU">BU</option>
-              <option value="CC">CC</option>
-              <option value="CD">CD</option>
-              <option value="CI">CI</option>
-              <option value="CR">CR</option>
-              <option value="CT">CT</option>
-              <option value="ER">ER</option>
-              <option value="FC">FC</option>
-              <option value="HC">HC</option>
-              <option value="JD">JD</option>
-              <option value="LC">LC</option>
-              <option value="LN">LN</option>
-              <option value="LT">LT</option>
-              <option value="OC">OC</option>
-              <option value="PB">PB</option>
-              <option value="PN">PN</option>
-              <option value="RG">RG</option>
-              <option value="RO">RO</option>
-              <option value="SD">SD</option>
-              <option value="SS">SS</option>
-              <option value="TR">TR</option>
-              <option value="WO">WO</option>
-              <option value="WT">WT</option>
+              <option value="NO">NO - No Dull Characteristic</option>
+              <option value="BC">BC - Broken Cone</option>
+              <option value="BF">BF - Bond Failure</option>
+              <option value="BT">BT - Broken Teeth/Cutters</option>
+              <option value="BU">BU - Balled Up</option>
+              <option value="CC">CC - Cracked Cone</option>
+              <option value="CD">CD - Cone Dragged</option>
+              <option value="CI">CI - Cone Interference</option>
+              <option value="CR">CR - Cored</option>
+              <option value="CT">CT - Chipped Teeth/Cutters</option>
+              <option value="ER">ER - Erosion</option>
+              <option value="FC">FC - Flat Crested Wear</option>
+              <option value="HC">HC - Heat Checking</option>
+              <option value="JD">JD - Junk Damage</option>
+              <option value="LC">LC - Lost Cone</option>
+              <option value="LN">LN - Lost Nozzle</option>
+              <option value="LT">LT - Lost Teeth/Cutters</option>
+              <option value="OC">OC - Off-Center Wear</option>
+              <option value="PB">PB - Pinched Bit</option>
+              <option value="PN">PN - Plugged Nozzle</option>
+              <option value="RG">RG - Rounded Gauge</option>
+              <option value="RO">RO - Ring-Out</option>
+              <option value="SD">SD - Shirttail Damage</option>
+              <option value="SS">SS - Self-Sharpening Wear</option>
+              <option value="TR">TR - Tracking</option>
+              <option value="WO">WO - Washed Out</option>
+              <option value="WT">WT - Worn Teeth/Cutters</option>
             </select>
           </div>
           <!-- 4. Location -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">L (Loc)</label>
+            <label class="input-label">L - LOCATION</label>
             <select id="bit-grade-l" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="N">N</option>
-              <option value="A">A</option>
-              <option value="I">I</option>
-              <option value="O">O</option>
-              <option value="C">C</option>
-              <option value="G">G</option>
-              <option value="S">S</option>
+              <option value="N">N - Nose</option>
+              <option value="A">A - All</option>
+              <option value="I">I - Inner Rows</option>
+              <option value="O">O - Outer Rows</option>
+              <option value="C">C - Cone</option>
+              <option value="G">G - Gauge</option>
+              <option value="S">S - Shoulder</option>
             </select>
           </div>
           <!-- 5. Bearing / Seals -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">B (Brg)</label>
+            <label class="input-label">B - BEARING/SEAL</label>
+            <span style="font-size: 0.72rem; color: var(--text-secondary); margin-top: -4px; margin-bottom: 2px;">Non-sealed: 0-8 scale | Sealed: E / N / F</span>
             <select id="bit-grade-b" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="X">X</option>
-              <option value="E">E</option>
-              <option value="F">F</option>
-              <option value="N">N</option>
+              <option value="X">X - Fixed Cutter (Not Applicable)</option>
+              <option value="E">E - Sealed Bearing (Effective)</option>
+              <option value="F">F - Sealed Bearing (Failed)</option>
+              <option value="N">N - Sealed Bearing (Not Able to Grade)</option>
               <option value="0">0</option>
               <option value="1">1</option>
               <option value="2">2</option>
@@ -883,68 +893,72 @@
           </div>
           <!-- 6. Gauge -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">G (Gauge)</label>
+            <label class="input-label">G - GAUGE</label>
+            <span style="font-size: 0.72rem; color: var(--text-secondary); margin-top: -4px; margin-bottom: 2px;">Under gauge in 1/16" increments</span>
             <select id="bit-grade-g" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="I">I</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
+              <option value="I">I - In Gauge</option>
+              <option value="1">1 - 1/16" Undergauge</option>
+              <option value="2">2 - 2/16" Undergauge</option>
+              <option value="3">3 - 3/16" Undergauge</option>
+              <option value="4">4 - 4/16" Undergauge</option>
+              <option value="5">5 - 5/16" Undergauge</option>
+              <option value="6">6 - 6/16" Undergauge</option>
+              <option value="7">7 - 7/16" Undergauge</option>
+              <option value="8">8 - 8/16" Undergauge</option>
             </select>
           </div>
           <!-- 7. Other Characteristics -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">O (Other)</label>
+            <label class="input-label">O - OTHER DULL CHAR.</label>
             <select id="bit-grade-o2" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="X">X</option>
-              <option value="BC">BC</option>
-              <option value="BF">BF</option>
-              <option value="BT">BT</option>
-              <option value="BU">BU</option>
-              <option value="CC">CC</option>
-              <option value="CD">CD</option>
-              <option value="CI">CI</option>
-              <option value="CR">CR</option>
-              <option value="CT">CT</option>
-              <option value="ER">ER</option>
-              <option value="FC">FC</option>
-              <option value="HC">HC</option>
-              <option value="JD">JD</option>
-              <option value="LC">LC</option>
-              <option value="LN">LN</option>
-              <option value="LT">LT</option>
-              <option value="OC">OC</option>
-              <option value="PB">PB</option>
-              <option value="PN">PN</option>
-              <option value="RG">RG</option>
-              <option value="RO">RO</option>
-              <option value="SD">SD</option>
-              <option value="SS">SS</option>
-              <option value="TR">TR</option>
-              <option value="WO">WO</option>
-              <option value="WT">WT</option>
+              <option value="X">X - None</option>
+              <option value="BC">BC - Broken Cone</option>
+              <option value="BF">BF - Bond Failure</option>
+              <option value="BT">BT - Broken Teeth/Cutters</option>
+              <option value="BU">BU - Balled Up</option>
+              <option value="CC">CC - Cracked Cone</option>
+              <option value="CD">CD - Cone Dragged</option>
+              <option value="CI">CI - Cone Interference</option>
+              <option value="CR">CR - Cored</option>
+              <option value="CT">CT - Chipped Teeth/Cutters</option>
+              <option value="ER">ER - Erosion</option>
+              <option value="FC">FC - Flat Crested Wear</option>
+              <option value="HC">HC - Heat Checking</option>
+              <option value="JD">JD - Junk Damage</option>
+              <option value="LC">LC - Lost Cone</option>
+              <option value="LN">LN - Lost Nozzle</option>
+              <option value="LT">LT - Lost Teeth/Cutters</option>
+              <option value="OC">OC - Off-Center Wear</option>
+              <option value="PB">PB - Pinched Bit</option>
+              <option value="PN">PN - Plugged Nozzle</option>
+              <option value="RG">RG - Rounded Gauge</option>
+              <option value="RO">RO - Ring-Out</option>
+              <option value="SD">SD - Shirttail Damage</option>
+              <option value="SS">SS - Self-Sharpening Wear</option>
+              <option value="TR">TR - Tracking</option>
+              <option value="WO">WO - Washed Out</option>
+              <option value="WT">WT - Worn Teeth/Cutters</option>
             </select>
           </div>
           <!-- 8. Reason Pulled -->
           <div class="input-group">
-            <label class="input-label" style="font-size: 0.75rem; text-align: center;">R (Reason)</label>
+            <label class="input-label">R - REASON FOR PULLOUT</label>
             <select id="bit-grade-r" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="TD">TD</option>
-              <option value="BHA">BHA</option>
-              <option value="DMF">DMF</option>
-              <option value="DTF">DTF</option>
-              <option value="DST">DST</option>
-              <option value="LOG">LOG</option>
-              <option value="DP">DP</option>
-              <option value="FM">FM</option>
-              <option value="HP">HP</option>
-              <option value="HR">HR</option>
-              <option value="PP">PP</option>
-              <option value="PR">PR</option>
-              <option value="RIG">RIG</option>
-              <option value="TD">TD</option>
-              <option value="TW">TW</option>
-              <option value="WC">WC</option>
+              <option value="TD">TD - Total Depth</option>
+              <option value="BHA">BHA - Change BHA</option>
+              <option value="DMF">DMF - Downhole Motor Failure</option>
+              <option value="DTF">DTF - Downhole Tool Failure</option>
+              <option value="DST">DST - Drill Stem Test</option>
+              <option value="LOG">LOG - Run Logs</option>
+              <option value="DP">DP - Drill Pipe Damage</option>
+              <option value="FM">FM - Formation Change</option>
+              <option value="HP">HP - Hole Problems</option>
+              <option value="HR">HR - Hours on Bit</option>
+              <option value="PP">PP - Pump Pressure Change</option>
+              <option value="PR">PR - Penetration Rate Change</option>
+              <option value="RIG">RIG - Rig Repair</option>
+              <option value="TW">TW - Twist Off</option>
+              <option value="WC">WC - Weather Conditions</option>
             </select>
           </div>
         </div>

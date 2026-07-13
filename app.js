@@ -9082,6 +9082,14 @@ window.clearIADCForm = () => {
   if (visualGradeCard) visualGradeCard.style.display = 'none';
 };
 
+window.showIADCInfo = (type) => {
+  if (type === 'inner') {
+    showToast(window.I18n && window.I18n.translate ? window.I18n.translate('Inner Rows: Linear scale from 0 to 8 indicating wear.') : 'Inner Rows: Linear scale from 0 to 8 indicating wear.');
+  } else if (type === 'outer') {
+    showToast(window.I18n && window.I18n.translate ? window.I18n.translate('Outer Rows: Linear scale from 0 to 8 indicating wear.') : 'Outer Rows: Linear scale from 0 to 8 indicating wear.');
+  }
+};
+
 window.onBitTypeChanged = () => {
   const typeSelect = document.getElementById('bit-info-type');
   if (!typeSelect) return;
