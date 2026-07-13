@@ -2729,11 +2729,7 @@ html[data-theme="dark"][data-bg-theme="peach"] {
 
 /* Quick Access section */
 .guide-quick-access {
-  background: var(--card-bg);
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 4px 12px 12px;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 .guide-section-title {
   display: flex;
@@ -3014,7 +3010,6 @@ html[data-theme="dark"][data-bg-theme="peach"] {
 }
 
 [data-theme="dark"] .guide-category-card { border-color: rgba(255,255,255,0.08); }
-[data-theme="dark"] .guide-quick-access { border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"] .guide-quick-btn { border-color: rgba(255,255,255,0.06); }
 [data-theme="dark"] .guide-calc-box { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"] .guide-calc-input { border-color: rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); }
