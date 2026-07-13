@@ -70,7 +70,7 @@ const translations = {
     "Share this app with colleagues": "Comparte esta app con colegas",
     "Copy Link": "Copiar Enlace",
     "Link copied to clipboard!": "¡Enlace copiado al portapapeles!",
-    "Drilling Guide": "Guía de Perforación"
+    "Drilling Guide": "Guía de Perforación",
     "Bit Dull Grading": "Gradación de Desgaste de Barrena"
   },
   hi: {
@@ -141,7 +141,7 @@ const translations = {
     "Submit Feedback": "प्रतिक्रिया सबमिट करें",
     "Share this app with colleagues": "सहकर्मियों के साथ ऐप साझा करें",
     "Copy Link": "लिंक कॉपी करें",
-    "Link copied to clipboard!": "लिंक क्लिपबोर्ड पर कॉपी किया गया!"
+    "Link copied to clipboard!": "लिंक क्लिपबोर्ड पर कॉपी किया गया!",
     "Bit Dull Grading": "बिट डल ग्रेडिंग",
     "Drilling Guide": "ड्रिलिंग गाइड"
   },
@@ -213,7 +213,7 @@ const translations = {
     "Submit Feedback": "إرسال التعليق",
     "Share this app with colleagues": "شارك التطبيق مع زملائك",
     "Copy Link": "نسخ الرابط",
-    "Link copied to clipboard!": "تم نسخ الرابط إلى الحافظة!"
+    "Link copied to clipboard!": "تم نسخ الرابط إلى الحافظة!",
     "Bit Dull Grading": "تقييم تآكل الحفارة",
     "Drilling Guide": "دليل الحفر"
   },
@@ -285,7 +285,7 @@ const translations = {
     "Submit Feedback": "提交反馈",
     "Share this app with colleagues": "与同事分享此应用",
     "Copy Link": "复制链接",
-    "Link copied to clipboard!": "链接已复制到剪贴板！"
+    "Link copied to clipboard!": "链接已复制到剪贴板！",
     "Bit Dull Grading": "钻头磨损分级",
     "Drilling Guide": "钻井指南"
   },
@@ -357,7 +357,7 @@ const translations = {
     "Submit Feedback": "Envoyer les Commentaires",
     "Share this app with colleagues": "Partager cette application avec des collègues",
     "Copy Link": "Copier le Lien",
-    "Link copied to clipboard!": "Lien copié dans le presse-papiers !"
+    "Link copied to clipboard!": "Lien copié dans le presse-papiers !",
     "Bit Dull Grading": "Gradation d'Usure du Trépan",
     "Drilling Guide": "Guide de Forage"
   },
@@ -429,7 +429,7 @@ const translations = {
     "Submit Feedback": "Enviar Feedback",
     "Share this app with colleagues": "Compartilhe este app com colegas",
     "Copy Link": "Copiar Link",
-    "Link copied to clipboard!": "Link copiado para a área de transferência!"
+    "Link copied to clipboard!": "Link copiado para a área de transferência!",
     "Bit Dull Grading": "Graduação de Desgaste da Broca",
     "Drilling Guide": "Guia de Perfuração"
   },
@@ -501,7 +501,7 @@ const translations = {
     "Submit Feedback": "Feedback senden",
     "Share this app with colleagues": "App mit Kollegen teilen",
     "Copy Link": "Link kopieren",
-    "Link copied to clipboard!": "Link in Zwischenablage kopiert!"
+    "Link copied to clipboard!": "Link in Zwischenablage kopiert!",
     "Bit Dull Grading": "Meißel-Abstumpfungs-Bewertung",
     "Drilling Guide": "Bohrhandbuch"
   },
@@ -573,7 +573,7 @@ const translations = {
     "Submit Feedback": "フィードバックを送信",
     "Share this app with colleagues": "同僚とアプリを共有",
     "Copy Link": "リンクをコピー",
-    "Link copied to clipboard!": "リンクがクリップボードにコピーされました！"
+    "Link copied to clipboard!": "リンクがクリップボードにコピーされました！",
     "Bit Dull Grading": "ビット磨耗グレーディング",
     "Drilling Guide": "掘削ガイド"
   },
@@ -645,7 +645,7 @@ const translations = {
     "Submit Feedback": "Отправить отзыв",
     "Share this app with colleagues": "Поделиться приложением с коллегами",
     "Copy Link": "Копировать ссылку",
-    "Link copied to clipboard!": "Ссылка скопирована в буфер обмена!"
+    "Link copied to clipboard!": "Ссылка скопирована в буфер обмена!",
     "Bit Dull Grading": "Оценка притупления долота",
     "Drilling Guide": "Руководство по бурению"
   },
@@ -717,7 +717,7 @@ const translations = {
     "Submit Feedback": "Kirim Ulasan",
     "Share this app with colleagues": "Bagikan aplikasi ke kolega",
     "Copy Link": "Salin Tautan",
-    "Link copied to clipboard!": "Tautan disalin ke papan klip!"
+    "Link copied to clipboard!": "Tautan disalin ke papan klip!",
     "Bit Dull Grading": "Penilaian Keausan Mata Bor",
     "Drilling Guide": "Panduan Pengeboran"
   },
@@ -789,7 +789,7 @@ const translations = {
     "Submit Feedback": "의견 제출",
     "Share this app with colleagues": "동료들과 앱 공유",
     "Copy Link": "링크 복사",
-    "Link copied to clipboard!": "링크가 클립보드에 복사되었습니다!"
+    "Link copied to clipboard!": "링크가 클립보드에 복사되었습니다!",
     "Bit Dull Grading": "비트 마모 등급",
     "Drilling Guide": "굴착 가이드"
   }
