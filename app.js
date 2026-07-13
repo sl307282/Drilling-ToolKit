@@ -7693,7 +7693,10 @@ const drillingGuideData = {
     desc: "Rig site rules of thumb and reference charts",
     accent: "quickref",
     items: [
-      { id: "quick_reference", name: "Quick Reference" }
+      { id: "drill_bit_torque", name: "Drill Bit Make-Up Torque" },
+      { id: "ring_gaskets_conn", name: "Ring Gaskets & Connections" },
+      { id: "surface_wellhead", name: "Surface Wellhead Information" },
+      { id: "subsea_equipment", name: "Subsea Equipment Reference" }
     ]
   }
 };
@@ -7957,8 +7960,25 @@ window.handleGuideItemClick = (itemId, categoryName) => {
     navigateTo('stuck-pipe');
     return;
   }
-  if (itemId === 'quick_reference') {
-    quickRefSubState.view = 'menu';
+  if (itemId === 'drill_bit_torque') {
+    quickRefSubState.view = 'drill-bit-torque';
+    navigateTo('quick-ref');
+    return;
+  }
+  if (itemId === 'ring_gaskets_conn') {
+    quickRefSubState.view = 'ring-gaskets';
+    navigateTo('quick-ref');
+    return;
+  }
+  if (itemId === 'surface_wellhead') {
+    quickRefSubState.view = 'wellhead';
+    quickRefSubState.wellheadTab = 'A';
+    navigateTo('quick-ref');
+    return;
+  }
+  if (itemId === 'subsea_equipment') {
+    quickRefSubState.view = 'subsea-ref';
+    quickRefSubState.subseaTab = 'overview';
     navigateTo('quick-ref');
     return;
   }

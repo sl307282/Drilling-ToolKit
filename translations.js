@@ -72,7 +72,11 @@ const translations = {
     "Link copied to clipboard!": "¡Enlace copiado al portapapeles!",
     "Drilling Guide": "Guía de Perforación",
     "Bit Dull Grading": "Gradación de Desgaste de Barrena",
-    "Quick Reference": "Referencia Rápida"
+    "Quick Reference": "Referencia Rápida",
+    "Drill Bit Make-Up Torque": "Torque de Conexión de Barrenas",
+    "Ring Gaskets & Connections": "Juntas de Anillo y Conexiones",
+    "Surface Wellhead Information": "Información de Cabezal de Pozo Superficial",
+    "Subsea Equipment Reference": "Referencia de Equipo Submarino"
   },
   hi: {
     "Drilling Toolkit": "ड्रिलिंग टूलकिट",
@@ -145,7 +149,11 @@ const translations = {
     "Link copied to clipboard!": "लिंक क्लिपबोर्ड पर कॉपी किया गया!",
     "Bit Dull Grading": "बिट डल ग्रेडिंग",
     "Drilling Guide": "ड्रिलिंग गाइड",
-    "Quick Reference": "त्वरित संदर्भ"
+    "Quick Reference": "त्वरित संदर्भ",
+    "Drill Bit Make-Up Torque": "ड्रिल बिट मेकअप टॉर्क",
+    "Ring Gaskets & Connections": "रिंग गास्केट और कनेक्शन",
+    "Surface Wellhead Information": "सतह वेलहे드 जानकारी",
+    "Subsea Equipment Reference": "उप-समुद्री उपकरण संदर्भ"
   },
   ar: {
     "Drilling Toolkit": "أدوات الحفر",
@@ -218,7 +226,11 @@ const translations = {
     "Link copied to clipboard!": "تم نسخ الرابط إلى الحافظة!",
     "Bit Dull Grading": "تقييم تآكل الحفارة",
     "Drilling Guide": "دليل الحفر",
-    "Quick Reference": "مرجع سريع"
+    "Quick Reference": "مرجع سريع",
+    "Drill Bit Make-Up Torque": "عزم ربط ريشة الحفر",
+    "Ring Gaskets & Connections": "حشيات الحلقات والوصلات",
+    "Surface Wellhead Information": "معلومات رأس البئر السطحي",
+    "Subsea Equipment Reference": "مرجع المعدات البحرية"
   },
   zh: {
     "Drilling Toolkit": "钻井工具箱",
@@ -291,7 +303,11 @@ const translations = {
     "Link copied to clipboard!": "链接已复制到剪贴板！",
     "Bit Dull Grading": "钻头磨损分级",
     "Drilling Guide": "钻井指南",
-    "Quick Reference": "快速参考"
+    "Quick Reference": "快速参考",
+    "Drill Bit Make-Up Torque": "钻头螺纹上紧扭矩",
+    "Ring Gaskets & Connections": "钢圈密封类与连接",
+    "Surface Wellhead Information": "地面井口装置信息",
+    "Subsea Equipment Reference": "水下井口与设备参考"
   },
   fr: {
     "Drilling Toolkit": "Boîte à Outils",
@@ -364,7 +380,11 @@ const translations = {
     "Link copied to clipboard!": "Lien copié dans le presse-papiers !",
     "Bit Dull Grading": "Gradation d'Usure du Trépan",
     "Drilling Guide": "Guide de Forage",
-    "Quick Reference": "Référence Rapide"
+    "Quick Reference": "Référence Rapide",
+    "Drill Bit Make-Up Torque": "Couple de Serrage des Trépans",
+    "Ring Gaskets & Connections": "Joints Ring Gaskets & Connexions",
+    "Surface Wellhead Information": "Informations Tête de Puits de Surface",
+    "Subsea Equipment Reference": "Référence Équipement Sous-marin"
   },
   pt: {
     "Drilling Toolkit": "Kit de Perfuração",
@@ -437,7 +457,11 @@ const translations = {
     "Link copied to clipboard!": "Link copiado para a área de transferência!",
     "Bit Dull Grading": "Graduação de Desgaste da Broca",
     "Drilling Guide": "Guia de Perfuração",
-    "Quick Reference": "Referência Rápida"
+    "Quick Reference": "Referência Rápida",
+    "Drill Bit Make-Up Torque": "Torque de Aperto da Broca de Perfuração",
+    "Ring Gaskets & Connections": "Juntas de Anel e Conexões",
+    "Surface Wellhead Information": "Informações da Cabeça de Poço de Superfície",
+    "Subsea Equipment Reference": "Referência de Equipamento Submarino"
   },
   de: {
     "Drilling Toolkit": "Bohrfahr-Toolkit",
@@ -510,7 +534,11 @@ const translations = {
     "Link copied to clipboard!": "Link in Zwischenablage kopiert!",
     "Bit Dull Grading": "Meißel-Abstumpfungs-Bewertung",
     "Drilling Guide": "Bohrhandbuch",
-    "Quick Reference": "Schnellreferenz"
+    "Quick Reference": "Schnellreferenz",
+    "Drill Bit Make-Up Torque": "Bohrmeißel-Anzugsdrehmoment",
+    "Ring Gaskets & Connections": "Ringdichtungen & Verbindungen",
+    "Surface Wellhead Information": "Oberirdische Bohrlochkopf-Informationen",
+    "Subsea Equipment Reference": "Unterwasser-Ausrüstungsreferenz"
   },
   ja: {
     "Drilling Toolkit": "掘削ツール",
@@ -583,7 +611,11 @@ const translations = {
     "Link copied to clipboard!": "リンクがクリップボードにコピーされました！",
     "Bit Dull Grading": "ビット磨耗グレーディング",
     "Drilling Guide": "掘削ガイド",
-    "Quick Reference": "クイックリファレンス"
+    "Quick Reference": "クイックリファレンス",
+    "Drill Bit Make-Up Torque": "ドリルビット締め付けトルク",
+    "Ring Gaskets & Connections": "リングガスケットと接続部",
+    "Surface Wellhead Information": "地上ウェルヘッド情報",
+    "Subsea Equipment Reference": "海底機器リファレンス"
   },
   ru: {
     "Drilling Toolkit": "Набор буровика",
@@ -656,7 +688,11 @@ const translations = {
     "Link copied to clipboard!": "Ссылка скопирована в буфер обмена!",
     "Bit Dull Grading": "Оценка притупления долота",
     "Drilling Guide": "Руководство по бурению",
-    "Quick Reference": "Быстрая справка"
+    "Quick Reference": "Быстрая справка",
+    "Drill Bit Make-Up Torque": "Момент свинчивания бурового долота",
+    "Ring Gaskets & Connections": "Кольцевые прокладки и соединения",
+    "Surface Wellhead Information": "Информация об устьевой арматуре",
+    "Subsea Equipment Reference": "Справочник по подводному оборудованию"
   },
   id: {
     "Drilling Toolkit": "Toolkit Bor",
@@ -729,7 +765,11 @@ const translations = {
     "Link copied to clipboard!": "Tautan disalin ke papan klip!",
     "Bit Dull Grading": "Penilaian Keausan Mata Bor",
     "Drilling Guide": "Panduan Pengeboran",
-    "Quick Reference": "Referensi Cepat"
+    "Quick Reference": "Referensi Cepat",
+    "Drill Bit Make-Up Torque": "Torsi Pengencangan Mata Bor",
+    "Ring Gaskets & Connections": "Gasket Cincin & Sambungan",
+    "Surface Wellhead Information": "Informasi Wellhead Permukaan",
+    "Subsea Equipment Reference": "Referensi Peralatan Bawah Laut"
   },
   ko: {
     "Drilling Toolkit": "시추 툴킷",
@@ -802,7 +842,11 @@ const translations = {
     "Link copied to clipboard!": "링크가 클립보드에 복사되었습니다!",
     "Bit Dull Grading": "비트 마모 등급",
     "Drilling Guide": "굴착 가이드",
-    "Quick Reference": "빠른 참조"
+    "Quick Reference": "빠른 참조",
+    "Drill Bit Make-Up Torque": "드릴 비트 메이크업 토크",
+    "Ring Gaskets & Connections": "링 개스킷 및 연결",
+    "Surface Wellhead Information": "지상 웰헤드 정보",
+    "Subsea Equipment Reference": "해저 장비 참조"
   }
 };
 
