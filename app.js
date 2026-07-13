@@ -6814,7 +6814,50 @@ function renderWellControlScreen() {
   }
 }
 
+function getQuickRefGuideItemId() {
+  if (quickRefSubState.view === 'drill-bit-torque') return 'drill_bit_torque';
+  if (quickRefSubState.view === 'ring-gaskets') return 'ring_gaskets_conn';
+  if (quickRefSubState.view === 'wellhead') return 'surface_wellhead';
+  if (quickRefSubState.view === 'subsea-ref') return 'subsea_equipment';
+  return null;
+}
+
+window.updateQuickRefFavoriteIcon = () => {
+  const favBtn = document.getElementById('quick-ref-fav-btn');
+  if (!favBtn) return;
+  
+  const itemId = getQuickRefGuideItemId();
+  if (!itemId) {
+    favBtn.style.display = 'none';
+    return;
+  }
+  
+  favBtn.style.display = 'flex';
+  const favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+  const isFav = favs.includes(itemId);
+  const iconEl = favBtn.querySelector('.material-icons');
+  if (iconEl) {
+    iconEl.textContent = isFav ? 'star' : 'star_border';
+  }
+};
+
+window.toggleQuickRefFavorite = () => {
+  const itemId = getQuickRefGuideItemId();
+  if (!itemId) return;
+  
+  let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+  const index = favs.indexOf(itemId);
+  if (index > -1) {
+    favs.splice(index, 1);
+  } else {
+    favs.push(itemId);
+  }
+  localStorage.setItem('guideFavorites', JSON.stringify(favs));
+  window.updateQuickRefFavoriteIcon();
+};
+
 function renderQuickRefScreen() {
+  window.updateQuickRefFavoriteIcon();
   const container = document.getElementById('quick-ref-container');
   if (!container) return;
 
