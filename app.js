@@ -9189,10 +9189,10 @@ window.showIADCInfo = (type) => {
     outer: {
       title: 'O \u2013 Outer Wear',
       sections: [
-        { heading: 'Definition', text: 'Wear on the outer 1/3 of the bit cutting structure, measured from the gauge area outward.' },
+        { heading: 'Definition', text: 'Wear on the outer 1/3 of the bit cutting structure, extending from the inner zone to the gauge.' },
         { heading: 'Wear Scale', list: ['0 \u2013 No wear', '1\u20137 \u2013 Increasing wear', '8 \u2013 Complete wear'] },
-        { heading: 'How to Grade', text: 'Inspect only the outer (gauge) cutting structure and assign the wear value (0\u20138) according to the amount of cutter or tooth wear.' },
-        { heading: 'Note', note: 'Do not include wear on the inner section when grading Outer Wear.' }
+        { heading: 'How to Grade', text: 'Inspect only the outer cutting structure and record the wear from 0\u20138.' },
+        { heading: 'Note', note: 'Outer wear includes the gauge area but excludes the inner cutting structure.' }
       ]
     }
   };
