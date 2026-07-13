@@ -5974,9 +5974,11 @@ function renderDrillingCalcScreen() {
       `;
       favFormulas.forEach(f => {
         favHtml += `
-          <div class="guide-quick-btn" onclick="openFormulaDirectly('${f.id}')" style="width: 100%; box-sizing: border-box;">
-            <span class="material-icons" style="color:#EAB308; font-size:1.15rem; flex-shrink:0;">star</span>
-            <div class="guide-quick-info">
+          <div class="guide-quick-btn" onclick="openFormulaDirectly('${f.id}')" style="width: 100%; box-sizing: border-box; display: flex; align-items: center; cursor: pointer;">
+            <button class="guide-fav-btn active" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; margin-right: 8px;" onclick="toggleFormulaFavorite('${f.id}', event)">
+              <span class="material-icons" style="font-size: 1.15rem; color: #EAB308;">star</span>
+            </button>
+            <div class="guide-quick-info" style="flex: 1;">
               <span class="guide-quick-name" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">${f.name}</span>
               <span class="guide-quick-cat" style="font-size: 0.65rem; color: var(--text-secondary);">${catName}</span>
             </div>
