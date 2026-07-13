@@ -1645,7 +1645,7 @@ function renderScreen() {
   if (activeScreenHeaderBtn) {
     if (primaryScreens.includes(screenId)) {
       // In drilling-calc, show back button only if we are in list or formula sub-view or have search query active
-      if (screenId === 'drilling-calc' && (calcSubState.view !== 'categories' || calcSubState.search !== '')) {
+      if (screenId === 'drilling-calc' && calcSubState.view !== 'categories') {
         activeScreenHeaderBtn.style.visibility = 'visible';
       } else {
         activeScreenHeaderBtn.style.visibility = 'hidden';
@@ -5834,16 +5834,35 @@ const formulaDb = {
     {
       id: 'cuttings_vol_gpm',
       name: 'Volume of Cutting Generated While Drilling (gall/min)',
-      desc: 'Cuttings volume rate generated at bit in gpm.',
-      inputs: [
-        { key: 'rop', label: 'ROP (ft/hr)', val: 50 },
-        { key: 'hid', label: 'Hole ID (in)', val: 8.5 }
-      ],
       calc: (i) => ((i.rop * Math.pow(i.hid, 2) / 1029.4) * 42) / 60,
       unit: 'gal/min'
     }
   ]
 };
+
+function openFormulaDirectly(formulaId) {
+  Object.keys(formulaDb).forEach(cat => {
+    const found = formulaDb[cat].find(f => f.id === formulaId);
+    if (found) {
+      calcSubState.view = 'formula';
+      calcSubState.category = cat;
+      calcSubState.formulaId = formulaId;
+      renderDrillingCalcScreen();
+    }
+  });
+}
+
+function toggleFormulaFavorite(id, e) {
+  e.stopPropagation();
+  let favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
+  if (favs.includes(id)) {
+    favs = favs.filter(f => f !== id);
+  } else {
+    favs.push(id);
+  }
+  localStorage.setItem('calcFavorites', JSON.stringify(favs));
+  renderDrillingCalcScreen();
+}
 
 function renderDrillingCalcScreen() {
   const container = document.getElementById('drilling-calc-container');
@@ -5853,10 +5872,7 @@ function renderDrillingCalcScreen() {
   if (backBtn) {
     backBtn.onclick = (e) => {
       e.preventDefault();
-      if (calcSubState.search !== '') {
-        calcSubState.search = '';
-        renderDrillingCalcScreen();
-      } else if (calcSubState.view === 'formula') {
+      if (calcSubState.view === 'formula') {
         calcSubState.view = 'list';
         renderDrillingCalcScreen();
       } else if (calcSubState.view === 'list') {
@@ -5868,50 +5884,9 @@ function renderDrillingCalcScreen() {
     };
   }
 
-  if (calcSubState.search !== '') {
-    // Search Results View
-    const query = calcSubState.search;
-
-    // Render the search container shell only if it's not already rendered, preventing input recreation
-    const isSearchShell = document.getElementById('formula-list-container') &&
-      document.getElementById('calc-search-inp') &&
-      document.getElementById('results-count-label');
-
-    if (!isSearchShell) {
-      container.innerHTML = `
-        <div class="content-card">
-          <input type="text" class="search-input" id="calc-search-inp" placeholder="Search formulas..." value="${query}" style="margin-bottom:15px; width: 100%;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h4 style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;" id="results-count-label">Search Results</h4>
-            <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="clear-search-btn">Clear</button>
-          </div>
-          <div class="sizes-grid" style="grid-template-columns:1fr; gap:10px;" id="formula-list-container"></div>
-        </div>
-      `;
-
-      document.getElementById('clear-search-btn').onclick = () => {
-        calcSubState.search = '';
-        renderDrillingCalcScreen();
-      };
-
-      setupSearchInput();
-    }
-
-    // Populates and updates matches list and results count header dynamically
-    updateCalcSearchResultsOnly();
-
-    // Secure input cursor focus and selection
-    const inp = document.getElementById('calc-search-inp');
-    if (inp) {
-      inp.focus();
-      const valLen = inp.value.length;
-      inp.setSelectionRange(valLen, valLen);
-    }
-  } else if (calcSubState.view === 'categories') {
+  if (calcSubState.view === 'categories') {
     // Categories Portal View
     container.innerHTML = `
-      <input type="text" class="search-input" id="calc-search-inp" placeholder="Search all formulas..." style="margin-bottom:20px; width: 100%;">
-      
       <div class="menu-grid" style="grid-template-columns:1fr; gap:12px;">
         <div class="toolkit-card compact-card" id="cat-basic-btn">
           <div class="card-left">
@@ -5933,15 +5908,13 @@ function renderDrillingCalcScreen() {
         <div class="toolkit-card compact-card" id="cat-wellcontrol-btn">
           <div class="card-left">
             <div class="card-icon-container" style="background-color: var(--circle-wellcontrol)">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A16207" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                <line x1="12" y1="8" x2="12" y2="16"></line>
-                <line x1="8" y1="12" x2="16" y2="12"></line>
               </svg>
             </div>
             <div class="card-info">
               <span class="card-title">Well Control Formulas</span>
-              <span class="card-desc">ICP/FCP, gas migration, kick tolerance</span>
+              <span class="card-desc">Kill mud, MASP, kick tolerance & MAASP</span>
             </div>
           </div>
           <span class="card-chevron">&gt;</span>
@@ -5987,6 +5960,44 @@ function renderDrillingCalcScreen() {
       (calcSubState.category === 'wellcontrol' ? 'Well Control Formulas' : 'Applied Drilling Formulas');
 
     const list = formulaDb[calcSubState.category] || [];
+    const favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
+    const favFormulas = list.filter(m => favs.includes(m.id));
+
+    let favHtml = '';
+    if (favFormulas.length > 0) {
+      favHtml = `
+        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
+          <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">Favorites</span>
+        </div>
+        <div class="guide-quick-grid" style="margin-bottom: 20px;">
+      `;
+      favFormulas.forEach(f => {
+        favHtml += `
+          <div class="guide-quick-btn" onclick="openFormulaDirectly('${f.id}')">
+            <span class="material-icons" style="color:#EAB308; font-size:1.15rem; flex-shrink:0;">star</span>
+            <div class="guide-quick-info">
+              <span class="guide-quick-name" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">${f.name}</span>
+              <span class="guide-quick-cat" style="font-size: 0.65rem; color: var(--text-secondary);">${catName}</span>
+            </div>
+          </div>
+        `;
+      });
+      favHtml += `
+        </div>
+      `;
+    } else {
+      favHtml = `
+        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
+          <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">Favorites</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1; margin-bottom: 20px; padding: 10px 12px; background: var(--bg-subtle, rgba(141,119,101,0.04)); border: 1px dashed var(--border-subtle); border-radius: 10px;">
+          <span class="material-icons" style="font-size: 0.95rem; color: #EAB308; vertical-align: middle;">star_border</span>
+          <span>Click the star to add to favorite.</span>
+        </div>
+      `;
+    }
 
     container.innerHTML = `
       <div class="content-card">
@@ -5994,13 +6005,13 @@ function renderDrillingCalcScreen() {
           <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="list-back-btn">Back to Categories</button>
           <h3 style="font-size:0.95rem; font-weight:600; margin:0;">${catName}</h3>
         </div>
-        <input type="text" class="search-input" id="calc-search-inp" placeholder="Search category formulas..." style="margin-bottom:15px; width: 100%;">
+        
+        ${favHtml}
         
         <div class="sizes-grid" style="grid-template-columns:1fr; gap:10px;" id="formula-list-container"></div>
       </div>
     `;
 
-    setupSearchInput();
     document.getElementById('list-back-btn').onclick = () => {
       calcSubState.view = 'categories';
       renderDrillingCalcScreen();
@@ -6008,22 +6019,29 @@ function renderDrillingCalcScreen() {
 
     const listCont = document.getElementById('formula-list-container');
     list.forEach(m => {
+      const isFav = favs.includes(m.id);
       const item = document.createElement('div');
       item.className = 'toolkit-card compact-card';
-      item.innerHTML = `
-        <div class="card-left">
-          <div class="card-info">
-            <span class="card-title">${m.name}</span>
-            <span class="card-desc">${m.desc}</span>
-          </div>
-        </div>
-        <span class="card-chevron">&gt;</span>
-      `;
+      item.style.cursor = 'pointer';
+      
       item.onclick = () => {
         calcSubState.view = 'formula';
         calcSubState.formulaId = m.id;
         renderDrillingCalcScreen();
       };
+
+      item.innerHTML = `
+        <div class="card-left" style="align-items: center; gap: 12px; display: flex; width: 100%;">
+          <button class="guide-fav-btn ${isFav ? 'active' : ''}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${m.id}', event)">
+            <span class="material-icons" style="font-size: 1.15rem; color: ${isFav ? '#EAB308' : 'var(--text-secondary)'};">${isFav ? 'star' : 'star_border'}</span>
+          </button>
+          <div class="card-info" style="flex: 1;">
+            <span class="card-title" style="font-weight: 600; color: var(--text-primary);">${m.name}</span>
+            <span class="card-desc" style="font-size: 0.75rem; color: var(--text-secondary);">${m.desc}</span>
+          </div>
+        </div>
+        <span class="card-chevron" style="color: var(--text-secondary); font-size: 1.2rem; margin-left: 8px;">&rsaquo;</span>
+      `;
       listCont.appendChild(item);
     });
 
