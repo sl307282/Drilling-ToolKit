@@ -1215,7 +1215,6 @@
 
 
 
-
   <!-- Toast Notification -->
   <div id="toast" class="toast">Action Saved</div>
 
@@ -1247,5 +1246,21 @@
       }, 50);
     })();
   </script>
+  <!-- IADC Info Modal -->
+  <div id="iadc-info-modal" class="modal-overlay" onclick="closeIADCInfoModal(event)">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="iadc-info-modal-title" style="font-size:1.05rem; font-weight:700; margin:0; color:var(--text-primary);"></h3>
+        <button class="top-bar-btn" onclick="closeIADCInfoModal()" style="padding:4px; margin-top:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div id="iadc-info-modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
 </body>
 </html>

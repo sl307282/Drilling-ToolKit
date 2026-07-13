@@ -9171,11 +9171,54 @@ window.clearIADCForm = () => {
 };
 
 window.showIADCInfo = (type) => {
-  if (type === 'inner') {
-    showToast(window.I18n && window.I18n.translate ? window.I18n.translate('Inner Rows: Linear scale from 0 to 8 indicating wear.') : 'Inner Rows: Linear scale from 0 to 8 indicating wear.');
-  } else if (type === 'outer') {
-    showToast(window.I18n && window.I18n.translate ? window.I18n.translate('Outer Rows: Linear scale from 0 to 8 indicating wear.') : 'Outer Rows: Linear scale from 0 to 8 indicating wear.');
-  }
+  const modal = document.getElementById('iadc-info-modal');
+  const titleEl = document.getElementById('iadc-info-modal-title');
+  const bodyEl = document.getElementById('iadc-info-modal-body');
+  if (!modal || !titleEl || !bodyEl) return;
+
+  const content = {
+    inner: {
+      title: 'I \u2013 Inner Wear',
+      sections: [
+        { heading: 'Definition', text: 'Wear on the inner 2/3 of the bit cutting structure, measured from the bit center (nose).' },
+        { heading: 'Wear Scale', list: ['0 \u2013 No wear', '1\u20137 \u2013 Increasing wear', '8 \u2013 Complete wear'] },
+        { heading: 'How to Grade', text: 'Inspect only the inner cutting structure and assign the wear value (0\u20138) according to the amount of cutter or tooth wear.' },
+        { heading: 'Note', note: 'Do not include wear on the outer (gauge) section when grading Inner Wear.' }
+      ]
+    },
+    outer: {
+      title: 'O \u2013 Outer Wear',
+      sections: [
+        { heading: 'Definition', text: 'Wear on the outer 1/3 of the bit cutting structure, measured from the gauge area outward.' },
+        { heading: 'Wear Scale', list: ['0 \u2013 No wear', '1\u20137 \u2013 Increasing wear', '8 \u2013 Complete wear'] },
+        { heading: 'How to Grade', text: 'Inspect only the outer (gauge) cutting structure and assign the wear value (0\u20138) according to the amount of cutter or tooth wear.' },
+        { heading: 'Note', note: 'Do not include wear on the inner section when grading Outer Wear.' }
+      ]
+    }
+  };
+
+  const info = content[type];
+  if (!info) return;
+
+  titleEl.textContent = info.title;
+  bodyEl.innerHTML = info.sections.map(sec => {
+    let html = `<div style="margin-bottom:14px;">`;
+    html += `<div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-color); margin-bottom:5px;">${sec.heading}</div>`;
+    if (sec.text) html += `<div style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">${sec.text}</div>`;
+    if (sec.note) html += `<div style="font-size:0.82rem; color:var(--text-secondary); font-style:italic; line-height:1.5; padding:8px 10px; background:var(--bg-subtle); border-radius:8px; border-left:3px solid var(--accent-color);">${sec.note}</div>`;
+    if (sec.list) html += `<ul style="margin:4px 0 0; padding-left:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.8;">${sec.list.map(li => `<li>${li}</li>`).join('')}</ul>`;
+    html += `</div>`;
+    return html;
+  }).join('');
+
+  modal.classList.add('active');
+};
+
+window.closeIADCInfoModal = (e) => {
+  const modal = document.getElementById('iadc-info-modal');
+  if (!modal) return;
+  if (e && e.target !== modal) return;
+  modal.classList.remove('active');
 };
 
 window.onBitTypeChanged = () => {
