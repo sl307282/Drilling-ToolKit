@@ -9255,23 +9255,54 @@ window.onBitTypeChanged = () => {
 };
 
 window.generateIADCGrade = (bypassValidation) => {
-  const i = document.getElementById('bit-grade-i').value;
-  const o = document.getElementById('bit-grade-o').value;
-  const d = document.getElementById('bit-grade-d').value;
-  const l = document.getElementById('bit-grade-l').value;
-  const b = document.getElementById('bit-grade-b').value;
-  const g = document.getElementById('bit-grade-g').value;
-  const o2 = document.getElementById('bit-grade-o2').value;
-  const r = document.getElementById('bit-grade-r').value;
-  
+  const getLabel = (id) => {
+    const sel = document.getElementById(id);
+    if (!sel) return '';
+    const opt = sel.options[sel.selectedIndex];
+    return opt ? opt.text : sel.value;
+  };
+
+  const i   = document.getElementById('bit-grade-i')?.value  || '0';
+  const o   = document.getElementById('bit-grade-o')?.value  || '0';
+  const d   = document.getElementById('bit-grade-d')?.value  || 'NO';
+  const l   = document.getElementById('bit-grade-l')?.value  || 'N';
+  const b   = document.getElementById('bit-grade-b')?.value  || 'X';
+  const g   = document.getElementById('bit-grade-g')?.value  || 'I';
+  const o2  = document.getElementById('bit-grade-o2')?.value || 'X';
+  const r   = document.getElementById('bit-grade-r')?.value  || 'TD';
+
   const grade = `${i}-${o}-${d}-${l}-${b}-${g}-${o2}-${r}`;
-  
+
   const gradeCodeEl = document.getElementById('iadc-visual-grade-code');
   if (gradeCodeEl) gradeCodeEl.textContent = grade;
-  
+
+  // --- Build Grade Interpretation rows ---
+  const interpEl = document.getElementById('iadc-grade-interpretation');
+  if (interpEl) {
+    const rows = [
+      { label: 'Inner Wear',               value: getLabel('bit-grade-i') },
+      { label: 'Outer Wear',               value: getLabel('bit-grade-o') },
+      { label: 'Dull Characteristic',      value: getLabel('bit-grade-d') },
+      { label: 'Location',                 value: getLabel('bit-grade-l') },
+      { label: 'Bearing / Seal',           value: getLabel('bit-grade-b') },
+      { label: 'Gauge Condition',          value: getLabel('bit-grade-g') },
+      { label: 'Other Dull Characteristic',value: getLabel('bit-grade-o2') },
+      { label: 'Reason Pulled',            value: getLabel('bit-grade-r') },
+    ];
+    interpEl.innerHTML = rows.map(row => `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:6px 10px; background:var(--bg-subtle, rgba(141,119,101,0.05)); border-radius:8px;">
+        <span style="font-size:0.74rem; font-weight:600; color:var(--text-secondary); flex-shrink:0; min-width:110px;">${row.label}</span>
+        <span style="font-size:0.78rem; font-weight:700; color:var(--text-primary); text-align:right;">${row.value}</span>
+      </div>
+    `).join('');
+  }
+
   const visualGradeCard = document.getElementById('iadc-visual-grade-card');
-  if (visualGradeCard) visualGradeCard.style.display = 'block';
-  
+  if (visualGradeCard) {
+    visualGradeCard.style.display = 'block';
+    visualGradeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   state.iadcCardVisible = true;
   return grade;
 };

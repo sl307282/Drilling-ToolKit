@@ -930,10 +930,16 @@
 
       <!-- Visual Grade Card -->
       <div id="iadc-visual-grade-card" class="content-card" style="display:none; background: linear-gradient(135deg, rgba(230,161,92,0.1) 0%, rgba(230,161,92,0.02) 100%); border: 1.5px dashed var(--accent-color);">
-        <div style="text-align: center; padding: 10px 0;">
-          <div style="font-size:0.8rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Calculated IADC Dull Grade</div>
-          <div id="iadc-visual-grade-code" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-color); font-family: monospace; letter-spacing: 2px;">0-0-NO-N-X-I-X-TD</div>
+        <!-- Grade Code -->
+        <div style="text-align: center; padding: 10px 0 14px;">
+          <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">IADC Grade</div>
+          <div id="iadc-visual-grade-code" style="font-size: 2rem; font-weight: 800; color: var(--accent-color); font-family: monospace; letter-spacing: 2px;">0-0-NO-N-X-I-X-TD</div>
         </div>
+        <!-- Divider -->
+        <div style="border-top: 1px solid var(--border-subtle); margin: 0 -14px 14px;"></div>
+        <!-- Grade Interpretation -->
+        <div style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Grade Interpretation</div>
+        <div id="iadc-grade-interpretation" style="display:flex; flex-direction:column; gap:7px;"></div>
       </div>
 
       <!-- Action Buttons -->
