@@ -7777,7 +7777,9 @@ function renderDrillingGuideScreen() {
       <div class="guide-category-card guide-cat-accent-${cat.accent}" id="guide-cat-${catKey}">
         <div class="guide-category-header" onclick="toggleGuideCategory('guide-cat-${catKey}')">
           <div class="guide-category-title-section">
-            <span class="material-icons guide-category-icon">${cat.icon}</span>
+            <div class="guide-category-icon-wrapper">
+              <span class="material-icons guide-category-icon">${cat.icon}</span>
+            </div>
             <div class="guide-category-info">
               <span class="guide-category-name">${cat.name}</span>
               <span class="guide-category-desc">${cat.desc}</span>
