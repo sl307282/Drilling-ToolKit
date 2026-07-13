@@ -6008,6 +6008,9 @@ function renderDrillingCalcScreen() {
         
         ${favHtml}
         
+        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">All Calculators</span>
+        </div>
         <div class="sizes-grid" style="grid-template-columns:1fr; gap:10px;" id="formula-list-container"></div>
       </div>
     `;
@@ -6020,6 +6023,8 @@ function renderDrillingCalcScreen() {
     const listCont = document.getElementById('formula-list-container');
     list.forEach(m => {
       const isFav = favs.includes(m.id);
+      if (isFav) return; // Exclusive ownership: hide favorited items from the master list
+      
       const item = document.createElement('div');
       item.className = 'toolkit-card compact-card';
       item.style.cursor = 'pointer';
