@@ -9194,6 +9194,70 @@ window.showIADCInfo = (type) => {
         { heading: 'How to Grade', text: 'Inspect only the outer cutting structure and record the wear from 0\u20138.' },
         { heading: 'Note', note: 'Outer wear includes the gauge area but excludes the inner cutting structure.' }
       ]
+    },
+    location: {
+      title: 'L \u2013 Location',
+      sections: [
+        {
+          heading: 'Description',
+          text: 'Select the location where the primary dull characteristic is observed.'
+        },
+        {
+          heading: 'Bit Zone Diagram',
+          svg: `
+<svg viewBox="0 0 260 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:260px;display:block;margin:10px auto 4px;">
+  <!-- Bit cross-section outline -->
+  <ellipse cx="130" cy="30" rx="90" ry="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>
+  <!-- Gauge zone -->
+  <path d="M40,30 L20,140 Q130,165 240,140 L220,30" fill="rgba(234,179,8,0.12)" stroke="#EAB308" stroke-width="1.5"/>
+  <!-- Shoulder zone -->
+  <path d="M60,30 L45,130 Q130,152 215,130 L200,30" fill="rgba(59,130,246,0.10)" stroke="#3B82F6" stroke-width="1.5"/>
+  <!-- Taper zone -->
+  <path d="M80,30 L68,118 Q130,138 192,118 L180,30" fill="rgba(16,185,129,0.10)" stroke="#10B981" stroke-width="1.5"/>
+  <!-- Nose zone -->
+  <path d="M100,30 L92,106 Q130,122 168,106 L160,30" fill="rgba(239,68,68,0.10)" stroke="#EF4444" stroke-width="1.5"/>
+  <!-- Cone / center zone -->
+  <path d="M120,30 L116,94 Q130,108 144,94 L140,30" fill="rgba(168,85,247,0.15)" stroke="#A855F7" stroke-width="1.5"/>
+  <!-- Center axis line -->
+  <line x1="130" y1="10" x2="130" y2="168" stroke="currentColor" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.3"/>
+  <!-- Labels -->
+  <text x="130" y="100" text-anchor="middle" font-size="8" fill="#A855F7" font-weight="bold">C</text>
+  <text x="7" y="100" text-anchor="start" font-size="8" fill="#EF4444" font-weight="bold">N</text>
+  <text x="245" y="100" text-anchor="end" font-size="8" fill="#EF4444" font-weight="bold">N</text>
+  <text x="3" y="122" text-anchor="start" font-size="8" fill="#10B981" font-weight="bold">T</text>
+  <text x="249" y="122" text-anchor="end" font-size="8" fill="#10B981" font-weight="bold">T</text>
+  <text x="2" y="138" text-anchor="start" font-size="8" fill="#3B82F6" font-weight="bold">S</text>
+  <text x="250" y="138" text-anchor="end" font-size="8" fill="#3B82F6" font-weight="bold">S</text>
+  <text x="4" y="153" text-anchor="start" font-size="8" fill="#EAB308" font-weight="bold">G</text>
+  <text x="248" y="153" text-anchor="end" font-size="8" fill="#EAB308" font-weight="bold">G</text>
+  <!-- "A = All" label bottom -->
+  <text x="130" y="174" text-anchor="middle" font-size="7.5" fill="currentColor" opacity="0.55">A \u2013 All zones combined</text>
+</svg>`
+        },
+        {
+          heading: 'Fixed Cutter (PDC) Zones',
+          list: [
+            'C \u2013 Cone (center of bit)',
+            'N \u2013 Nose',
+            'T \u2013 Taper',
+            'S \u2013 Shoulder',
+            'G \u2013 Gauge (outermost)',
+            'A \u2013 All Rows'
+          ]
+        },
+        {
+          heading: 'Roller Cone Zones',
+          list: [
+            'N \u2013 Nose Row',
+            'M \u2013 Middle Row',
+            'G \u2013 Gage Row',
+            'A \u2013 All Rows',
+            '#1 \u2013 Cone #1',
+            '#2 \u2013 Cone #2',
+            '#3 \u2013 Cone #3'
+          ]
+        }
+      ]
     }
   };
 
@@ -9207,6 +9271,7 @@ window.showIADCInfo = (type) => {
     if (sec.text) html += `<div style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">${sec.text}</div>`;
     if (sec.note) html += `<div style="font-size:0.82rem; color:var(--text-secondary); font-style:italic; line-height:1.5; padding:8px 10px; background:var(--bg-subtle); border-radius:8px; border-left:3px solid var(--accent-color);">${sec.note}</div>`;
     if (sec.list) html += `<ul style="margin:4px 0 0; padding-left:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.8;">${sec.list.map(li => `<li>${li}</li>`).join('')}</ul>`;
+    if (sec.svg)  html += `<div style="color:var(--text-primary);">${sec.svg}</div>`;
     html += `</div>`;
     return html;
   }).join('');
