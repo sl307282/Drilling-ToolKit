@@ -7569,11 +7569,10 @@ const drillingGuideData = {
   operations: {
     name: "Drilling Operations",
     icon: "engineering",
-    desc: "Operational guidelines, dull grading, and core procedures",
+    desc: "Operational guidelines, BHA components, and core procedures",
     accent: "operations",
     items: [
       { id: "stuck_pipe_guide", name: "Stuck Pipe Analysis" },
-      { id: "bit_dull_grading", name: "IADC Bit Dull Grading" },
       { id: "bha_components", name: "BHA Components" },
       { id: "drill_string_components", name: "Drill String Components" }
     ]
@@ -7706,7 +7705,7 @@ function renderDrillingGuideScreen() {
   let html = `
     <div class="guide-search-wrapper">
       <span class="material-icons guide-search-icon">search</span>
-      <input type="text" class="guide-search-input" id="guide-search-input" placeholder="Search guides (e.g., Stuck Pipe, Bit Grading, BOP)" oninput="filterGuideTopics()">
+      <input type="text" class="guide-search-input" id="guide-search-input" placeholder="Search guides (e.g., Stuck Pipe, BHA, BOP)" oninput="filterGuideTopics()">
       <button class="guide-search-clear-btn" onclick="clearGuideSearch()" style="display:none;">
         <span class="material-icons">close</span>
       </button>
