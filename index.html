@@ -928,8 +928,18 @@
         </div>
       </div>
 
-      <!-- Visual Grade Card -->
-      <div id="iadc-visual-grade-card" class="content-card" style="display:none; background: linear-gradient(135deg, rgba(230,161,92,0.1) 0%, rgba(230,161,92,0.02) 100%); border: 1.5px dashed var(--accent-color);">
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:12px; margin-top:20px; margin-bottom:16px;">
+        <button class="btn btn-secondary" onclick="clearIADCForm()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+          Reset
+        </button>
+        <button class="btn btn-primary" onclick="generateIADCGrade(true)" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+          Generate
+        </button>
+      </div>
+
+      <!-- Visual Grade Card — shown below Generate button -->
+      <div id="iadc-visual-grade-card" class="content-card" style="display:none; background: linear-gradient(135deg, rgba(230,161,92,0.1) 0%, rgba(230,161,92,0.02) 100%); border: 1.5px dashed var(--accent-color); margin-bottom:30px;">
         <!-- Grade Code -->
         <div style="text-align: center; padding: 10px 0 14px;">
           <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">IADC Grade</div>
@@ -940,16 +950,6 @@
         <!-- Grade Interpretation -->
         <div style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Grade Interpretation</div>
         <div id="iadc-grade-interpretation" style="display:flex; flex-direction:column; gap:7px;"></div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div style="display:flex; gap:12px; margin-top:20px; margin-bottom:30px;">
-        <button class="btn btn-secondary" onclick="clearIADCForm()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
-          Reset
-        </button>
-        <button class="btn btn-primary" onclick="generateIADCGrade(true)" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
-          Generate
-        </button>
       </div>
     </div>
 
