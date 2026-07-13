@@ -3052,6 +3052,9 @@ html[data-theme="dark"][data-bg-theme="peach"] {
   outline: none;
   transition: all var(--transition-speed);
   box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 textarea.toolkit-input {
   border-radius: 16px !important;
