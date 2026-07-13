@@ -7775,16 +7775,14 @@ function renderDrillingGuideScreen() {
     `;
   } else {
     html += `
-      <div class="guide-quick-access">
-        <div class="guide-section-title" style="margin-bottom: 4px;">
-          <span class="material-icons" style="font-size:1.15rem; color:#EAB308;">star</span>
+      <div class="guide-quick-access" style="padding: 10px 12px 12px;">
+        <div class="guide-section-title" style="margin-bottom: 6px;">
+          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
           <span>QUICK ACCESS</span>
         </div>
-        <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 12px 0;">Click the <span class="material-icons" style="font-size: 0.85rem; color: #EAB308; vertical-align: middle;">star_border</span> on any guide to add it here.</p>
-        <div style="border-bottom: 1px solid var(--border-subtle); margin: 12px 0;"></div>
-        <div style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.78rem; font-weight: 500;">
-          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star_border</span>
-          <span>No quick access guides yet</span>
+        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1;">
+          <span class="material-icons" style="font-size: 0.95rem; color: #EAB308;">star_border</span>
+          <span>Tap the star on any guide to add it here.</span>
         </div>
       </div>
     `;
