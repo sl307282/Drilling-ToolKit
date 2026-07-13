@@ -2732,7 +2732,7 @@ html[data-theme="dark"][data-bg-theme="peach"] {
   background: var(--card-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  padding: 10px 12px 12px;
+  padding: 4px 12px 12px;
   margin-bottom: 14px;
 }
 .guide-section-title {

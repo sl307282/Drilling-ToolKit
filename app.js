@@ -7775,7 +7775,7 @@ function renderDrillingGuideScreen() {
     `;
   } else {
     html += `
-      <div class="guide-quick-access" style="padding: 10px 12px 12px;">
+      <div class="guide-quick-access">
         <div class="guide-section-title" style="margin-bottom: 6px;">
           <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
           <span>QUICK ACCESS</span>
