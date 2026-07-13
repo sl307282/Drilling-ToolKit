@@ -5994,7 +5994,7 @@ function renderDrillingCalcScreen() {
         </div>
         <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1; margin-bottom: 20px; padding: 10px 12px; background: var(--bg-subtle, rgba(141,119,101,0.04)); border: 1px dashed var(--border-subtle); border-radius: 10px;">
           <span class="material-icons" style="font-size: 0.95rem; color: #EAB308; vertical-align: middle;">star_border</span>
-          <span>Click the star to add to favorite.</span>
+          <span>No favorites yet. Tap the star on any calculator to add it here.</span>
         </div>
       `;
     }
