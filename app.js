@@ -7814,14 +7814,6 @@ function renderDrillingGuideScreen() {
   
   html += `</div>`;
   container.innerHTML = html;
-
-  // Auto-expand the first category card on load
-  const firstCard = container.querySelector('.guide-category-card');
-  if (firstCard) {
-    setTimeout(() => {
-      toggleGuideCategory(firstCard.id);
-    }, 50);
-  }
 }
 
 window.filterGuideTopics = () => {

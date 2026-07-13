@@ -2801,7 +2801,6 @@ html[data-theme="dark"][data-bg-theme="peach"] {
 }
 .guide-category-icon {
   font-size: 1.25rem;
-  color: #ffffff !important;
   flex-shrink: 0;
   width: 36px;
   height: 36px;
@@ -2867,34 +2866,34 @@ html[data-theme="dark"][data-bg-theme="peach"] {
 
 /* Category Accent Colors */
 .guide-category-card.guide-cat-accent-operations { border-left: 5px solid #2563eb; }
-.guide-cat-accent-operations .guide-category-icon { background: #2563eb; }
+.guide-cat-accent-operations .guide-category-icon { background: rgba(37, 99, 235, 0.1); color: #2563eb !important; }
 
 .guide-category-card.guide-cat-accent-bits { border-left: 5px solid #dc2626; }
-.guide-cat-accent-bits .guide-category-icon { background: #dc2626; }
+.guide-cat-accent-bits .guide-category-icon { background: rgba(220, 38, 38, 0.1); color: #dc2626 !important; }
 
 .guide-category-card.guide-cat-accent-bha { border-left: 5px solid #16a34a; }
-.guide-cat-accent-bha .guide-category-icon { background: #16a34a; }
+.guide-cat-accent-bha .guide-category-icon { background: rgba(22, 163, 74, 0.1); color: #16a34a !important; }
 
 .guide-category-card.guide-cat-accent-wellcontrol { border-left: 5px solid #dc2626; }
-.guide-cat-accent-wellcontrol .guide-category-icon { background: #dc2626; }
+.guide-cat-accent-wellcontrol .guide-category-icon { background: rgba(220, 38, 38, 0.1); color: #dc2626 !important; }
 
 .guide-category-card.guide-cat-accent-casing { border-left: 5px solid #16a34a; }
-.guide-cat-accent-casing .guide-category-icon { background: #16a34a; }
+.guide-cat-accent-casing .guide-category-icon { background: rgba(22, 163, 74, 0.1); color: #16a34a !important; }
 
 .guide-category-card.guide-cat-accent-fishing { border-left: 5px solid #4b5563; }
-.guide-cat-accent-fishing .guide-category-icon { background: #4b5563; }
+.guide-cat-accent-fishing .guide-category-icon { background: rgba(75, 85, 99, 0.1); color: #4b5563 !important; }
 
 .guide-category-card.guide-cat-accent-hydraulics { border-left: 5px solid #0284c7; }
-.guide-cat-accent-hydraulics .guide-category-icon { background: #0284c7; }
+.guide-cat-accent-hydraulics .guide-category-icon { background: rgba(2, 132, 199, 0.1); color: #0284c7 !important; }
 
 .guide-category-card.guide-cat-accent-directional { border-left: 5px solid #7c3aed; }
-.guide-cat-accent-directional .guide-category-icon { background: #7c3aed; }
+.guide-cat-accent-directional .guide-category-icon { background: rgba(124, 58, 237, 0.1); color: #7c3aed !important; }
 
 .guide-category-card.guide-cat-accent-mud { border-left: 5px solid #16a34a; }
-.guide-cat-accent-mud .guide-category-icon { background: #16a34a; }
+.guide-cat-accent-mud .guide-category-icon { background: rgba(22, 163, 74, 0.1); color: #16a34a !important; }
 
 .guide-category-card.guide-cat-accent-completion { border-left: 5px solid #d97706; }
-.guide-cat-accent-completion .guide-category-icon { background: #d97706; }
+.guide-cat-accent-completion .guide-category-icon { background: rgba(217, 119, 6, 0.1); color: #d97706 !important; }
 
 /* Guide Detail Screen */
 .guide-detail-card {
