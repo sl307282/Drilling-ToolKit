@@ -6004,7 +6004,7 @@ function renderDrillingCalcScreen() {
     container.innerHTML = `
       <div class="content-card">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
-          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="list-back-btn">Back to Categories</button>
+          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="list-back-btn">← Categories</button>
           <h3 style="font-size:0.95rem; font-weight:600; margin:0;">${catName}</h3>
         </div>
         
