@@ -2747,9 +2747,9 @@ html[data-theme="dark"][data-bg-theme="peach"] {
   margin-bottom: 12px;
 }
 .guide-quick-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 .guide-quick-btn {
   display: flex;
