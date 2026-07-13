@@ -9197,67 +9197,54 @@ window.showIADCInfo = (type) => {
     },
     location: {
       title: 'L \u2013 Location',
-      sections: [
-        {
-          heading: 'Description',
-          text: 'Select the location where the primary dull characteristic is observed.'
-        },
-        {
-          heading: 'Bit Zone Diagram',
-          svg: `
-<svg viewBox="0 0 260 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:260px;display:block;margin:10px auto 4px;">
-  <!-- Bit cross-section outline -->
-  <ellipse cx="130" cy="30" rx="90" ry="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>
-  <!-- Gauge zone -->
-  <path d="M40,30 L20,140 Q130,165 240,140 L220,30" fill="rgba(234,179,8,0.12)" stroke="#EAB308" stroke-width="1.5"/>
-  <!-- Shoulder zone -->
-  <path d="M60,30 L45,130 Q130,152 215,130 L200,30" fill="rgba(59,130,246,0.10)" stroke="#3B82F6" stroke-width="1.5"/>
-  <!-- Taper zone -->
-  <path d="M80,30 L68,118 Q130,138 192,118 L180,30" fill="rgba(16,185,129,0.10)" stroke="#10B981" stroke-width="1.5"/>
-  <!-- Nose zone -->
-  <path d="M100,30 L92,106 Q130,122 168,106 L160,30" fill="rgba(239,68,68,0.10)" stroke="#EF4444" stroke-width="1.5"/>
-  <!-- Cone / center zone -->
-  <path d="M120,30 L116,94 Q130,108 144,94 L140,30" fill="rgba(168,85,247,0.15)" stroke="#A855F7" stroke-width="1.5"/>
-  <!-- Center axis line -->
-  <line x1="130" y1="10" x2="130" y2="168" stroke="currentColor" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.3"/>
-  <!-- Labels -->
-  <text x="130" y="100" text-anchor="middle" font-size="8" fill="#A855F7" font-weight="bold">C</text>
-  <text x="7" y="100" text-anchor="start" font-size="8" fill="#EF4444" font-weight="bold">N</text>
-  <text x="245" y="100" text-anchor="end" font-size="8" fill="#EF4444" font-weight="bold">N</text>
-  <text x="3" y="122" text-anchor="start" font-size="8" fill="#10B981" font-weight="bold">T</text>
-  <text x="249" y="122" text-anchor="end" font-size="8" fill="#10B981" font-weight="bold">T</text>
-  <text x="2" y="138" text-anchor="start" font-size="8" fill="#3B82F6" font-weight="bold">S</text>
-  <text x="250" y="138" text-anchor="end" font-size="8" fill="#3B82F6" font-weight="bold">S</text>
-  <text x="4" y="153" text-anchor="start" font-size="8" fill="#EAB308" font-weight="bold">G</text>
-  <text x="248" y="153" text-anchor="end" font-size="8" fill="#EAB308" font-weight="bold">G</text>
-  <!-- "A = All" label bottom -->
-  <text x="130" y="174" text-anchor="middle" font-size="7.5" fill="currentColor" opacity="0.55">A \u2013 All zones combined</text>
-</svg>`
-        },
-        {
-          heading: 'Fixed Cutter (PDC) Zones',
-          list: [
-            'C \u2013 Cone (center of bit)',
-            'N \u2013 Nose',
-            'T \u2013 Taper',
-            'S \u2013 Shoulder',
-            'G \u2013 Gauge (outermost)',
-            'A \u2013 All Rows'
-          ]
-        },
-        {
-          heading: 'Roller Cone Zones',
-          list: [
-            'N \u2013 Nose Row',
-            'M \u2013 Middle Row',
-            'G \u2013 Gage Row',
-            'A \u2013 All Rows',
-            '#1 \u2013 Cone #1',
-            '#2 \u2013 Cone #2',
-            '#3 \u2013 Cone #3'
-          ]
-        }
-      ]
+      html: `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-color); margin-bottom:10px;">Bit Location Diagram</div>
+          <!-- SVG Bit Cross-section Diagram -->
+          <svg viewBox="0 0 220 170" width="100%" style="max-width:300px; display:block; margin:0 auto 14px;">
+            <!-- Bit body outline -->
+            <path d="M110,10 C130,10 155,20 165,50 L175,90 C178,110 175,130 165,148 L110,160 L55,148 C45,130 42,110 45,90 L55,50 C65,20 90,10 110,10 Z" fill="var(--bg-subtle, rgba(141,119,101,0.1))" stroke="var(--accent-color)" stroke-width="1.5"/>
+            <!-- Nose zone (center top) -->
+            <ellipse cx="110" cy="28" rx="18" ry="12" fill="rgba(234,179,8,0.22)" stroke="#EAB308" stroke-width="1.2"/>
+            <text x="110" y="31" text-anchor="middle" font-size="9" font-weight="700" fill="#EAB308">N</text>
+            <!-- Middle zone -->
+            <ellipse cx="110" cy="68" rx="32" ry="14" fill="rgba(59,130,246,0.15)" stroke="#3B82F6" stroke-width="1.2"/>
+            <text x="110" y="72" text-anchor="middle" font-size="9" font-weight="700" fill="#3B82F6">M</text>
+            <!-- Shoulder zone (left) -->
+            <ellipse cx="70" cy="108" rx="18" ry="10" fill="rgba(168,85,247,0.15)" stroke="#A855F7" stroke-width="1.2"/>
+            <text x="70" y="112" text-anchor="middle" font-size="9" font-weight="700" fill="#A855F7">S</text>
+            <!-- Shoulder zone (right) -->
+            <ellipse cx="150" cy="108" rx="18" ry="10" fill="rgba(168,85,247,0.15)" stroke="#A855F7" stroke-width="1.2"/>
+            <text x="150" y="112" text-anchor="middle" font-size="9" font-weight="700" fill="#A855F7">S</text>
+            <!-- Gauge zone (left) -->
+            <ellipse cx="55" cy="140" rx="14" ry="8" fill="rgba(239,68,68,0.15)" stroke="#EF4444" stroke-width="1.2"/>
+            <text x="55" y="144" text-anchor="middle" font-size="9" font-weight="700" fill="#EF4444">G</text>
+            <!-- Gauge zone (right) -->
+            <ellipse cx="165" cy="140" rx="14" ry="8" fill="rgba(239,68,68,0.15)" stroke="#EF4444" stroke-width="1.2"/>
+            <text x="165" y="144" text-anchor="middle" font-size="9" font-weight="700" fill="#EF4444">G</text>
+          </svg>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-color); margin-bottom:8px;">Location Codes</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            ${[
+              { code:'N', color:'#EAB308', label:'Nose (Center)' },
+              { code:'M', color:'#3B82F6', label:'Middle' },
+              { code:'S', color:'#A855F7', label:'Shoulder' },
+              { code:'G', color:'#EF4444', label:'Gauge' },
+              { code:'C', color:'var(--text-secondary)', label:'Cone (Roller Cone only)' },
+              { code:'A', color:'var(--accent-color)', label:'All Areas' },
+            ].map(r => `
+              <div style="display:flex; align-items:center; gap:10px; padding:5px 8px; background:var(--bg-subtle); border-radius:8px;">
+                <span style="font-size:0.82rem; font-weight:800; color:${r.color}; min-width:18px; text-align:center;">${r.code}</span>
+                <span style="font-size:0.82rem; color:var(--text-primary);">${r.label}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+        <div style="font-size:0.82rem; color:var(--text-secondary); font-style:italic; line-height:1.5; padding:8px 10px; background:var(--bg-subtle); border-radius:8px; border-left:3px solid var(--accent-color);">
+          💡 Tip: Select the location where the dull characteristic is most severe.
+        </div>
+      `
     }
   };
 
@@ -9265,16 +9252,21 @@ window.showIADCInfo = (type) => {
   if (!info) return;
 
   titleEl.textContent = info.title;
-  bodyEl.innerHTML = info.sections.map(sec => {
-    let html = `<div style="margin-bottom:14px;">`;
-    html += `<div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-color); margin-bottom:5px;">${sec.heading}</div>`;
-    if (sec.text) html += `<div style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">${sec.text}</div>`;
-    if (sec.note) html += `<div style="font-size:0.82rem; color:var(--text-secondary); font-style:italic; line-height:1.5; padding:8px 10px; background:var(--bg-subtle); border-radius:8px; border-left:3px solid var(--accent-color);">${sec.note}</div>`;
-    if (sec.list) html += `<ul style="margin:4px 0 0; padding-left:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.8;">${sec.list.map(li => `<li>${li}</li>`).join('')}</ul>`;
-    if (sec.svg)  html += `<div style="color:var(--text-primary);">${sec.svg}</div>`;
-    html += `</div>`;
-    return html;
-  }).join('');
+
+  // Support raw html (for diagrams) or structured sections
+  if (info.html) {
+    bodyEl.innerHTML = info.html;
+  } else {
+    bodyEl.innerHTML = info.sections.map(sec => {
+      let html = `<div style="margin-bottom:14px;">`;
+      html += `<div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-color); margin-bottom:5px;">${sec.heading}</div>`;
+      if (sec.text) html += `<div style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">${sec.text}</div>`;
+      if (sec.note) html += `<div style="font-size:0.82rem; color:var(--text-secondary); font-style:italic; line-height:1.5; padding:8px 10px; background:var(--bg-subtle); border-radius:8px; border-left:3px solid var(--accent-color);">${sec.note}</div>`;
+      if (sec.list) html += `<ul style="margin:4px 0 0; padding-left:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.8;">${sec.list.map(li => `<li>${li}</li>`).join('')}</ul>`;
+      html += `</div>`;
+      return html;
+    }).join('');
+  }
 
   modal.classList.add('active');
 };
