@@ -9183,63 +9183,72 @@ window.onBitTypeChanged = () => {
   if (!typeSelect) return;
   const type = typeSelect.value;
 
-  // --- Bearing/Seal ---
-  const bearingSelect = document.getElementById('bit-grade-b');
-  if (bearingSelect) {
-    if (type === 'PDC') {
-      bearingSelect.value = 'X';
-      bearingSelect.disabled = true;
-    } else {
-      bearingSelect.disabled = false;
-      if (bearingSelect.value === 'X') {
-        bearingSelect.value = 'E';
-      }
-    }
-  }
-
-  // --- Location (Column-4) — options depend on bit type ---
-  const locationSelect = document.getElementById('bit-grade-l');
-  if (locationSelect) {
-    const currentVal = locationSelect.value;
-    locationSelect.innerHTML = '';
-
-    let options = [];
-    if (type === 'PDC') {
-      // Fixed Cutter Bit locations (IADC Column-4)
-      options = [
-        { value: 'C', label: 'C - Cone' },
-        { value: 'N', label: 'N - Nose' },
-        { value: 'T', label: 'T - Taper' },
-        { value: 'S', label: 'S - Shoulder' },
-        { value: 'G', label: 'G - Gauge' },
-        { value: 'A', label: 'A - All Rows' },
-      ];
-    } else {
-      // Roller Cone Bit locations (IADC Column-4)
-      options = [
-        { value: 'N', label: 'N - Nose Row' },
-        { value: 'M', label: 'M - Middle Row' },
-        { value: 'G', label: 'G - Gage Row' },
-        { value: 'A', label: 'A - All Rows' },
-        { value: '#1', label: '#1 - Cone #1' },
-        { value: '#2', label: '#2 - Cone #2' },
-        { value: '#3', label: '#3 - Cone #3' },
-      ];
-    }
-
+  // Helper to rebuild a select with options array
+  const rebuildSelect = (id, options, defaultVal) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const currentVal = sel.value;
+    sel.innerHTML = '';
     options.forEach(o => {
       const opt = document.createElement('option');
       opt.value = o.value;
       opt.textContent = o.label;
-      if (o.value === currentVal) opt.selected = true;
-      locationSelect.appendChild(opt);
+      sel.appendChild(opt);
     });
-
-    // If previous value is not in new list, default to first option
     const validValues = options.map(o => o.value);
-    if (!validValues.includes(locationSelect.value)) {
-      locationSelect.value = options[0].value;
-    }
+    sel.value = validValues.includes(currentVal) ? currentVal : (defaultVal || options[0].value);
+  };
+
+  // --- Bearing/Seal (Column-5) — depends on bit type ---
+  const bearingHint = document.getElementById('bit-grade-b-hint');
+  const bearingSelect = document.getElementById('bit-grade-b');
+  if (type === 'PDC') {
+    // Fixed Cutter: only X (Not Applicable)
+    rebuildSelect('bit-grade-b', [
+      { value: 'X', label: 'X - Not Applicable (Fixed Cutter)' }
+    ], 'X');
+    if (bearingSelect) bearingSelect.disabled = true;
+    if (bearingHint) bearingHint.textContent = 'Fixed cutter bits do not have bearings';
+  } else {
+    // Roller Cone: 0–8 non-sealed + E/F/N sealed
+    rebuildSelect('bit-grade-b', [
+      { value: 'E', label: 'E - Sealed Bearing (Effective)' },
+      { value: 'F', label: 'F - Sealed Bearing (Failed)' },
+      { value: 'N', label: 'N - Sealed Bearing (Not Able to Grade)' },
+      { value: '0', label: '0 - No Bearing Wear' },
+      { value: '1', label: '1 - 1/8 Bearing Life Used' },
+      { value: '2', label: '2 - 2/8 Bearing Life Used' },
+      { value: '3', label: '3 - 3/8 Bearing Life Used' },
+      { value: '4', label: '4 - 4/8 Bearing Life Used' },
+      { value: '5', label: '5 - 5/8 Bearing Life Used' },
+      { value: '6', label: '6 - 6/8 Bearing Life Used' },
+      { value: '7', label: '7 - 7/8 Bearing Life Used' },
+      { value: '8', label: '8 - Bearing Failed / All Life Used' },
+    ], 'E');
+    if (bearingSelect) bearingSelect.disabled = false;
+    if (bearingHint) bearingHint.textContent = 'Sealed: E / F / N  |  Non-sealed: 0 (no wear) → 8 (failed)';
+  }
+
+  // --- Location (Column-4) — options depend on bit type ---
+  if (type === 'PDC') {
+    rebuildSelect('bit-grade-l', [
+      { value: 'C', label: 'C - Cone' },
+      { value: 'N', label: 'N - Nose' },
+      { value: 'T', label: 'T - Taper' },
+      { value: 'S', label: 'S - Shoulder' },
+      { value: 'G', label: 'G - Gauge' },
+      { value: 'A', label: 'A - All Rows' },
+    ], 'C');
+  } else {
+    rebuildSelect('bit-grade-l', [
+      { value: 'N', label: 'N - Nose Row' },
+      { value: 'M', label: 'M - Middle Row' },
+      { value: 'G', label: 'G - Gage Row' },
+      { value: 'A', label: 'A - All Rows' },
+      { value: '#1', label: '#1 - Cone #1' },
+      { value: '#2', label: '#2 - Cone #2' },
+      { value: '#3', label: '#3 - Cone #3' },
+    ], 'N');
   }
 
   generateIADCGrade(true);

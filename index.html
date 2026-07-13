@@ -844,21 +844,9 @@
           <!-- 5. Bearing / Seals -->
           <div class="input-group">
             <label class="input-label">B - BEARING/SEAL</label>
-            <span style="font-size: 0.72rem; color: var(--text-secondary); margin-top: -4px; margin-bottom: 2px;">Non-sealed: 0-8 scale | Sealed: E / N / F</span>
+            <span id="bit-grade-b-hint" style="font-size: 0.72rem; color: var(--text-secondary); margin-top: -4px; margin-bottom: 2px;">Options change based on selected bit type</span>
             <select id="bit-grade-b" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="X">X - Fixed Cutter (Not Applicable)</option>
-              <option value="E">E - Sealed Bearing (Effective)</option>
-              <option value="F">F - Sealed Bearing (Failed)</option>
-              <option value="N">N - Sealed Bearing (Not Able to Grade)</option>
-              <option value="0">0</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
+              <!-- Populated dynamically by onBitTypeChanged() -->
             </select>
           </div>
           <!-- 6. Gauge -->
