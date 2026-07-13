@@ -9300,7 +9300,6 @@ window.onBitTypeChanged = () => {
   };
 
   // --- Bearing/Seal (Column-5) — depends on bit type ---
-  const bearingHint = document.getElementById('bit-grade-b-hint');
   const bearingSelect = document.getElementById('bit-grade-b');
   if (type === 'PDC') {
     // Fixed Cutter: only X (Not Applicable)
@@ -9308,7 +9307,6 @@ window.onBitTypeChanged = () => {
       { value: 'X', label: 'X - Not Applicable (Fixed Cutter)' }
     ], 'X');
     if (bearingSelect) bearingSelect.disabled = true;
-    if (bearingHint) bearingHint.textContent = 'Fixed cutter bits do not have bearings';
   } else {
     // Roller Cone: 0–8 non-sealed + E/F/N sealed
     rebuildSelect('bit-grade-b', [
@@ -9326,7 +9324,6 @@ window.onBitTypeChanged = () => {
       { value: '8', label: '8 - Bearing Failed / All Life Used' },
     ], 'E');
     if (bearingSelect) bearingSelect.disabled = false;
-    if (bearingHint) bearingHint.textContent = 'Sealed: E / F / N  |  Non-sealed: 0 (no wear) → 8 (failed)';
   }
 
   // --- Location (Column-4) — options depend on bit type ---

@@ -846,7 +846,6 @@
           <!-- 5. Bearing / Seals -->
           <div class="input-group">
             <label class="input-label">B - BEARING/SEAL</label>
-            <span id="bit-grade-b-hint" style="font-size: 0.72rem; color: var(--text-secondary); margin-top: -4px; margin-bottom: 2px;">Options change based on selected bit type</span>
             <select id="bit-grade-b" class="toolkit-select" onchange="generateIADCGrade(true)">
               <!-- Populated dynamically by onBitTypeChanged() -->
             </select>
@@ -854,7 +853,6 @@
           <!-- 6. Gauge -->
           <div class="input-group">
             <label class="input-label">G - GAUGE CONDITION</label>
-            <span style="font-size: 0.72rem; color: var(--text-secondary); margin-top: -4px; margin-bottom: 2px;">Undergauge measured in 1/16" increments</span>
             <select id="bit-grade-g" class="toolkit-select" onchange="generateIADCGrade(true)">
               <option value="I">I – Pulled out bit is In Gauge</option>
               <option value="1">1 – Under gauge up to 1/16"</option>
