@@ -4332,6 +4332,7 @@ function renderAPITubularScreen() {
 // BONUS FEATURE 2: Stuck Pipe Analysis
 // ==========================================
 function renderStuckPipeScreen() {
+  window.updateStuckPipeFavoriteIcon();
   const container = document.getElementById('stuck-pipe-container');
   container.innerHTML = `
     <div class="content-card">
@@ -8018,6 +8019,30 @@ window.renderDrillingGuideDetailScreen = () => {
   } else if (itemId === 'mud_calculations') {
     calculateGuideMudWeightUp();
   }
+};
+
+window.updateStuckPipeFavoriteIcon = () => {
+  const favBtn = document.getElementById('stuck-pipe-fav-btn');
+  if (favBtn) {
+    const favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+    const isFav = favs.includes('stuck_pipe_guide');
+    const iconEl = favBtn.querySelector('.material-icons');
+    if (iconEl) {
+      iconEl.textContent = isFav ? 'star' : 'star_border';
+    }
+  }
+};
+
+window.toggleStuckPipeFavorite = () => {
+  let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+  const index = favs.indexOf('stuck_pipe_guide');
+  if (index > -1) {
+    favs.splice(index, 1);
+  } else {
+    favs.push('stuck_pipe_guide');
+  }
+  localStorage.setItem('guideFavorites', JSON.stringify(favs));
+  window.updateStuckPipeFavoriteIcon();
 };
 
 window.toggleDetailGuideFavorite = () => {
