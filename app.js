@@ -7574,8 +7574,7 @@ const drillingGuideData = {
     items: [
       { id: "stuck_pipe_guide", name: "Stuck Pipe Analysis" },
       { id: "bha_components", name: "BHA Components" },
-      { id: "drill_string_components", name: "Drill String Components" },
-      { id: "quick_reference", name: "Quick Reference" }
+      { id: "drill_string_components", name: "Drill String Components" }
     ]
   },
   bits: {
@@ -7685,6 +7684,15 @@ const drillingGuideData = {
       { id: "packers", name: "Packers" },
       { id: "production_tubing", name: "Production Tubing" },
       { id: "wellhead_xmas_tree", name: "Wellhead & Xmas Tree" }
+    ]
+  },
+  quickref: {
+    name: "Quick Reference",
+    icon: "bookmark",
+    desc: "Rig site rules of thumb and reference charts",
+    accent: "quickref",
+    items: [
+      { id: "quick_reference", name: "Quick Reference" }
     ]
   }
 };
