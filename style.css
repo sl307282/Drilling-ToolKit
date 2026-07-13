@@ -2729,6 +2729,7 @@ html[data-theme="dark"][data-bg-theme="peach"] {
 
 /* Quick Access section */
 .guide-quick-access {
+  margin-top: -12px;
   margin-bottom: 20px;
 }
 .guide-section-title {
