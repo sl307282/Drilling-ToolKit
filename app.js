@@ -9191,21 +9191,51 @@ window.editIADCRecord = (recordId) => {
   
   state.editingIADCRecordId = recordId;
   
-  document.getElementById('bit-info-type').value = rec.type || 'PDC';
-  document.getElementById('bit-info-size').value = rec.size || '';
-  document.getElementById('bit-info-mfg').value = rec.mfg || '';
-  document.getElementById('bit-info-sn').value = rec.sn || '';
+  const setSelectVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el || !val) return;
+    
+    // 1. Direct match
+    el.value = val;
+    if (el.value === val) return;
+    
+    // 2. Extract prefix before ' - ' (e.g. "NO" from "NO - No Dull Characteristic")
+    const prefix = val.split(' - ')[0].trim();
+    el.value = prefix;
+    if (el.value === prefix) return;
+    
+    // 3. Match any option whose value/text starts with or is started by the value
+    for (let opt of el.options) {
+      if (opt.value.startsWith(prefix) || prefix.startsWith(opt.value)) {
+        el.value = opt.value;
+        return;
+      }
+    }
+  };
   
-  document.getElementById('bit-grade-i').value = rec.gradeI || '0';
-  document.getElementById('bit-grade-o').value = rec.gradeO || '0';
-  document.getElementById('bit-grade-d').value = rec.gradeD || 'NO';
-  document.getElementById('bit-grade-l').value = rec.gradeL || 'N';
-  document.getElementById('bit-grade-b').value = rec.gradeB || 'X';
-  document.getElementById('bit-grade-g').value = rec.gradeG || 'I';
-  document.getElementById('bit-grade-o2').value = rec.gradeO2 || 'X';
-  document.getElementById('bit-grade-r').value = rec.gradeR || 'TD';
+  const bitTypeEl = document.getElementById('bit-info-type');
+  if (bitTypeEl) bitTypeEl.value = rec.type || 'PDC';
   
-  document.getElementById('bit-grade-comments').value = rec.comments || '';
+  const bitSizeEl = document.getElementById('bit-info-size');
+  if (bitSizeEl) bitSizeEl.value = rec.size || '';
+  
+  const bitMfgEl = document.getElementById('bit-info-mfg');
+  if (bitMfgEl) bitMfgEl.value = rec.mfg || '';
+  
+  const bitSnEl = document.getElementById('bit-info-sn');
+  if (bitSnEl) bitSnEl.value = rec.sn || '';
+  
+  setSelectVal('bit-grade-i', rec.gradeI || '0');
+  setSelectVal('bit-grade-o', rec.gradeO || '0');
+  setSelectVal('bit-grade-d', rec.gradeD || 'NO');
+  setSelectVal('bit-grade-l', rec.gradeL || 'N');
+  setSelectVal('bit-grade-b', rec.gradeB || 'X');
+  setSelectVal('bit-grade-g', rec.gradeG || 'I');
+  setSelectVal('bit-grade-o2', rec.gradeO2 || 'X');
+  setSelectVal('bit-grade-r', rec.gradeR || 'TD');
+  
+  const commentsEl = document.getElementById('bit-grade-comments');
+  if (commentsEl) commentsEl.value = rec.comments || '';
   
   onBitTypeChanged();
   generateIADCGrade(true);
