@@ -6990,9 +6990,6 @@ function renderQuickRefScreen() {
 
     container.innerHTML = `
       <div class="content-card">
-        <div style="margin-bottom: 20px;">
-          <input type="text" id="quick-ref-search" class="form-input" placeholder="Search bit thread (e.g. 4-1/2)..." style="width: 100%;">
-        </div>
         <div class="table-responsive">
           <table class="data-table" style="width:100%;">
             <thead>
@@ -7005,13 +7002,12 @@ function renderQuickRefScreen() {
             <tbody id="quick-ref-tbody"></tbody>
           </table>
         </div>
-      </div>
-      
-      <div class="content-card" style="margin-top:20px; font-size:0.85rem; color:var(--text-secondary); line-height:1.4;">
-        <p style="margin-bottom:10px; font-weight:600; color:var(--text-primary);">Notes on Drill Bit Make-Up Torque:</p>
-        <ul style="padding-left:18px; display:flex; flex-direction:column; gap:6px;">
-          <li>Torque values listed above are standard recommended minimum and maximum values for regular bit threads.</li>
-          <li>Ensure proper thread cleaning, inspection, and application of premium thread dope prior to make-up.</li>
+
+        <h4 style="margin-top: 25px; margin-bottom: 10px; font-weight: 600; font-size: 0.9rem;">Important Torque Guidelines:</h4>
+        <ul style="margin: 0; padding-left: 20px; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+          <li>All connection threads must be thoroughly cleaned with a wire brush and solvent before makeup.</li>
+          <li>Apply a uniform, thin coat of API thread compound to the pin and box threads, including thread shoulders.</li>
+          <li>Initial makeup torque should start at the lower limit and can be increased up to the upper limit if leakage occurs or under high drag/rotational force drilling.</li>
           <li>Always follow the specific bit manufacturer's specifications when available.</li>
         </ul>
       </div>
@@ -7042,9 +7038,11 @@ function renderQuickRefScreen() {
       });
     }
 
-    searchInput.oninput = (e) => {
-      populate(e.target.value);
-    };
+    if (searchInput) {
+      searchInput.oninput = (e) => {
+        populate(e.target.value);
+      };
+    }
 
     populate();
   } else if (quickRefSubState.view === 'ring-gaskets') {
@@ -7074,9 +7072,6 @@ function renderQuickRefScreen() {
 
     container.innerHTML = `
       <div class="content-card">
-        <div style="margin-bottom: 20px;">
-          <input type="text" id="ring-gasket-search" class="form-input" placeholder="Search size (e.g. 4 1/16)..." style="width: 100%;">
-        </div>
         <div class="table-responsive">
           <table class="data-table" style="width:100%;">
             <thead>
@@ -7133,20 +7128,11 @@ function renderQuickRefScreen() {
     `;
 
     const tbody = document.getElementById('ring-gaskets-tbody');
-    const searchInput = document.getElementById('ring-gasket-search');
 
-    function populate(filterText = '') {
+    function populate() {
       tbody.innerHTML = '';
-      const filtered = gasketData.filter(d =>
-        d.size.toLowerCase().includes(filterText.toLowerCase())
-      );
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-secondary);">No matching records found.</td></tr>`;
-        return;
-      }
-
-      filtered.forEach(d => {
+      gasketData.forEach(d => {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td style="font-weight: 600; color: var(--text-primary);">${d.size}</td>
@@ -7159,10 +7145,6 @@ function renderQuickRefScreen() {
         tbody.appendChild(row);
       });
     }
-
-    searchInput.oninput = (e) => {
-      populate(e.target.value);
-    };
 
     populate();
   } else if (quickRefSubState.view === 'wellhead') {
@@ -7212,10 +7194,6 @@ function renderQuickRefScreen() {
       </div>
 
       <div class="content-card">
-        <div style="margin-bottom: 20px;">
-          <input type="text" id="wellhead-search" class="form-input" placeholder="Search components in Section ${activeTab}..." style="width: 100%;">
-        </div>
-        
         <div class="table-responsive">
           <table class="data-table" style="width:100%;">
             <thead>
@@ -7248,22 +7226,11 @@ function renderQuickRefScreen() {
     }
 
     const tbody = document.getElementById('wellhead-tbody');
-    const searchInput = document.getElementById('wellhead-search');
     const tabData = wellheadData[activeTab];
 
-    function populate(filterText = '') {
+    function populate() {
       tbody.innerHTML = '';
-      const filtered = tabData.filter(d =>
-        d.desc.toLowerCase().includes(filterText.toLowerCase()) ||
-        d.remark.toLowerCase().includes(filterText.toLowerCase())
-      );
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-secondary);">No matching components found.</td></tr>`;
-        return;
-      }
-
-      filtered.forEach(d => {
+      tabData.forEach(d => {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td style="font-family: monospace; font-size: 0.85rem;">${d.no}</td>
@@ -7274,10 +7241,6 @@ function renderQuickRefScreen() {
         tbody.appendChild(row);
       });
     }
-
-    searchInput.oninput = (e) => {
-      populate(e.target.value);
-    };
 
     populate();
   } else if (quickRefSubState.view === 'subsea-ref') {
@@ -7770,16 +7733,7 @@ function renderDrillingGuideScreen() {
   const container = document.getElementById('drilling-guide-container');
   if (!container) return;
 
-  // 1. Search Bar Wrapper
-  let html = `
-    <div class="guide-search-wrapper">
-      <span class="material-icons guide-search-icon">search</span>
-      <input type="text" class="guide-search-input" id="guide-search-input" placeholder="Search guides (e.g., Stuck Pipe, BHA, BOP)" oninput="filterGuideTopics()">
-      <button class="guide-search-clear-btn" onclick="clearGuideSearch()" style="display:none;">
-        <span class="material-icons">close</span>
-      </button>
-    </div>
-  `;
+  let html = '';
 
   // 2. Favorites / Quick Access Grid
   let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
