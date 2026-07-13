@@ -9073,7 +9073,7 @@ window.clearIADCForm = () => {
   
   const saveBtnText = document.getElementById('iadc-save-btn-text');
   if (saveBtnText) {
-    saveBtnText.textContent = window.I18n.translate ? window.I18n.translate('Save Record') : 'Save Record';
+    saveBtnText.textContent = (window.I18n && window.I18n.translate) ? window.I18n.translate('Save Record') : 'Save Record';
   }
   
   onBitTypeChanged();
@@ -9163,10 +9163,10 @@ window.saveIADCRecord = () => {
     } else {
       records.push(record);
     }
-    showToast(window.I18n.translate ? window.I18n.translate('Record updated successfully') : 'Record updated successfully');
+    showToast((window.I18n && window.I18n.translate) ? window.I18n.translate('Record updated successfully') : 'Record updated successfully');
   } else {
     records.push(record);
-    showToast(window.I18n.translate ? window.I18n.translate('Record saved successfully') : 'Record saved successfully');
+    showToast((window.I18n && window.I18n.translate) ? window.I18n.translate('Record saved successfully') : 'Record saved successfully');
   }
   
   localStorage.setItem('iadcGradingRecords', JSON.stringify(records));
@@ -9215,14 +9215,14 @@ window.editIADCRecord = (recordId) => {
   
   const saveBtnText = document.getElementById('iadc-save-btn-text');
   if (saveBtnText) {
-    saveBtnText.textContent = window.I18n.translate ? window.I18n.translate('Update Record') : 'Update Record';
+    saveBtnText.textContent = (window.I18n && window.I18n.translate) ? window.I18n.translate('Update Record') : 'Update Record';
   }
   
   window.navigateTo('bit-dull-grading');
 };
 
 window.deleteIADCRecord = (recordId) => {
-  const confirmMsg = window.I18n.translate ? window.I18n.translate('Are you sure you want to delete this record?') : 'Are you sure you want to delete this record?';
+  const confirmMsg = (window.I18n && window.I18n.translate) ? window.I18n.translate('Are you sure you want to delete this record?') : 'Are you sure you want to delete this record?';
   if (!confirm(confirmMsg)) return;
   
   let records = JSON.parse(localStorage.getItem('iadcGradingRecords') || '[]');
@@ -9233,7 +9233,7 @@ window.deleteIADCRecord = (recordId) => {
     clearIADCForm();
   }
   
-  showToast(window.I18n.translate ? window.I18n.translate('Record deleted') : 'Record deleted');
+  showToast((window.I18n && window.I18n.translate) ? window.I18n.translate('Record deleted') : 'Record deleted');
   renderBitDullGradingHistory();
 };
 
@@ -9305,7 +9305,7 @@ window.renderBitDullGradingHistory = () => {
   container.innerHTML = '';
   
   if (records.length === 0) {
-    const noRecsText = window.I18n.translate ? window.I18n.translate('No grading history records found.') : 'No grading history records found.';
+    const noRecsText = (window.I18n && window.I18n.translate) ? window.I18n.translate('No grading history records found.') : 'No grading history records found.';
     container.innerHTML = `
       <div style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px; opacity:0.5;">
@@ -9474,7 +9474,7 @@ window.shareIADCReport = () => {
   } else {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
-        showToast(window.I18n.translate ? window.I18n.translate('Link copied to clipboard!') : 'Link copied to clipboard!');
+        showToast((window.I18n && window.I18n.translate) ? window.I18n.translate('Link copied to clipboard!') : 'Link copied to clipboard!');
       }).catch(err => {
         showToast('Sharing not supported on this device');
       });
