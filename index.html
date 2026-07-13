@@ -852,7 +852,10 @@
           </div>
           <!-- 6. Gauge -->
           <div class="input-group">
-            <label class="input-label">G - GAUGE CONDITION</label>
+            <label class="input-label" style="display:flex; align-items:center; gap:4px;">
+              G - GAUGE CONDITION
+              <span class="material-icons" style="font-size: 15px; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('gauge')">info</span>
+            </label>
             <select id="bit-grade-g" class="toolkit-select" onchange="generateIADCGrade(true)">
               <option value="I">I – Pulled out bit is In Gauge</option>
               <option value="1">1 – Under gauge up to 1/16"</option>

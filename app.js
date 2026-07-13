@@ -9245,6 +9245,29 @@ window.showIADCInfo = (type) => {
           💡 Tip: Select the location where the dull characteristic is most severe.
         </div>
       `
+    },
+    gauge: {
+      title: 'G \u2013 Gauge Condition',
+      sections: [
+        {
+          heading: 'How Under Gauge is Measured',
+          list: [
+            'A standard gauge ring is placed over the bit.',
+            'The ring touches two cones.',
+            'Measure the gap between the third cone and the inside of the ring.'
+          ]
+        },
+        {
+          heading: 'Roller Cone Bit Formula',
+          text: 'UG (in 1/16 inch) = Measured gap \u00d7 2/3',
+          note: 'Example: Gap = 3/16 in \u2192 UG = 3/16 \u00d7 2/3 = 2/16 \u2192 Record UG = 2/16'
+        },
+        {
+          heading: 'PDC (Fixed Cutter) Bit Formula',
+          text: 'UG (in 1/16 inch) = Measured gap directly',
+          note: 'Example: Gap = 2/16 in \u2192 UG = 2/16'
+        }
+      ]
     }
   };
 
