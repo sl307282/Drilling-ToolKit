@@ -71,7 +71,8 @@ const translations = {
     "Copy Link": "Copiar Enlace",
     "Link copied to clipboard!": "¡Enlace copiado al portapapeles!",
     "Drilling Guide": "Guía de Perforación",
-    "Bit Dull Grading": "Gradación de Desgaste de Barrena"
+    "Bit Dull Grading": "Gradación de Desgaste de Barrena",
+    "Quick Reference": "Referencia Rápida"
   },
   hi: {
     "Drilling Toolkit": "ड्रिलिंग टूलकिट",
@@ -143,7 +144,8 @@ const translations = {
     "Copy Link": "लिंक कॉपी करें",
     "Link copied to clipboard!": "लिंक क्लिपबोर्ड पर कॉपी किया गया!",
     "Bit Dull Grading": "बिट डल ग्रेडिंग",
-    "Drilling Guide": "ड्रिलिंग गाइड"
+    "Drilling Guide": "ड्रिलिंग गाइड",
+    "Quick Reference": "त्वरित संदर्भ"
   },
   ar: {
     "Drilling Toolkit": "أدوات الحفر",
@@ -215,7 +217,8 @@ const translations = {
     "Copy Link": "نسخ الرابط",
     "Link copied to clipboard!": "تم نسخ الرابط إلى الحافظة!",
     "Bit Dull Grading": "تقييم تآكل الحفارة",
-    "Drilling Guide": "دليل الحفر"
+    "Drilling Guide": "دليل الحفر",
+    "Quick Reference": "مرجع سريع"
   },
   zh: {
     "Drilling Toolkit": "钻井工具箱",
@@ -287,7 +290,8 @@ const translations = {
     "Copy Link": "复制链接",
     "Link copied to clipboard!": "链接已复制到剪贴板！",
     "Bit Dull Grading": "钻头磨损分级",
-    "Drilling Guide": "钻井指南"
+    "Drilling Guide": "钻井指南",
+    "Quick Reference": "快速参考"
   },
   fr: {
     "Drilling Toolkit": "Boîte à Outils",
@@ -359,7 +363,8 @@ const translations = {
     "Copy Link": "Copier le Lien",
     "Link copied to clipboard!": "Lien copié dans le presse-papiers !",
     "Bit Dull Grading": "Gradation d'Usure du Trépan",
-    "Drilling Guide": "Guide de Forage"
+    "Drilling Guide": "Guide de Forage",
+    "Quick Reference": "Référence Rapide"
   },
   pt: {
     "Drilling Toolkit": "Kit de Perfuração",
@@ -431,7 +436,8 @@ const translations = {
     "Copy Link": "Copiar Link",
     "Link copied to clipboard!": "Link copiado para a área de transferência!",
     "Bit Dull Grading": "Graduação de Desgaste da Broca",
-    "Drilling Guide": "Guia de Perfuração"
+    "Drilling Guide": "Guia de Perfuração",
+    "Quick Reference": "Referência Rápida"
   },
   de: {
     "Drilling Toolkit": "Bohrfahr-Toolkit",
@@ -503,7 +509,8 @@ const translations = {
     "Copy Link": "Link kopieren",
     "Link copied to clipboard!": "Link in Zwischenablage kopiert!",
     "Bit Dull Grading": "Meißel-Abstumpfungs-Bewertung",
-    "Drilling Guide": "Bohrhandbuch"
+    "Drilling Guide": "Bohrhandbuch",
+    "Quick Reference": "Schnellreferenz"
   },
   ja: {
     "Drilling Toolkit": "掘削ツール",
@@ -575,7 +582,8 @@ const translations = {
     "Copy Link": "リンクをコピー",
     "Link copied to clipboard!": "リンクがクリップボードにコピーされました！",
     "Bit Dull Grading": "ビット磨耗グレーディング",
-    "Drilling Guide": "掘削ガイド"
+    "Drilling Guide": "掘削ガイド",
+    "Quick Reference": "クイックリファレンス"
   },
   ru: {
     "Drilling Toolkit": "Набор буровика",
@@ -647,7 +655,8 @@ const translations = {
     "Copy Link": "Копировать ссылку",
     "Link copied to clipboard!": "Ссылка скопирована в буфер обмена!",
     "Bit Dull Grading": "Оценка притупления долота",
-    "Drilling Guide": "Руководство по бурению"
+    "Drilling Guide": "Руководство по бурению",
+    "Quick Reference": "Быстрая справка"
   },
   id: {
     "Drilling Toolkit": "Toolkit Bor",
@@ -719,7 +728,8 @@ const translations = {
     "Copy Link": "Salin Tautan",
     "Link copied to clipboard!": "Tautan disalin ke papan klip!",
     "Bit Dull Grading": "Penilaian Keausan Mata Bor",
-    "Drilling Guide": "Panduan Pengeboran"
+    "Drilling Guide": "Panduan Pengeboran",
+    "Quick Reference": "Referensi Cepat"
   },
   ko: {
     "Drilling Toolkit": "시추 툴킷",
@@ -791,7 +801,8 @@ const translations = {
     "Copy Link": "링크 복사",
     "Link copied to clipboard!": "링크가 클립보드에 복사되었습니다!",
     "Bit Dull Grading": "비트 마모 등급",
-    "Drilling Guide": "굴착 가이드"
+    "Drilling Guide": "굴착 가이드",
+    "Quick Reference": "빠른 참조"
   }
 };
 

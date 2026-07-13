@@ -7574,7 +7574,8 @@ const drillingGuideData = {
     items: [
       { id: "stuck_pipe_guide", name: "Stuck Pipe Analysis" },
       { id: "bha_components", name: "BHA Components" },
-      { id: "drill_string_components", name: "Drill String Components" }
+      { id: "drill_string_components", name: "Drill String Components" },
+      { id: "quick_reference", name: "Quick Reference" }
     ]
   },
   bits: {
@@ -7947,8 +7948,9 @@ window.handleGuideItemClick = (itemId, categoryName) => {
     navigateTo('stuck-pipe');
     return;
   }
-  if (itemId === 'bit_dull_grading') {
-    navigateTo('bit-dull-grading');
+  if (itemId === 'quick_reference') {
+    quickRefSubState.view = 'menu';
+    navigateTo('quick-ref');
     return;
   }
   state.selectedGuideId = itemId;
