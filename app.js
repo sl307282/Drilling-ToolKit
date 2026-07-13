@@ -5966,15 +5966,15 @@ function renderDrillingCalcScreen() {
     let favHtml = '';
     if (favFormulas.length > 0) {
       favHtml = `
-        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; text-transform: none;">
           <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
           <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">Favorites</span>
         </div>
-        <div class="guide-quick-grid" style="margin-bottom: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
       `;
       favFormulas.forEach(f => {
         favHtml += `
-          <div class="guide-quick-btn" onclick="openFormulaDirectly('${f.id}')">
+          <div class="guide-quick-btn" onclick="openFormulaDirectly('${f.id}')" style="width: 100%; box-sizing: border-box;">
             <span class="material-icons" style="color:#EAB308; font-size:1.15rem; flex-shrink:0;">star</span>
             <div class="guide-quick-info">
               <span class="guide-quick-name" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">${f.name}</span>
@@ -5988,7 +5988,7 @@ function renderDrillingCalcScreen() {
       `;
     } else {
       favHtml = `
-        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; text-transform: none;">
           <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
           <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">Favorites</span>
         </div>
@@ -6008,7 +6008,7 @@ function renderDrillingCalcScreen() {
         
         ${favHtml}
         
-        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; text-transform: none;">
           <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">All Calculators</span>
         </div>
         <div class="sizes-grid" style="grid-template-columns:1fr; gap:10px;" id="formula-list-container"></div>
