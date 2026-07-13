@@ -836,14 +836,9 @@
           <!-- 4. Location -->
           <div class="input-group">
             <label class="input-label">L - LOCATION</label>
+            <span style="font-size: 0.72rem; color: var(--text-secondary); margin-top: -4px; margin-bottom: 2px;">Options change based on selected bit type</span>
             <select id="bit-grade-l" class="toolkit-select" onchange="generateIADCGrade(true)">
-              <option value="N">N - Nose</option>
-              <option value="A">A - All</option>
-              <option value="I">I - Inner Rows</option>
-              <option value="O">O - Outer Rows</option>
-              <option value="C">C - Cone</option>
-              <option value="G">G - Gauge</option>
-              <option value="S">S - Shoulder</option>
+              <!-- Populated dynamically by onBitTypeChanged() -->
             </select>
           </div>
           <!-- 5. Bearing / Seals -->

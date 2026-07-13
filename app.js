@@ -1704,7 +1704,8 @@ function renderScreen() {
       renderDrillingGuideDetailScreen();
       break;
     case 'bit-dull-grading':
-      // Handled directly or via clear/edit init
+      // Initialize location dropdown based on current bit type selection
+      setTimeout(() => { if (window.onBitTypeChanged) window.onBitTypeChanged(); }, 0);
       break;
     case 'iadc-history':
       renderBitDullGradingHistory();
@@ -9181,6 +9182,8 @@ window.onBitTypeChanged = () => {
   const typeSelect = document.getElementById('bit-info-type');
   if (!typeSelect) return;
   const type = typeSelect.value;
+
+  // --- Bearing/Seal ---
   const bearingSelect = document.getElementById('bit-grade-b');
   if (bearingSelect) {
     if (type === 'PDC') {
@@ -9193,6 +9196,52 @@ window.onBitTypeChanged = () => {
       }
     }
   }
+
+  // --- Location (Column-4) — options depend on bit type ---
+  const locationSelect = document.getElementById('bit-grade-l');
+  if (locationSelect) {
+    const currentVal = locationSelect.value;
+    locationSelect.innerHTML = '';
+
+    let options = [];
+    if (type === 'PDC') {
+      // Fixed Cutter Bit locations (IADC Column-4)
+      options = [
+        { value: 'C', label: 'C - Cone' },
+        { value: 'N', label: 'N - Nose' },
+        { value: 'T', label: 'T - Taper' },
+        { value: 'S', label: 'S - Shoulder' },
+        { value: 'G', label: 'G - Gauge' },
+        { value: 'A', label: 'A - All Rows' },
+      ];
+    } else {
+      // Roller Cone Bit locations (IADC Column-4)
+      options = [
+        { value: 'N', label: 'N - Nose Row' },
+        { value: 'M', label: 'M - Middle Row' },
+        { value: 'G', label: 'G - Gage Row' },
+        { value: 'A', label: 'A - All Rows' },
+        { value: '#1', label: '#1 - Cone #1' },
+        { value: '#2', label: '#2 - Cone #2' },
+        { value: '#3', label: '#3 - Cone #3' },
+      ];
+    }
+
+    options.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      if (o.value === currentVal) opt.selected = true;
+      locationSelect.appendChild(opt);
+    });
+
+    // If previous value is not in new list, default to first option
+    const validValues = options.map(o => o.value);
+    if (!validValues.includes(locationSelect.value)) {
+      locationSelect.value = options[0].value;
+    }
+  }
+
   generateIADCGrade(true);
 };
 
