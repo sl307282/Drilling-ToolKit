@@ -69,7 +69,9 @@ const translations = {
     "Submit Feedback": "Enviar Comentarios",
     "Share this app with colleagues": "Comparte esta app con colegas",
     "Copy Link": "Copiar Enlace",
-    "Link copied to clipboard!": "¡Enlace copiado al portapapeles!"
+    "Link copied to clipboard!": "¡Enlace copiado al portapapeles!",
+    "Drilling Guide": "Guía de Perforación"
+    "Bit Dull Grading": "Gradación de Desgaste de Barrena"
   },
   hi: {
     "Drilling Toolkit": "ड्रिलिंग टूलकिट",
@@ -140,6 +142,8 @@ const translations = {
     "Share this app with colleagues": "सहकर्मियों के साथ ऐप साझा करें",
     "Copy Link": "लिंक कॉपी करें",
     "Link copied to clipboard!": "लिंक क्लिपबोर्ड पर कॉपी किया गया!"
+    "Bit Dull Grading": "बिट डल ग्रेडिंग",
+    "Drilling Guide": "ड्रिलिंग गाइड"
   },
   ar: {
     "Drilling Toolkit": "أدوات الحفر",
@@ -210,6 +214,8 @@ const translations = {
     "Share this app with colleagues": "شارك التطبيق مع زملائك",
     "Copy Link": "نسخ الرابط",
     "Link copied to clipboard!": "تم نسخ الرابط إلى الحافظة!"
+    "Bit Dull Grading": "تقييم تآكل الحفارة",
+    "Drilling Guide": "دليل الحفر"
   },
   zh: {
     "Drilling Toolkit": "钻井工具箱",
@@ -280,6 +286,8 @@ const translations = {
     "Share this app with colleagues": "与同事分享此应用",
     "Copy Link": "复制链接",
     "Link copied to clipboard!": "链接已复制到剪贴板！"
+    "Bit Dull Grading": "钻头磨损分级",
+    "Drilling Guide": "钻井指南"
   },
   fr: {
     "Drilling Toolkit": "Boîte à Outils",
@@ -350,6 +358,8 @@ const translations = {
     "Share this app with colleagues": "Partager cette application avec des collègues",
     "Copy Link": "Copier le Lien",
     "Link copied to clipboard!": "Lien copié dans le presse-papiers !"
+    "Bit Dull Grading": "Gradation d'Usure du Trépan",
+    "Drilling Guide": "Guide de Forage"
   },
   pt: {
     "Drilling Toolkit": "Kit de Perfuração",
@@ -420,6 +430,8 @@ const translations = {
     "Share this app with colleagues": "Compartilhe este app com colegas",
     "Copy Link": "Copiar Link",
     "Link copied to clipboard!": "Link copiado para a área de transferência!"
+    "Bit Dull Grading": "Graduação de Desgaste da Broca",
+    "Drilling Guide": "Guia de Perfuração"
   },
   de: {
     "Drilling Toolkit": "Bohrfahr-Toolkit",
@@ -490,6 +502,8 @@ const translations = {
     "Share this app with colleagues": "App mit Kollegen teilen",
     "Copy Link": "Link kopieren",
     "Link copied to clipboard!": "Link in Zwischenablage kopiert!"
+    "Bit Dull Grading": "Meißel-Abstumpfungs-Bewertung",
+    "Drilling Guide": "Bohrhandbuch"
   },
   ja: {
     "Drilling Toolkit": "掘削ツール",
@@ -560,6 +574,8 @@ const translations = {
     "Share this app with colleagues": "同僚とアプリを共有",
     "Copy Link": "リンクをコピー",
     "Link copied to clipboard!": "リンクがクリップボードにコピーされました！"
+    "Bit Dull Grading": "ビット磨耗グレーディング",
+    "Drilling Guide": "掘削ガイド"
   },
   ru: {
     "Drilling Toolkit": "Набор буровика",
@@ -630,6 +646,8 @@ const translations = {
     "Share this app with colleagues": "Поделиться приложением с коллегами",
     "Copy Link": "Копировать ссылку",
     "Link copied to clipboard!": "Ссылка скопирована в буфер обмена!"
+    "Bit Dull Grading": "Оценка притупления долота",
+    "Drilling Guide": "Руководство по бурению"
   },
   id: {
     "Drilling Toolkit": "Toolkit Bor",
@@ -700,6 +718,8 @@ const translations = {
     "Share this app with colleagues": "Bagikan aplikasi ke kolega",
     "Copy Link": "Salin Tautan",
     "Link copied to clipboard!": "Tautan disalin ke papan klip!"
+    "Bit Dull Grading": "Penilaian Keausan Mata Bor",
+    "Drilling Guide": "Panduan Pengeboran"
   },
   ko: {
     "Drilling Toolkit": "시추 툴킷",
@@ -770,11 +790,18 @@ const translations = {
     "Share this app with colleagues": "동료들과 앱 공유",
     "Copy Link": "링크 복사",
     "Link copied to clipboard!": "링크가 클립보드에 복사되었습니다!"
+    "Bit Dull Grading": "비트 마모 등급",
+    "Drilling Guide": "굴착 가이드"
   }
 };
 
 window.I18n = {
   translations: translations,
+  
+  translate(key) {
+    const lang = this.getCurrentLang();
+    return this.translations[lang]?.[key] || key;
+  },
   
   langNames: {
     en: "English",

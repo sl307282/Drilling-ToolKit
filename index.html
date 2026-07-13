@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <link rel="stylesheet" href="style.css?v=1.0.1">
+  <link rel="stylesheet" href="style.css?v=1.1.3">
+  <!-- Material Icons Font -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <!-- Firebase SDK Compat -->
   <script src="firebase-app-compat.js"></script>
   <script src="firebase-remote-config-compat.js"></script>
@@ -231,6 +233,35 @@
             <span class="card-chevron">&rsaquo;</span>
           </div>
           <div class="card-title">Quick Reference</div>
+        </div>
+
+        <!-- 8. Bit Dull Grading Card -->
+        <div class="toolkit-card" onclick="clearIADCForm(); navigateTo('bit-dull-grading');">
+          <div class="card-top-row">
+            <div class="card-icon-container icon-wellcontrol" style="background: rgba(230, 161, 92, 0.1); color: var(--accent-color);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+              </svg>
+            </div>
+            <span class="card-chevron">&rsaquo;</span>
+          </div>
+          <div class="card-title" data-i18n="Bit Dull Grading">Bit Dull Grading</div>
+        </div>
+
+        <!-- 9. Drilling Guide Card -->
+        <div class="toolkit-card" onclick="navigateTo('drilling-guide');">
+          <div class="card-top-row">
+            <div class="card-icon-container icon-quickref" style="background: rgba(126, 95, 43, 0.1); color: #7E5F2B;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+            </div>
+            <span class="card-chevron">&rsaquo;</span>
+          </div>
+          <div class="card-title" data-i18n="Drilling Guide">Drilling Guide</div>
         </div>
 
 
@@ -662,6 +693,368 @@
       </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- DRILLING GUIDE SCREEN                      -->
+    <!-- ========================================== -->
+    <div id="screen-drilling-guide" class="screen">
+      <div class="screen-header">
+        <div class="screen-header-top">
+          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <h2 class="screen-title" data-i18n="Drilling Guide">Drilling Guide</h2>
+        </div>
+        <span class="screen-subtitle">Comprehensive reference guide for drilling operations</span>
+      </div>
+      <div id="drilling-guide-container" class="app-container-inner" style="padding: 16px;">
+        <!-- Dynamically rendered -->
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- DRILLING GUIDE DETAIL SCREEN               -->
+    <!-- ========================================== -->
+    <div id="screen-drilling-guide-detail" class="screen">
+      <div class="screen-header">
+        <div class="screen-header-top">
+          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <h2 class="screen-title" id="guide-detail-title">Topic Detail</h2>
+          <button class="top-bar-btn" id="guide-detail-fav-btn" onclick="toggleDetailGuideFavorite()" style="margin-left:auto; padding:4px; margin-top:0;">
+            <span class="material-icons" style="color: #EAB308;">star_border</span>
+          </button>
+        </div>
+        <span class="screen-subtitle" id="guide-detail-subtitle">Category</span>
+      </div>
+      <div id="drilling-guide-detail-container" class="app-container-inner" style="padding: 16px;">
+        <!-- Dynamically rendered -->
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- BIT DULL GRADING SCREEN                    -->
+    <!-- ========================================== -->
+    <div id="screen-bit-dull-grading" class="screen">
+      <div class="screen-header">
+        <div class="screen-header-top">
+          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <h2 class="screen-title" data-i18n="Bit Dull Grading">Bit Dull Grading</h2>
+          <button class="btn btn-secondary" onclick="navigateTo('iadc-history')" style="margin-left:auto; padding:6px 12px; font-size:0.85rem;" data-i18n="History">History</button>
+        </div>
+        <span class="screen-subtitle">Calculate and log IADC dull bit grades</span>
+      </div>
+
+      <!-- Bit Info Card -->
+      <div class="content-card">
+        <h3 class="card-section-title">Bit Information</h3>
+        <div class="input-grid">
+          <div class="input-group">
+            <label class="input-label">Bit Type</label>
+            <select id="bit-info-type" class="toolkit-select" onchange="onBitTypeChanged()">
+              <option value="PDC">PDC</option>
+              <option value="Roller Cone">Roller Cone</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Size (in)</label>
+            <input type="number" id="bit-info-size" class="toolkit-input" placeholder="e.g. 8.5" step="0.01" value="8.5">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Manufacturer</label>
+            <input type="text" id="bit-info-mfg" class="toolkit-input" placeholder="e.g. NOV">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Serial Number</label>
+            <input type="text" id="bit-info-sn" class="toolkit-input" placeholder="e.g. 12345">
+          </div>
+        </div>
+      </div>
+
+      <!-- IADC dull grading select boxes -->
+      <div class="content-card">
+        <h3 class="card-section-title">IADC Grading Codes</h3>
+        <div class="input-grid" style="grid-template-columns: repeat(4, 1fr); gap: 10px;">
+          <!-- 1. Inner Rows -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">I (Inner)</label>
+            <select id="bit-grade-i" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+          <!-- 2. Outer Rows -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">O (Outer)</label>
+            <select id="bit-grade-o" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+          <!-- 3. Dull Characteristics -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">D (Dull)</label>
+            <select id="bit-grade-d" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="NO">NO</option>
+              <option value="BC">BC</option>
+              <option value="BF">BF</option>
+              <option value="BT">BT</option>
+              <option value="BU">BU</option>
+              <option value="CC">CC</option>
+              <option value="CD">CD</option>
+              <option value="CI">CI</option>
+              <option value="CR">CR</option>
+              <option value="CT">CT</option>
+              <option value="ER">ER</option>
+              <option value="FC">FC</option>
+              <option value="HC">HC</option>
+              <option value="JD">JD</option>
+              <option value="LC">LC</option>
+              <option value="LN">LN</option>
+              <option value="LT">LT</option>
+              <option value="OC">OC</option>
+              <option value="PB">PB</option>
+              <option value="PN">PN</option>
+              <option value="RG">RG</option>
+              <option value="RO">RO</option>
+              <option value="SD">SD</option>
+              <option value="SS">SS</option>
+              <option value="TR">TR</option>
+              <option value="WO">WO</option>
+              <option value="WT">WT</option>
+            </select>
+          </div>
+          <!-- 4. Location -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">L (Loc)</label>
+            <select id="bit-grade-l" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="N">N</option>
+              <option value="A">A</option>
+              <option value="I">I</option>
+              <option value="O">O</option>
+              <option value="C">C</option>
+              <option value="G">G</option>
+              <option value="S">S</option>
+            </select>
+          </div>
+          <!-- 5. Bearing / Seals -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">B (Brg)</label>
+            <select id="bit-grade-b" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="X">X</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="N">N</option>
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+          <!-- 6. Gauge -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">G (Gauge)</label>
+            <select id="bit-grade-g" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="I">I</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <!-- 7. Other Characteristics -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">O (Other)</label>
+            <select id="bit-grade-o2" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="X">X</option>
+              <option value="BC">BC</option>
+              <option value="BF">BF</option>
+              <option value="BT">BT</option>
+              <option value="BU">BU</option>
+              <option value="CC">CC</option>
+              <option value="CD">CD</option>
+              <option value="CI">CI</option>
+              <option value="CR">CR</option>
+              <option value="CT">CT</option>
+              <option value="ER">ER</option>
+              <option value="FC">FC</option>
+              <option value="HC">HC</option>
+              <option value="JD">JD</option>
+              <option value="LC">LC</option>
+              <option value="LN">LN</option>
+              <option value="LT">LT</option>
+              <option value="OC">OC</option>
+              <option value="PB">PB</option>
+              <option value="PN">PN</option>
+              <option value="RG">RG</option>
+              <option value="RO">RO</option>
+              <option value="SD">SD</option>
+              <option value="SS">SS</option>
+              <option value="TR">TR</option>
+              <option value="WO">WO</option>
+              <option value="WT">WT</option>
+            </select>
+          </div>
+          <!-- 8. Reason Pulled -->
+          <div class="input-group">
+            <label class="input-label" style="font-size: 0.75rem; text-align: center;">R (Reason)</label>
+            <select id="bit-grade-r" class="toolkit-select" onchange="generateIADCGrade(true)">
+              <option value="TD">TD</option>
+              <option value="BHA">BHA</option>
+              <option value="DMF">DMF</option>
+              <option value="DTF">DTF</option>
+              <option value="DST">DST</option>
+              <option value="LOG">LOG</option>
+              <option value="DP">DP</option>
+              <option value="FM">FM</option>
+              <option value="HP">HP</option>
+              <option value="HR">HR</option>
+              <option value="PP">PP</option>
+              <option value="PR">PR</option>
+              <option value="RIG">RIG</option>
+              <option value="TD">TD</option>
+              <option value="TW">TW</option>
+              <option value="WC">WC</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comments Card -->
+      <div class="content-card">
+        <h3 class="card-section-title">Comments & Remarks</h3>
+        <div class="input-group">
+          <textarea id="bit-grade-comments" class="toolkit-input" style="width:100%; min-height:80px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary); font-family:inherit; resize:vertical;" placeholder="Enter operational notes or bit condition details..."></textarea>
+        </div>
+      </div>
+
+      <!-- Bit Photo Upload Card -->
+      <div class="content-card">
+        <h3 class="card-section-title">Bit Photo</h3>
+        <div style="display:flex; gap:12px; margin-bottom:12px;">
+          <label class="btn btn-secondary" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            Camera
+            <input type="file" id="dull-photo-camera-input" accept="image/*" capture="environment" style="display:none;" onchange="onDullPhotoSelected(event)">
+          </label>
+          <label class="btn btn-secondary" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            Gallery
+            <input type="file" id="dull-photo-gallery-input" accept="image/*" style="display:none;" onchange="onDullPhotoSelected(event)">
+          </label>
+        </div>
+        <div id="dull-photo-preview-container" style="display:none; position:relative; text-align:center; background:var(--bg-subtle); padding:10px; border-radius:8px; border:1px solid var(--border-color);">
+          <img id="dull-photo-preview" src="" style="max-width:100%; max-height:200px; border-radius:6px; object-fit:contain;">
+          <button onclick="removeDullPhoto()" style="position:absolute; top:15px; right:15px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Visual Grade Card -->
+      <div id="iadc-visual-grade-card" class="content-card" style="display:none; background: linear-gradient(135deg, rgba(230,161,92,0.1) 0%, rgba(230,161,92,0.02) 100%); border: 1.5px dashed var(--accent-color);">
+        <div style="text-align: center; padding: 10px 0;">
+          <div style="font-size:0.8rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Calculated IADC Dull Grade</div>
+          <div id="iadc-visual-grade-code" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-color); font-family: monospace; letter-spacing: 2px;">0-0-NO-N-X-I-X-TD</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px; margin-bottom:30px;">
+        <button class="btn btn-primary" onclick="saveIADCRecord()" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          <span id="iadc-save-btn-text" data-i18n="Save Record">Save Record</span>
+        </button>
+        
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" onclick="printIADCReport()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print
+          </button>
+          <button class="btn btn-secondary" onclick="shareIADCReport()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+            Share
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- IADC HISTORY SCREEN                        -->
+    <!-- ========================================== -->
+    <div id="screen-iadc-history" class="screen">
+      <div class="screen-header">
+        <div class="screen-header-top">
+          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <h2 class="screen-title" data-i18n="Grading History">Grading History</h2>
+        </div>
+        <span class="screen-subtitle">Past bit dull grades and records</span>
+      </div>
+
+      <div id="iadc-history-list-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
+
       </div> <!-- /app-container -->
 
   <!-- Drawer Backdrop -->
@@ -900,6 +1293,9 @@
     </div>
   </div>
 
+
+
+
   <!-- Toast Notification -->
   <div id="toast" class="toast">Action Saved</div>
 
@@ -919,11 +1315,11 @@
 
       // Chain load with yields to give WebView background thread slots
       setTimeout(function() {
-        loadScript('translations.js', function() {
+        loadScript('translations.js?v=1.1.3', function() {
           setTimeout(function() {
-            loadScript('tubulars_db.js', function() {
+            loadScript('tubulars_db.js?v=1.1.3', function() {
               setTimeout(function() {
-                loadScript('app.js', function() {});
+                loadScript('app.js?v=1.1.3', function() {});
               }, 50);
             });
           }, 50);

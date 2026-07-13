@@ -86,6 +86,15 @@ let state = {
   screenHistory: [],
   globalUnit: localStorage.getItem('globalUnit') || 'L/m', // L/m, bbl/m, bbl/ft
   flowType: 'surface', // surface, subsea, or other modules
+  
+  // IADC Dull Grading state
+  editingIADCRecordId: null,
+  currentDullPhotoBase64: null,
+  iadcCardVisible: false,
+
+  // Drilling Guide state
+  selectedGuideId: null,
+  selectedGuideCategory: null,
 
   // Selection State
   selectedHoleSize: localStorage.getItem('selectedHoleSize') || '17.5',
@@ -1395,6 +1404,15 @@ function getSearchIndex() {
       action: () => { navigateTo('stuck-pipe'); }
     },
     {
+      name: 'Drilling Guide',
+      desc: 'Comprehensive reference guide for drilling operations, bits, BHA, well control, cementing, and troubleshooting.',
+      type: 'tool',
+      badge: 'Reference',
+      bgColor: 'var(--circle-stuck)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
+      action: () => { navigateTo('drilling-guide'); }
+    },
+    {
       name: 'Unit Conversion',
       desc: 'Petroleum engineering unit converter for length, volume, weight, pressure, and density.',
       type: 'tool',
@@ -1678,6 +1696,18 @@ function renderScreen() {
       break;
     case 'settings':
       renderSettingsScreen();
+      break;
+    case 'drilling-guide':
+      renderDrillingGuideScreen();
+      break;
+    case 'drilling-guide-detail':
+      renderDrillingGuideDetailScreen();
+      break;
+    case 'bit-dull-grading':
+      // Handled directly or via clear/edit init
+      break;
+    case 'iadc-history':
+      renderBitDullGradingHistory();
       break;
   }
 }
@@ -7531,4 +7561,1925 @@ function renderQuickRefScreen() {
     }
   }
 }
+
+// ==========================================
+// DRILLING GUIDE FEATURE
+// ==========================================
+const drillingGuideData = {
+  operations: {
+    name: "Drilling Operations",
+    icon: "engineering",
+    desc: "Operational guidelines, dull grading, and core procedures",
+    accent: "operations",
+    items: [
+      { id: "stuck_pipe_guide", name: "Stuck Pipe Analysis" },
+      { id: "bit_dull_grading", name: "IADC Bit Dull Grading" },
+      { id: "bha_components", name: "BHA Components" },
+      { id: "drill_string_components", name: "Drill String Components" }
+    ]
+  },
+  bits: {
+    name: "Drill Bits",
+    icon: "construction",
+    desc: "PDC & roller cone design, TFA nozzle selection, torque",
+    accent: "bits",
+    items: [
+      { id: "pdc_bits", name: "PDC Bits" },
+      { id: "roller_cone_bits", name: "Roller Cone Bits" },
+      { id: "bit_nozzle_selection", name: "Bit Nozzle Selection" },
+      { id: "bit_hydraulics", name: "Bit Hydraulics" },
+      { id: "bit_makeup_torque", name: "Bit Make-up Torque" }
+    ]
+  },
+  bha: {
+    name: "BHA & Drillstring",
+    icon: "settings",
+    desc: "Stabilizers, reamers, jars, crossovers & shock subs",
+    accent: "bha",
+    items: [
+      { id: "stabilizers", name: "Stabilizers" },
+      { id: "reamers", name: "Reamers" },
+      { id: "jars", name: "Jars" },
+      { id: "shock_subs", name: "Shock Subs" },
+      { id: "float_valves", name: "Float Valves" },
+      { id: "crossovers", name: "Crossovers" }
+    ]
+  },
+  wellcontrol: {
+    name: "Well Control",
+    icon: "security",
+    desc: "Kick detection, shut-in methods & kill calculations",
+    accent: "wellcontrol",
+    items: [
+      { id: "kick_indicators", name: "Kick Indicators" },
+      { id: "shutin_procedure", name: "Shut-in Procedure" },
+      { id: "drillers_method", name: "Driller's Method" },
+      { id: "wait_weight_method", name: "Wait & Weight Method" }
+    ]
+  },
+  casing: {
+    name: "Casing & Cementing",
+    icon: "foundation",
+    desc: "Centralizers, float equipment, cementing steps & additives",
+    accent: "casing",
+    items: [
+      { id: "casing_components", name: "Casing Components" },
+      { id: "float_equipment", name: "Float Equipment" },
+      { id: "centralizers", name: "Centralizers" },
+      { id: "cementing_procedure", name: "Cementing Procedure" },
+      { id: "cement_additives", name: "Cement Additives" }
+    ]
+  },
+  fishing: {
+    name: "Fishing Operations",
+    icon: "build",
+    desc: "Overshot, spears, junk baskets, magnets, washover pipe",
+    accent: "fishing",
+    items: [
+      { id: "overshot", name: "Overshot" },
+      { id: "spear", name: "Spear" },
+      { id: "junk_basket", name: "Junk Basket" },
+      { id: "fishing_magnets", name: "Fishing Magnets" },
+      { id: "washover_pipe", name: "Washover Pipe" }
+    ]
+  },
+  hydraulics: {
+    name: "Hydraulics",
+    icon: "water_drop",
+    desc: "Hydrostatic pressures, annular velocities & fluid losses",
+    accent: "hydraulics",
+    items: [
+      { id: "hydrostatic_pressure", name: "Hydrostatic Pressure" },
+      { id: "annular_velocity", name: "Annular Velocity" },
+      { id: "pressure_loss", name: "Pressure Loss" }
+    ]
+  },
+  directional: {
+    name: "Directional Drilling",
+    icon: "explore",
+    desc: "Surveys, doglegs, toolfaces and kick-offs",
+    accent: "directional",
+    items: [
+      { id: "directional_surveying", name: "Directional Surveying" },
+      { id: "dogleg_severity", name: "Dogleg Severity (DLS)" },
+      { id: "kickoff_build_rate", name: "Kick-off & Build Rate" }
+    ]
+  },
+  mud: {
+    name: "Mud Engineering",
+    icon: "science",
+    desc: "Fluid density, viscosity, mud weight-up calculations",
+    accent: "mud",
+    items: [
+      { id: "mud_weight", name: "Mud Weight / Density" },
+      { id: "mud_viscosity", name: "Viscosity & Gel Strength" },
+      { id: "mud_calculations", name: "Mud Calculations" }
+    ]
+  },
+  completion: {
+    name: "Well Completion",
+    icon: "done_all",
+    desc: "Packers, production tubing and wellheads",
+    accent: "completion",
+    items: [
+      { id: "packers", name: "Packers" },
+      { id: "production_tubing", name: "Production Tubing" },
+      { id: "wellhead_xmas_tree", name: "Wellhead & Xmas Tree" }
+    ]
+  }
+};
+
+function getCategoryByItemId(itemId) {
+  for (const catKey in drillingGuideData) {
+    const cat = drillingGuideData[catKey];
+    const found = cat.items.find(item => item.id === itemId);
+    if (found) return { item: found, catName: cat.name, icon: cat.icon };
+  }
+  return null;
+}
+
+function renderDrillingGuideScreen() {
+  const container = document.getElementById('drilling-guide-container');
+  if (!container) return;
+
+  // 1. Search Bar Wrapper
+  let html = `
+    <div class="guide-search-wrapper">
+      <span class="material-icons guide-search-icon">search</span>
+      <input type="text" class="guide-search-input" id="guide-search-input" placeholder="Search guides (e.g., Stuck Pipe, Bit Grading, BOP)" oninput="filterGuideTopics()">
+      <button class="guide-search-clear-btn" onclick="clearGuideSearch()" style="display:none;">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+  `;
+
+  // 2. Favorites / Quick Access Grid
+  let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+  let quickAccessItems = [];
+  if (favs.length > 0) {
+    favs.forEach(itemId => {
+      const match = getCategoryByItemId(itemId);
+      if (match) {
+        quickAccessItems.push({ itemId, name: match.item.name, catName: match.catName, icon: match.icon });
+      }
+    });
+  }
+
+  if (quickAccessItems.length > 0) {
+    html += `
+      <div class="guide-quick-access">
+        <div class="guide-section-title">
+          <span class="material-icons" style="font-size:1.15rem; color:#EAB308;">star</span>
+          <span>QUICK ACCESS</span>
+        </div>
+        <div class="guide-quick-grid">
+    `;
+
+    quickAccessItems.forEach(qa => {
+      html += `
+        <div class="guide-quick-btn" onclick="handleGuideItemClick('${qa.itemId}', '${qa.catName}')">
+          <span class="material-icons guide-quick-icon">${qa.icon}</span>
+          <div class="guide-quick-info">
+            <span class="guide-quick-name">${qa.name}</span>
+            <span class="guide-quick-cat">${qa.catName}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="guide-quick-access">
+        <div class="guide-section-title" style="margin-bottom: 4px;">
+          <span class="material-icons" style="font-size:1.15rem; color:#EAB308;">star</span>
+          <span>QUICK ACCESS</span>
+        </div>
+        <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 12px 0;">Click the <span class="material-icons" style="font-size: 0.85rem; color: #EAB308; vertical-align: middle;">star_border</span> on any guide to add it here.</p>
+        <div style="border-bottom: 1px solid var(--border-subtle); margin: 12px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.78rem; font-weight: 500;">
+          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star_border</span>
+          <span>No quick access guides yet</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // 3. Main Accordion Card Grid
+  html += `<div style="display:flex; flex-direction:column; gap:12px; padding-bottom:30px;">`;
+  
+  for (const catKey in drillingGuideData) {
+    const cat = drillingGuideData[catKey];
+    html += `
+      <div class="guide-category-card guide-cat-accent-${cat.accent}" id="guide-cat-${catKey}">
+        <div class="guide-category-header" onclick="toggleGuideCategory('guide-cat-${catKey}')">
+          <div class="guide-category-title-section">
+            <span class="material-icons guide-category-icon">${cat.icon}</span>
+            <div class="guide-category-info">
+              <span class="guide-category-name">${cat.name}</span>
+              <span class="guide-category-desc">${cat.desc}</span>
+
+            </div>
+          </div>
+          <span class="material-icons guide-category-chevron">chevron_right</span>
+        </div>
+        <div class="guide-subcategory-list">
+    `;
+    
+    cat.items.forEach(item => {
+      const isFav = favs.includes(item.id);
+      html += `
+        <div class="guide-item-row" onclick="handleGuideItemClick('${item.id}', '${cat.name}')">
+          <div class="guide-item-row-left">
+            <button class="guide-fav-btn ${isFav ? 'active' : ''}" onclick="toggleGuideFavorite('${item.id}', event)">
+              <span class="material-icons">${isFav ? 'star' : 'star_border'}</span>
+            </button>
+            <span class="guide-item-title">${item.name}</span>
+          </div>
+          <div class="guide-item-right">
+            <span class="guide-item-arrow">&rsaquo;</span>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  }
+  
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+window.filterGuideTopics = () => {
+  const query = document.getElementById('guide-search-input').value.toLowerCase().trim();
+  const container = document.getElementById('drilling-guide-container');
+  const clearBtn = document.querySelector('.guide-search-clear-btn');
+  
+  // Find search wrapper sibling for list display
+  let listEl = container.querySelector('.guide-subcategory-list-search');
+  if (!listEl) {
+    listEl = document.createElement('div');
+    listEl.className = 'guide-subcategory-list-search';
+    listEl.style.cssText = 'border:1px solid var(--border-subtle); border-radius:12px; overflow:hidden; background-color:var(--card-bg);';
+  }
+
+  // Remove existing lists/grids for search mode
+  const quickAccess = container.querySelector('.guide-quick-access');
+  const accordionCards = container.querySelectorAll('.guide-category-card');
+
+  if (query.length > 0) {
+    if (clearBtn) clearBtn.style.display = 'flex';
+    if (quickAccess) quickAccess.style.display = 'none';
+    accordionCards.forEach(c => c.style.display = 'none');
+
+    let matches = [];
+    for (const catKey in drillingGuideData) {
+      const cat = drillingGuideData[catKey];
+      cat.items.forEach(item => {
+        if (item.name.toLowerCase().includes(query) || cat.name.toLowerCase().includes(query)) {
+          matches.push({ item, catName: cat.name, catKey });
+        }
+      });
+    }
+
+    if (matches.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align:center; padding:30px 10px; color:var(--text-secondary); font-size:0.9rem;">
+          No topics match your search.
+        </div>
+      `;
+      if (!listEl.parentElement) container.appendChild(listEl);
+      return;
+    }
+
+    let html = '';
+    matches.forEach(({ item, catName }) => {
+      const isFav = isGuideFavorited(item.id);
+      html += `
+        <div class="guide-item-row" onclick="handleGuideItemClick('${item.id}', '${catName}')">
+          <div class="guide-item-row-left">
+            <button class="guide-fav-btn ${isFav ? 'active' : ''}" onclick="toggleGuideFavorite('${item.id}', event)">
+              <span class="material-icons">${isFav ? 'star' : 'star_border'}</span>
+            </button>
+            <span class="guide-item-title">${item.name}</span>
+          </div>
+          <div class="guide-item-right">
+            <span style="font-size:0.7rem; color:var(--text-secondary); background-color:rgba(141,119,101,0.06); padding:2px 8px; border-radius:10px; margin-right:8px;">${catName}</span>
+            <span class="guide-item-arrow">&rsaquo;</span>
+          </div>
+        </div>
+      `;
+    });
+    listEl.innerHTML = html;
+    if (!listEl.parentElement) container.appendChild(listEl);
+  } else {
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (listEl.parentElement) listEl.remove();
+    if (quickAccess) quickAccess.style.display = 'block';
+    accordionCards.forEach(c => c.style.display = 'block');
+  }
+};
+
+window.clearGuideSearch = () => {
+  const input = document.getElementById('guide-search-input');
+  if (input) {
+    input.value = '';
+    filterGuideTopics();
+  }
+};
+
+window.toggleGuideFavorite = (itemId, event) => {
+  if (event) event.stopPropagation();
+  let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+  const idx = favs.indexOf(itemId);
+  if (idx > -1) {
+    favs.splice(idx, 1);
+  } else {
+    favs.push(itemId);
+  }
+  localStorage.setItem('guideFavorites', JSON.stringify(favs));
+  
+  // Re-render current view
+  const searchInput = document.getElementById('guide-search-input');
+  if (searchInput && searchInput.value.trim().length > 0) {
+    filterGuideTopics();
+  } else {
+    renderDrillingGuideScreen();
+  }
+};
+
+window.isGuideFavorited = (itemId) => {
+  let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+  return favs.includes(itemId);
+};
+
+window.toggleGuideCategory = (cardId) => {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  
+  const isExpanded = card.classList.contains('expanded');
+  
+  // Collapse all others first for accordion effect
+  document.querySelectorAll('.guide-category-card').forEach(otherCard => {
+    otherCard.classList.remove('expanded');
+    const otherList = otherCard.querySelector('.guide-subcategory-list');
+    if (otherList) otherList.style.maxHeight = null;
+  });
+  
+  if (!isExpanded) {
+    card.classList.add('expanded');
+    const list = card.querySelector('.guide-subcategory-list');
+    if (list) {
+      list.style.maxHeight = list.scrollHeight + 'px';
+    }
+  }
+};
+
+window.handleGuideItemClick = (itemId, categoryName) => {
+  if (itemId === 'stuck_pipe_guide') {
+    navigateTo('stuck-pipe');
+    return;
+  }
+  if (itemId === 'bit_dull_grading') {
+    navigateTo('bit-dull-grading');
+    return;
+  }
+  state.selectedGuideId = itemId;
+  state.selectedGuideCategory = categoryName;
+  navigateTo('drilling-guide-detail');
+};
+
+window.renderDrillingGuideDetailScreen = () => {
+  const itemId = state.selectedGuideId;
+  const categoryName = state.selectedGuideCategory || 'Drilling Guide';
+  
+  const titleEl = document.getElementById('guide-detail-title');
+  const subtitleEl = document.getElementById('guide-detail-subtitle');
+  const container = document.getElementById('drilling-guide-detail-container');
+  const favBtn = document.getElementById('guide-detail-fav-btn');
+  
+  if (!itemId || !container) return;
+  
+  const content = getGuideItemContent(itemId);
+  if (titleEl) titleEl.textContent = content.title;
+  if (subtitleEl) subtitleEl.textContent = categoryName;
+  
+  // Set favorite button icon state
+  if (favBtn) {
+    let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+    const isFav = favs.includes(itemId);
+    const iconEl = favBtn.querySelector('.material-icons');
+    if (iconEl) {
+      iconEl.textContent = isFav ? 'star' : 'star_border';
+    }
+  }
+  
+  // Set HTML content inside a beautiful container card
+  container.innerHTML = `
+    <div class="guide-detail-card" style="background: var(--card-bg); border-radius: var(--border-radius-card); padding: 20px; box-shadow: var(--shadow-subtle); border: 1px solid var(--border-subtle); line-height: 1.6;">
+      ${content.bodyHTML}
+    </div>
+  `;
+  
+  // Post-render init for interactive features
+  if (itemId === 'bit_nozzle_selection') {
+    renderGuideNozzleInputs();
+  } else if (itemId === 'bit_hydraulics') {
+    calculateGuideHydraulics();
+  } else if (itemId === 'bit_dull_grading') {
+    calculateGuideDullGrade();
+  } else if (itemId === 'wait_weight_method') {
+    calculateGuideKillParameters();
+  } else if (itemId === 'bit_makeup_torque') {
+    selectGuideMakeupTorque();
+  } else if (itemId === 'hydrostatic_pressure') {
+    calculateGuideHydrostatic();
+  } else if (itemId === 'annular_velocity') {
+    calculateGuideAnnularVelocity();
+  } else if (itemId === 'dogleg_severity') {
+    calculateGuideDLS();
+  } else if (itemId === 'mud_calculations') {
+    calculateGuideMudWeightUp();
+  }
+};
+
+window.toggleDetailGuideFavorite = () => {
+  const itemId = state.selectedGuideId;
+  if (!itemId) return;
+  
+  let favs = JSON.parse(localStorage.getItem('guideFavorites') || '[]');
+  const index = favs.indexOf(itemId);
+  if (index > -1) {
+    favs.splice(index, 1);
+  } else {
+    favs.push(itemId);
+  }
+  localStorage.setItem('guideFavorites', JSON.stringify(favs));
+  
+  // Re-render button state
+  const favBtn = document.getElementById('guide-detail-fav-btn');
+  if (favBtn) {
+    const isFav = favs.includes(itemId);
+    const iconEl = favBtn.querySelector('.material-icons');
+    if (iconEl) {
+      iconEl.textContent = isFav ? 'star' : 'star_border';
+    }
+  }
+};
+
+// Nozzle Selection calculations
+window.renderGuideNozzleInputs = () => {
+  const count = parseInt(document.getElementById('tfa-count').value) || 3;
+  const container = document.getElementById('nozzle-inputs-container');
+  if (!container) return;
+  
+  let html = '';
+  for (let i = 1; i <= count; i++) {
+    html += `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <span style="font-size:0.8rem; font-weight:600; color:var(--text-secondary);">Nozzle #${i} (/32")</span>
+        <input type="number" class="guide-calc-input nozzle-size-input" style="width:90px;" value="12" min="6" max="32" oninput="calculateGuideTFA()">
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+  calculateGuideTFA();
+};
+
+window.calculateGuideTFA = () => {
+  const inputs = document.querySelectorAll('.nozzle-size-input');
+  let tfa = 0;
+  inputs.forEach(input => {
+    const size = parseFloat(input.value) || 0;
+    if (size > 0) {
+      tfa += (size / 32) * (size / 32) * (Math.PI / 4);
+    }
+  });
+  const resEl = document.getElementById('tfa-result');
+  if (resEl) resEl.textContent = tfa.toFixed(4);
+};
+
+// Hydraulics calculations
+window.calculateGuideHydraulics = () => {
+  const flow = parseFloat(document.getElementById('hyd-flow').value) || 0;
+  const mw = parseFloat(document.getElementById('hyd-mw').value) || 0;
+  const tfa = parseFloat(document.getElementById('hyd-tfa').value) || 0;
+  const size = parseFloat(document.getElementById('hyd-size').value) || 0;
+
+  const vnEl = document.getElementById('hyd-val-vn');
+  const pbEl = document.getElementById('hyd-val-pb');
+  const hhpEl = document.getElementById('hyd-val-hhp');
+  const hsiEl = document.getElementById('hyd-val-hsi');
+  const ifEl = document.getElementById('hyd-val-if');
+
+  if (flow > 0 && tfa > 0) {
+    const vn = (0.32086 * flow) / tfa;
+    const pb = (flow * flow * mw) / (10858 * tfa * tfa);
+    const hhp = (pb * flow) / 1714;
+    const area = (Math.PI * size * size) / 4;
+    const hsi = area > 0 ? hhp / area : 0;
+    const impactForce = (flow * mw * vn) / 1930;
+
+    if (vnEl) vnEl.textContent = vn.toFixed(0);
+    if (pbEl) pbEl.textContent = pb.toFixed(0);
+    if (hhpEl) hhpEl.textContent = hhp.toFixed(0);
+    if (hsiEl) hsiEl.textContent = hsi.toFixed(2);
+    if (ifEl) ifEl.textContent = impactForce.toFixed(0);
+  }
+};
+
+// Dull Grading calculations
+window.calculateGuideDullGrade = () => {
+  const i = document.getElementById('dull-i').value;
+  const o = document.getElementById('dull-o').value;
+  const dl = document.getElementById('dull-dl').value;
+  const l = document.getElementById('dull-l').value;
+  const b = document.getElementById('dull-b').value;
+  const g = document.getElementById('dull-g').value;
+  const er = document.getElementById('dull-er').value;
+  const rp = document.getElementById('dull-rp').value;
+
+  if (document.getElementById('dg-val-i')) {
+    document.getElementById('dg-val-i').textContent = i;
+    document.getElementById('dg-val-o').textContent = o;
+    document.getElementById('dg-val-dl').textContent = dl;
+    document.getElementById('dg-val-l').textContent = l;
+    document.getElementById('dg-val-b').textContent = b;
+    document.getElementById('dg-val-g').textContent = g;
+    document.getElementById('dg-val-er').textContent = er;
+    document.getElementById('dg-val-rp').textContent = rp;
+  }
+
+  const explBox = document.getElementById('dg-explanation');
+  if (explBox) {
+    let expl = `<strong>Dull Grade: ${i}-${o}-${dl}-${l}-${b}-${g}-${er}-${rp}</strong><br>`;
+    expl += `• Inner wear: ${i}/8, Outer wear: ${o}/8.<br>`;
+    expl += `• Main Wear: <strong>${dl}</strong> at <strong>${l}</strong>.<br>`;
+    expl += `• Bearings: <strong>${b}</strong>, Gauge: <strong>${g === 'I' ? 'In Gauge' : g + '/16" Under'}</strong>.<br>`;
+    expl += `• Reason Pulled: <strong>${rp}</strong>.`;
+    explBox.innerHTML = expl;
+  }
+};
+
+// Kill parameters calculations
+window.calculateGuideKillParameters = () => {
+  const omw = parseFloat(document.getElementById('ww-omw').value) || 0;
+  const sidpp = parseFloat(document.getElementById('ww-sidpp').value) || 0;
+  const scrp = parseFloat(document.getElementById('ww-scrp').value) || 0;
+  const tvd = parseFloat(document.getElementById('ww-tvd').value) || 0;
+
+  const kmwEl = document.getElementById('ww-val-kmw');
+  const icpEl = document.getElementById('ww-val-icp');
+  const fcpEl = document.getElementById('ww-val-fcp');
+
+  if (omw > 0 && tvd > 0) {
+    const kmw = omw + (sidpp / (0.052 * tvd));
+    const icp = sidpp + scrp;
+    const fcp = scrp * (kmw / omw);
+
+    if (kmwEl) kmwEl.textContent = kmw.toFixed(2);
+    if (icpEl) icpEl.textContent = icp.toFixed(0);
+    if (fcpEl) fcpEl.textContent = fcp.toFixed(0);
+  }
+};
+
+// Makeup torque selector
+window.selectGuideMakeupTorque = () => {
+  const val = document.getElementById('mut-conn').value;
+  const ftlbEl = document.getElementById('mut-val-ftlb');
+  const nmEl = document.getElementById('mut-val-nm');
+  
+  if (!ftlbEl || !nmEl) return;
+  
+  let ftlbs = "";
+  let nms = "";
+  
+  if (val === "2.375") {
+    ftlbs = "3,000 - 3,400";
+    nms = "4,070 - 4,610";
+  } else if (val === "2.875") {
+    ftlbs = "6,000 - 6,800";
+    nms = "8,130 - 9,220";
+  } else if (val === "3.5") {
+    ftlbs = "7,000 - 9,000";
+    nms = "9,490 - 12,200";
+  } else if (val === "4.5") {
+    ftlbs = "28,000 - 32,000";
+    nms = "37,960 - 43,380";
+  } else if (val === "6.625") {
+    ftlbs = "55,000 - 65,000";
+    nms = "74,570 - 88,130";
+  } else if (val === "7.625") {
+    ftlbs = "75,000 - 85,000";
+    nms = "101,690 - 115,240";
+  } else if (val === "8.625") {
+    ftlbs = "90,000 - 110,000";
+    nms = "122,020 - 149,140";
+  }
+  
+  ftlbEl.textContent = ftlbs;
+  nmEl.textContent = nms;
+};
+
+// Hydrostatic Pressure Calculator Actions
+window.calculateGuideHydrostatic = () => {
+  const mw = parseFloat(document.getElementById('hp-mw').value) || 0;
+  const tvd = parseFloat(document.getElementById('hp-tvd').value) || 0;
+  const resEl = document.getElementById('hp-result');
+  if (resEl) {
+    if (mw > 0 && tvd > 0) {
+      const hp = mw * 0.052 * tvd;
+      resEl.textContent = Math.round(hp).toLocaleString();
+    } else {
+      resEl.textContent = "0";
+    }
+  }
+};
+
+// Annular Velocity Calculator Actions
+window.calculateGuideAnnularVelocity = () => {
+  const flow = parseFloat(document.getElementById('av-flow').value) || 0;
+  const hole = parseFloat(document.getElementById('av-hole').value) || 0;
+  const pipe = parseFloat(document.getElementById('av-pipe').value) || 0;
+  const resEl = document.getElementById('av-result');
+  if (resEl) {
+    if (flow > 0 && hole > pipe) {
+      const av = (24.51 * flow) / (hole * hole - pipe * pipe);
+      resEl.textContent = Math.round(av).toLocaleString();
+    } else {
+      resEl.textContent = "0";
+    }
+  }
+};
+
+// Dogleg Severity Calculator Actions
+window.calculateGuideDLS = () => {
+  const md = parseFloat(document.getElementById('dls-md').value) || 100;
+  const inc1 = parseFloat(document.getElementById('dls-inc1').value) || 0;
+  const azi1 = parseFloat(document.getElementById('dls-azi1').value) || 0;
+  const inc2 = parseFloat(document.getElementById('dls-inc2').value) || 0;
+  const azi2 = parseFloat(document.getElementById('dls-azi2').value) || 0;
+  const resEl = document.getElementById('dls-result');
+  
+  if (resEl) {
+    if (md > 0) {
+      const rInc1 = inc1 * Math.PI / 180;
+      const rInc2 = inc2 * Math.PI / 180;
+      const rAziDiff = (azi2 - azi1) * Math.PI / 180;
+      
+      let cosTheta = Math.cos(rInc1) * Math.cos(rInc2) + Math.sin(rInc1) * Math.sin(rInc2) * Math.cos(rAziDiff);
+      cosTheta = Math.max(-1, Math.min(1, cosTheta));
+      
+      const theta = Math.acos(cosTheta);
+      const thetaDeg = theta * 180 / Math.PI;
+      
+      const dls = (thetaDeg / md) * 100;
+      resEl.textContent = dls.toFixed(2);
+    } else {
+      resEl.textContent = "0.00";
+    }
+  }
+};
+
+// Mud Weight Up Calculator Actions
+window.calculateGuideMudWeightUp = () => {
+  const vol = parseFloat(document.getElementById('mudup-vol').value) || 0;
+  const initialMW = parseFloat(document.getElementById('mudup-imw').value) || 0;
+  const targetMW = parseFloat(document.getElementById('mudup-tmw').value) || 0;
+  const resEl = document.getElementById('mudup-result');
+  if (resEl) {
+    if (vol > 0 && targetMW > initialMW && targetMW < 35.8) {
+      const sacks = (vol * 14.7 * (targetMW - initialMW)) / (35.8 - targetMW);
+      resEl.textContent = Math.round(sacks).toLocaleString();
+    } else {
+      resEl.textContent = "0";
+    }
+  }
+};
+
+// Database content for items
+function getGuideItemContent(itemId) {
+  switch (itemId) {
+    // ─── HYDRAULICS CATEGORY ───
+    case "hydrostatic_pressure":
+      return {
+        title: "Hydrostatic Pressure",
+        bodyHTML: `
+          <p class="guide-text-block">Pressure exerted by a static column of fluid due to the force of gravity. Essential for maintaining primary well control.</p>
+          <span class="guide-section-title">Hydrostatic Formula</span>
+          <div style="background-color:rgba(141,119,101,0.04); padding:10px 14px; border-radius:8px; font-family:monospace; font-size:0.85rem; margin-bottom:15px; color:var(--text-primary); border: 1px solid var(--border-subtle);">
+            HP = MW (ppg) × 0.052 × TVD (ft)
+          </div>
+          <span class="guide-section-title">Interactive HP Calculator</span>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Mud Weight (ppg)</label>
+                <input type="number" class="guide-calc-input" id="hp-mw" value="10.0" step="0.1" oninput="calculateGuideHydrostatic()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">True Vertical Depth (ft)</label>
+                <input type="number" class="guide-calc-input" id="hp-tvd" value="8000" step="100" oninput="calculateGuideHydrostatic()">
+              </div>
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Hydrostatic Pressure</span>
+                <span class="guide-calc-result-val"><span id="hp-result">4160</span> psi</span>
+              </div>
+            </div>
+          </div>
+        `
+      };
+    case "annular_velocity":
+      return {
+        title: "Annular Velocity",
+        bodyHTML: `
+          <p class="guide-text-block">Speed of fluid moving up the annular space between the drill pipe/collar outer wall and the wellbore/casing inner wall. Critical for hole cleaning.</p>
+          <span class="guide-section-title">Annular Velocity Formula</span>
+          <div style="background-color:rgba(141,119,101,0.04); padding:10px 14px; border-radius:8px; font-family:monospace; font-size:0.85rem; margin-bottom:15px; color:var(--text-primary); border: 1px solid var(--border-subtle);">
+            AV = (24.51 × Q) / (Dh² - Dp²)
+          </div>
+          <span class="guide-section-title">Interactive AV Calculator</span>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Flow Rate (gpm)</label>
+                <input type="number" class="guide-calc-input" id="av-flow" value="400" step="10" oninput="calculateGuideAnnularVelocity()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Hole / Casing ID (in)</label>
+                <input type="number" class="guide-calc-input" id="av-hole" value="12.25" step="0.125" oninput="calculateGuideAnnularVelocity()">
+              </div>
+              <div class="guide-calc-group" style="grid-column: span 2;">
+                <label class="guide-calc-label">Pipe / Collar OD (in)</label>
+                <input type="number" class="guide-calc-input" id="av-pipe" value="5.0" step="0.1" oninput="calculateGuideAnnularVelocity()">
+              </div>
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Annular Velocity</span>
+                <span class="guide-calc-result-val"><span id="av-result">78</span> ft/min</span>
+              </div>
+            </div>
+          </div>
+        `
+      };
+    case "pressure_loss":
+      return {
+        title: "Pressure Loss / Hydraulics",
+        bodyHTML: `
+          <p class="guide-text-block">Friction pressure losses encountered as drilling fluids travel through surface manifolds, drill string bore, drill bit nozzles, and annular spaces.</p>
+          <span class="guide-section-title">Hydraulics Distribution</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Surface Equipment:</strong> Standpipe, hose, swivel, kelly (usually 50-150 psi).</li>
+            <li><strong>Drill String Bore:</strong> High flow velocity inside drill pipes and drill collars.</li>
+            <li><strong>Bit Nozzles:</strong> Typically designed to consume 50% to 65% of total pump pressure for maximum cleaning impact.</li>
+            <li><strong>Annulus Friction:</strong> Creates additional pressure on formation (ECD).</li>
+          </ul>
+        `
+      };
+
+    // ─── DIRECTIONAL DRILLING CATEGORY ───
+    case "directional_surveying":
+      return {
+        title: "Directional Surveying",
+        bodyHTML: `
+          <p class="guide-text-block">Measuring inclination and azimuth along the wellbore to determine and map the 3D trajectory of the well.</p>
+          <span class="guide-section-title">Key Parameters</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Measured Depth (MD):</strong> Actual length of the hole from surface.</li>
+            <li><strong>Inclination:</strong> Angle of deviation from vertical (0° = vertical).</li>
+            <li><strong>Azimuth:</strong> Direction in horizontal plane relative to True/Magnetic North.</li>
+            <li><strong>True Vertical Depth (TVD):</strong> Vertical distance from surface plane.</li>
+          </ul>
+        `
+      };
+    case "dogleg_severity":
+      return {
+        title: "Dogleg Severity (DLS)",
+        bodyHTML: `
+          <p class="guide-text-block">The rate of change in wellbore trajectory direction (combining inclination and azimuth) over a set interval length, expressed in degrees per 100 ft.</p>
+          <span class="guide-section-title">Interactive DLS Calculator</span>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Survey MD Interval (ft)</label>
+                <input type="number" class="guide-calc-input" id="dls-md" value="100" step="10" oninput="calculateGuideDLS()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Survey #1: Inc / Azi (°)</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="number" class="guide-calc-input" id="dls-inc1" value="2.0" step="0.1" oninput="calculateGuideDLS()" style="padding: 8px 6px;">
+                  <input type="number" class="guide-calc-input" id="dls-azi1" value="45.0" step="1" oninput="calculateGuideDLS()" style="padding: 8px 6px;">
+                </div>
+              </div>
+              <div class="guide-calc-group" style="grid-column: span 2;">
+                <label class="guide-calc-label">Survey #2: Inc / Azi (°)</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="number" class="guide-calc-input" id="dls-inc2" value="3.5" step="0.1" oninput="calculateGuideDLS()" style="padding: 8px 6px;">
+                  <input type="number" class="guide-calc-input" id="dls-azi2" value="48.0" step="1" oninput="calculateGuideDLS()" style="padding: 8px 6px;">
+                </div>
+              </div>
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Dogleg Severity (DLS)</span>
+                <span class="guide-calc-result-val"><span id="dls-result">1.51</span> °/100 ft</span>
+              </div>
+            </div>
+          </div>
+        `
+      };
+    case "kickoff_build_rate":
+      return {
+        title: "Kick-off & Build Rate",
+        bodyHTML: `
+          <p class="guide-text-block">Guidelines for initiating directional deviation (kickoff point KOP) and managing building/dropping section curvatures.</p>
+          <span class="guide-section-title">Key Operational Stages</span>
+          <ul class="guide-bullet-list">
+            <li><strong>KOP selection:</strong> Set in competent formations below unstable shales.</li>
+            <li><strong>Toolface Orientation:</strong> Orienting the bent-sub motor to kick-off.</li>
+            <li><strong>Build-up Rate (BUR):</strong> Speed of inclination build, typically 2° to 6° per 100 ft.</li>
+          </ul>
+        `
+      };
+
+    // ─── MUD ENGINEERING CATEGORY ───
+    case "mud_weight":
+      return {
+        title: "Mud Weight / Density",
+        bodyHTML: `
+          <p class="guide-text-block">Density controls hydrostatic pressures in the well. Insufficient weight causes kicks/sloughing; excessive weight causes lost circulation.</p>
+          <span class="guide-section-title">Measurement Steps</span>
+          <ul class="guide-step-list">
+            <div class="guide-step-item">
+              <span class="guide-step-num">1</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Fill Mud Cup</span>
+                <span class="guide-step-desc">Fill the clean, dry cup completely with freshly sampled mud.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">2</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Seal & Wipe</span>
+                <span class="guide-step-desc">Place lid firmly, allowing excess mud to escape vents, then wipe cup dry.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">3</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Balance Rider</span>
+                <span class="guide-step-desc">Move the rider along the graduated beam until the bubble levels, then read density.</span>
+              </div>
+            </div>
+          </ul>
+        `
+      };
+    case "mud_viscosity":
+      return {
+        title: "Viscosity & Gel Strength",
+        bodyHTML: `
+          <p class="guide-text-block">Viscosity determines cuttings transport. Gel strength indicates fluid's capacity to suspend solids when circulation is halted.</p>
+          <span class="guide-section-title">Marsh Funnel Viscosity</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Procedure:</strong> Record time taken for 1 quart (946 ml) of mud to flow from funnel.</li>
+            <li><strong>Water Standard:</strong> Fresh water at 70°F should take <strong>26 ± 0.5 seconds</strong>.</li>
+            <li><strong>Gel Strengths:</strong> Measured at 10-second and 10-minute static intervals using a Fann VG meter to verify thixotropic properties.</li>
+          </ul>
+        `
+      };
+    case "mud_calculations":
+      return {
+        title: "Mud Engineering Calculations",
+        bodyHTML: `
+          <p class="guide-text-block">Calculate quantities of weighting materials (Barite) required to increase mud weight.</p>
+          <span class="guide-section-title">Barite Increase Formula</span>
+          <div style="background-color:rgba(141,119,101,0.04); padding:10px 14px; border-radius:8px; font-family:monospace; font-size:0.85rem; margin-bottom:15px; color:var(--text-primary); border: 1px solid var(--border-subtle);">
+            Sacks of Barite = V × 14.7 × (W2 - W1) / (35.8 - W2)
+          </div>
+          <span class="guide-section-title">Weight Up Calculator</span>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Initial Mud Vol (bbl)</label>
+                <input type="number" class="guide-calc-input" id="mudup-vol" value="1000" step="100" oninput="calculateGuideMudWeightUp()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Initial MW (ppg)</label>
+                <input type="number" class="guide-calc-input" id="mudup-imw" value="10.0" step="0.1" oninput="calculateGuideMudWeightUp()">
+              </div>
+              <div class="guide-calc-group" style="grid-column: span 2;">
+                <label class="guide-calc-label">Target MW (ppg)</label>
+                <input type="number" class="guide-calc-input" id="mudup-tmw" value="12.0" step="0.1" oninput="calculateGuideMudWeightUp()">
+              </div>
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Barite Sacks (100 lbs)</span>
+                <span class="guide-calc-result-val"><span id="mudup-result">1235</span> sacks</span>
+              </div>
+            </div>
+          </div>
+        `
+      };
+
+    // ─── WELL COMPLETION CATEGORY ───
+    case "packers":
+      return {
+        title: "Production Packers",
+        bodyHTML: `
+          <p class="guide-text-block">Downhole isolation devices containing packer elements that seal the casing-tubing annulus. Protects upper casing from reservoir pressure.</p>
+          <span class="guide-section-title">Common Classifications</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Mechanical Set:</strong> Set by rotation, tension, or compression of the tubing.</li>
+            <li><strong>Hydraulic Set:</strong> Set by applying pump pressure down the tubing string.</li>
+            <li><strong>Permanent:</strong> Sealed permanently in casing; must be milled out to retrieve.</li>
+          </ul>
+        `
+      };
+    case "production_tubing":
+      return {
+        title: "Production Tubing",
+        bodyHTML: `
+          <p class="guide-text-block">Conduit through which reservoir fluids flow to surface. Selected to withstand tension, collapse, and burst loads.</p>
+          <span class="guide-section-title">Design Parameters</span>
+          <ul class="guide-bullet-list">
+            <li><strong>API Grades:</strong> J-55 (55k psi), N-80 (80k), L-80 (corrosion resistant), P-110 (110k).</li>
+            <li><strong>Connection Types:</strong> EUE (External Upset) threaded & coupled, or Premium gas-tight metal-to-metal seal joints.</li>
+          </ul>
+        `
+      };
+    case "wellhead_xmas_tree":
+      return {
+        title: "Wellhead & Christmas Tree",
+        bodyHTML: `
+          <p class="guide-text-block">The primary surface equipment that supports casing/tubing strings and controls fluid production flow.</p>
+          <span class="guide-section-title">Key Elements</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Casing Head:</strong> Welded/screwed to surface casing; supports next casing string.</li>
+            <li><strong>Tubing Spool:</strong> Suspends the tubing hanger and seals the annulus.</li>
+            <li><strong>Xmas Tree Valves:</strong> Master valve (main isolation), swab valve (access vertical bore), wing valves, and surface choke.</li>
+          </ul>
+        `
+      };
+
+    // ─── BHA COMPONENTS ───
+    case "bha_components":
+      return {
+        title: "BHA Components",
+        bodyHTML: `
+          <p class="guide-text-block">Bottom Hole Assembly (BHA) components are placed above the drill bit to provide weight, stiffness, stabilization, and direction control.</p>
+          <span class="guide-section-title">Core Components</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Drill Collars (DC):</strong> Heavy, thick-walled steel pipes to apply weight on bit (WOB).</li>
+            <li><strong>Stabilizers:</strong> Maintain concentricity, prevent keyseating, and control hole trajectory.</li>
+            <li><strong>Heavy Weight Drill Pipe (HWDP):</strong> Transitional pipe between stiff collars and flexible drill pipe.</li>
+            <li><strong>Mud Motor / RSS:</strong> Rotary Steerable Systems or downhole motors for directional control.</li>
+          </ul>
+        `
+      };
+    case "drill_string_components":
+      return {
+        title: "Drill String Components",
+        bodyHTML: `
+          <p class="guide-text-block">The conduit connecting surface machinery to the BHA. Transmits rotation, torque, and fluid circulation.</p>
+          <span class="guide-section-title">Standard Components</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Kelly / Top Drive:</strong> Transmits rotation from the surface rotary table or top drive motor.</li>
+            <li><strong>Drill Pipe (DP):</strong> Standard hollow seamless tubes (length usually Range 2: ~30 ft).</li>
+            <li><strong>Tool Joints:</strong> Threaded connections (Pin/Box) welded to pipe ends.</li>
+          </ul>
+        `
+      };
+
+    // ─── DRILL BITS ───
+    case "pdc_bits":
+      return {
+        title: "PDC Bits",
+        bodyHTML: `
+          <p class="guide-text-block">Polycrystalline Diamond Compact (PDC) bits use synthetic diamond cutters to shear rock rather than scrape it. Highly effective in homogenous formations.</p>
+          <span class="guide-section-title">PDC Advantages</span>
+          <ul class="guide-bullet-list">
+            <li>No moving parts, reducing risk of mechanical failure downhole.</li>
+            <li>High rate of penetration (ROP) in soft to medium-hard rock.</li>
+            <li>Excellent durability, enabling longer runs without tripping.</li>
+          </ul>
+        `
+      };
+    case "roller_cone_bits":
+      return {
+        title: "Roller Cone Bits",
+        bodyHTML: `
+          <p class="guide-text-block">Features three moving cones with steel teeth or tungsten carbide inserts (TCI) that crush and gouge rock. Best suited for variable or hard formations.</p>
+          <span class="guide-section-title">Key Elements</span>
+          <ul class="guide-bullet-list">
+            <li><strong>TCI (Tungsten Carbide Inserts):</strong> Press-fit buttons for hard abrasive formations.</li>
+            <li><strong>Steel Teeth:</strong> Milled directly on the cones for soft formations.</li>
+            <li><strong>Bearings:</strong> Sealed roller/journal bearings or open bearings.</li>
+          </ul>
+        `
+      };
+    case "bit_nozzle_selection":
+      return {
+        title: "Bit Nozzle Selection",
+        bodyHTML: `
+          <p class="guide-text-block">Select and calculate the Total Flow Area (TFA) of jet nozzles (measured in 32nds of an inch) to optimize hydraulic energy at the bottom of the wellbore.</p>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Number of Nozzles</label>
+                <select class="guide-calc-input" id="tfa-count" onchange="renderGuideNozzleInputs()">
+                  <option value="3">3 Nozzles</option>
+                  <option value="4">4 Nozzles</option>
+                  <option value="5">5 Nozzles</option>
+                  <option value="6">6 Nozzles</option>
+                </select>
+              </div>
+            </div>
+            <div id="nozzle-inputs-container" style="display:flex; flex-direction:column; gap:10px;">
+              <!-- Dynamic inputs here -->
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Total Flow Area (TFA)</span>
+                <span class="guide-calc-result-val"><span id="tfa-result">0.0000</span> in²</span>
+              </div>
+            </div>
+          </div>
+        `
+      };
+    case "bit_hydraulics":
+      return {
+        title: "Bit Hydraulics",
+        bodyHTML: `
+          <p class="guide-text-block">Calculate hydraulic parameters at the bit nozzles to verify efficient cutting removal and optimum hydraulic horsepower (HSI).</p>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Flow Rate (gpm)</label>
+                <input type="number" class="guide-calc-input" id="hyd-flow" value="400" oninput="calculateGuideHydraulics()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Mud Weight (ppg)</label>
+                <input type="number" class="guide-calc-input" id="hyd-mw" value="10.0" step="0.1" oninput="calculateGuideHydraulics()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Bit TFA (in²)</label>
+                <input type="number" class="guide-calc-input" id="hyd-tfa" value="0.331" step="0.001" oninput="calculateGuideHydraulics()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Bit Size (in)</label>
+                <input type="number" class="guide-calc-input" id="hyd-size" value="8.5" step="0.1" oninput="calculateGuideHydraulics()">
+              </div>
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row"><span class="guide-calc-result-lbl">Nozzle Velocity</span><span class="guide-calc-result-val"><span id="hyd-val-vn">0</span> ft/s</span></div>
+              <div class="guide-calc-result-row"><span class="guide-calc-result-lbl">Bit Pressure Drop</span><span class="guide-calc-result-val"><span id="hyd-val-pb">0</span> psi</span></div>
+              <div class="guide-calc-result-row"><span class="guide-calc-result-lbl">Hydraulic Horsepower</span><span class="guide-calc-result-val"><span id="hyd-val-hhp">0</span> HP</span></div>
+              <div class="guide-calc-result-row"><span class="guide-calc-result-lbl">HSI (HP/in²)</span><span class="guide-calc-result-val"><span id="hyd-val-hsi">0.00</span> HSI</span></div>
+              <div class="guide-calc-result-row"><span class="guide-calc-result-lbl">Impact Force</span><span class="guide-calc-result-val"><span id="hyd-val-if">0</span> lbf</span></div>
+            </div>
+          </div>
+        `
+      };
+    case "bit_makeup_torque":
+      return {
+        title: "Bit Make-up Torque",
+        bodyHTML: `
+          <p class="guide-text-block">API recommended makeup torque ranges for standard thread connection sizes of drill bits.</p>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs single-col">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">API Regular Thread Connection</label>
+                <select class="guide-calc-input" id="mut-conn" onchange="selectGuideMakeupTorque()">
+                  <option value="2.375">2-3/8" API Reg</option>
+                  <option value="2.875">2-7/8" API Reg</option>
+                  <option value="3.5">3-1/2" API Reg</option>
+                  <option value="4.5">4-1/2" API Reg</option>
+                  <option value="6.625">6-5/8" API Reg</option>
+                  <option value="7.625">7-5/8" API Reg</option>
+                  <option value="8.625">8-5/8" API Reg</option>
+                </select>
+              </div>
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Recommended Torque (ft-lbs)</span>
+                <span class="guide-calc-result-val" id="mut-val-ftlb">-</span>
+              </div>
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Recommended Torque (N-m)</span>
+                <span class="guide-calc-result-val" id="mut-val-nm">-</span>
+              </div>
+            </div>
+          </div>
+        `
+      };
+
+    // ─── BHA & DRILLSTRING ───
+    case "stabilizers":
+      return {
+        title: "Stabilizers",
+        bodyHTML: `
+          <p class="guide-text-block">Maintain concentric alignment of BHA. Placement determines build, hold, or drop trajectory effects.</p>
+          <span class="guide-section-title">Design Variations</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Integral Blade:</strong> Machined from single alloy steel bar (rugged, durable).</li>
+            <li><strong>Welded Blade:</strong> Spiral blades welded onto body (cost-effective).</li>
+            <li><strong>Sleeve Stabilizers:</strong> Exchangeable sleeve fitted over mandrel (easy wear replacement).</li>
+          </ul>
+        `
+      };
+    case "reamers":
+      return {
+        title: "Reamers / Underreamers",
+        bodyHTML: `
+          <p class="guide-text-block">Reamers clear swelling shales and doglegs. Underreamers expand hole size dynamically below casings.</p>
+          <span class="guide-section-title">Applications</span>
+          <ul class="guide-bullet-list">
+            <li>Ensure hole gauge in swelling clay formations.</li>
+            <li>Expand borehole diameter to allow casing run with small annular clearances.</li>
+          </ul>
+        `
+      };
+    case "jars":
+      return {
+        title: "Drilling Jars",
+        bodyHTML: `
+          <p class="guide-text-block">Downhole energy-storing tool designed to deliver high impact force (upward or downward) to free stuck drill strings.</p>
+          <span class="guide-section-title">Safety Guidelines</span>
+          <ul class="guide-bullet-list">
+            <li>Place jars in tension above the neutral point during normal drilling.</li>
+            <li>Always test jar function on surface before tripping in hole.</li>
+            <li>Utilize jar accelerators to increase impact energy at depth.</li>
+          </ul>
+        `
+      };
+    case "shock_subs":
+      return {
+        title: "Shock Subs",
+        bodyHTML: `
+          <p class="guide-text-block">Dampen longitudinal vibrations caused by bit bouncing on hard formation rocks. Protects drill string threads and surface equipment.</p>
+          <span class="guide-section-title">Operational Benefits</span>
+          <ul class="guide-bullet-list">
+            <li>Reduces micro-fracturing of tungsten carbide bit inserts.</li>
+            <li>Extends seal life of downhole logging tools (MWD/LWD).</li>
+          </ul>
+        `
+      };
+    case "float_valves":
+      return {
+        title: "Float Valves",
+        bodyHTML: `
+          <p class="guide-text-block">One-way check valves installed in the bit sub to prevent backflow of mud up the drill string. Protects against plugged nozzles and back-pressure kicks.</p>
+          <span class="guide-section-title">Types</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Plunger Type:</strong> Spring-loaded plunger providing positive mud shut-off.</li>
+            <li><strong>Flapper Type:</strong> Hinged flapper opening under circulation, sealing on shut down.</li>
+          </ul>
+        `
+      };
+    case "crossovers":
+      return {
+        title: "Crossovers (X-O Subs)",
+        bodyHTML: `
+          <p class="guide-text-block">Short connection subs designed to bridge differing thread profiles or connection styles inside the drill string (e.g. IF to REG).</p>
+          <span class="guide-section-title">Design Rule</span>
+          <ul class="guide-bullet-list">
+            <li>Always verify OD, ID, and steel yield grade match the weaker component.</li>
+          </ul>
+        `
+      };
+
+    // ─── WELL CONTROL ───
+    case "kick_indicators":
+      return {
+        title: "Kick Indicators",
+        bodyHTML: `
+          <p class="guide-text-block">Key indicators of formation fluid entering the wellbore. Early detection prevents blowouts.</p>
+          <span class="guide-section-title">Primary Indicators</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Increase in Pit Volume:</strong> Inflowing kick fluid displaces mud into active pits.</li>
+            <li><strong>Increase in Flow Rate:</strong> Return flow line indicator shows higher output than pump input.</li>
+            <li><strong>Flowing with Pumps Off:</strong> The well continues to flow after mud pumps are shut down.</li>
+          </ul>
+        `
+      };
+    case "shutin_procedure":
+      return {
+        title: "Shut-in Procedure (Hard)",
+        bodyHTML: `
+          <p class="guide-text-block">Standard steps to shut-in a well when kick indicators are identified.</p>
+          <span class="guide-step-list">
+            <div class="guide-step-item">
+              <span class="guide-step-num">1</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Space Out</span>
+                <span class="guide-step-desc">Position tool joints clear of BOP rams; stop rotation.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">2</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Stop Pumps</span>
+                <span class="guide-step-desc">Shut down mud pumps, then verify if well is flowing.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">3</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Close BOP</span>
+                <span class="guide-step-desc">Close annular preventer or pipe rams; open choke manifold valve.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">4</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Record Pressures</span>
+                <span class="guide-step-desc">Record SIDPP, SICP, and pit gain once stabilized.</span>
+              </div>
+            </div>
+          </ul>
+        `
+      };
+    case "drillers_method":
+      return {
+        title: "Driller's Method",
+        bodyHTML: `
+          <p class="guide-text-block">A two-circulation well control method. In the 1st circulation, kick is pumped out with original mud. In the 2nd circulation, kill mud is pumped.</p>
+          <span class="guide-section-title">First Circulation</span>
+          <ul class="guide-bullet-list">
+            <li>Pump kick out using original mud weight (OMW).</li>
+            <li>Maintain casing pressure constant until pumps reach SCR rate, then maintain drillpipe pressure constant until kick is out.</li>
+          </ul>
+        `
+      };
+    case "wait_weight_method":
+      return {
+        title: "Wait & Weight Method",
+        bodyHTML: `
+          <p class="guide-text-block">Kill mud is mixed on surface before circulation starts. The kick is circulated out and the well is killed in a single circulation.</p>
+          <div class="guide-calc-box">
+            <div class="guide-calc-inputs">
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">Original MW (ppg)</label>
+                <input type="number" class="guide-calc-input" id="ww-omw" value="10.0" step="0.1" oninput="calculateGuideKillParameters()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">SIDPP (psi)</label>
+                <input type="number" class="guide-calc-input" id="ww-sidpp" value="500" step="10" oninput="calculateGuideKillParameters()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">SCR Pressure (psi)</label>
+                <input type="number" class="guide-calc-input" id="ww-scrp" value="350" step="10" oninput="calculateGuideKillParameters()">
+              </div>
+              <div class="guide-calc-group">
+                <label class="guide-calc-label">True Vertical Depth (ft)</label>
+                <input type="number" class="guide-calc-input" id="ww-tvd" value="8000" step="100" oninput="calculateGuideKillParameters()">
+              </div>
+            </div>
+            <div class="guide-calc-results">
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Kill Mud Weight (KMW)</span>
+                <span class="guide-calc-result-val"><span id="ww-val-kmw">0.00</span> ppg</span>
+              </div>
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Initial Circulation Press (ICP)</span>
+                <span class="guide-calc-result-val"><span id="ww-val-icp">0</span> psi</span>
+              </div>
+              <div class="guide-calc-result-row">
+                <span class="guide-calc-result-lbl">Final Circulation Press (FCP)</span>
+                <span class="guide-calc-result-val"><span id="ww-val-fcp">0</span> psi</span>
+              </div>
+            </div>
+          </div>
+        `
+      };
+
+    // ─── CASING & CEMENTING ───
+    case "casing_components":
+      return {
+        title: "Casing Components",
+        bodyHTML: `
+          <p class="guide-text-block">Steel pipes lining the borehole to prevent cave-ins, isolate formations, and withstand geological/hydrostatic pressures.</p>
+          <span class="guide-section-title">Key Components</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Conductor Casing:</strong> Prevents washouts under rig floor.</li>
+            <li><strong>Surface Casing:</strong> Protects freshwater sands; anchors BOP stack.</li>
+            <li><strong>Intermediate Casing:</strong> Isolates lost circulation or high pressure zones.</li>
+            <li><strong>Production Casing/Liner:</strong> Confines production fluids to reservoir zone.</li>
+          </ul>
+        `
+      };
+    case "float_equipment":
+      return {
+        title: "Float Equipment",
+        bodyHTML: `
+          <p class="guide-text-block">Valves installed in the casing shoe and collar to prevent backflow of slurry once cement is pumped.</p>
+          <span class="guide-section-title">Core Devices</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Float Shoe:</strong> Rounded profile at bottom containing a check valve to guide casing past ledges.</li>
+            <li><strong>Float Collar:</strong> Installed 1-2 joints above shoe; provides landing shoulder for cementing plugs.</li>
+          </ul>
+        `
+      };
+    case "centralizers":
+      return {
+        title: "Centralizers",
+        bodyHTML: `
+          <p class="guide-text-block">Fitted on the casing OD to ensure uniform annular clearance between casing and formation. Crucial for successful primary cementing displacement.</p>
+          <span class="guide-section-title">Types</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Bow-Spring:</strong> Flexible springs compress to pass tight spots, then expand.</li>
+            <li><strong>Solid Rigid:</strong> Stiff steel blades for high deviation or horizontal wells.</li>
+          </ul>
+        `
+      };
+    case "cementing_procedure":
+      return {
+        title: "Cementing Procedure",
+        bodyHTML: `
+          <p class="guide-text-block">Primary cementing steps to place slurry in casing annulus.</p>
+          <span class="guide-step-list">
+            <div class="guide-step-item">
+              <span class="guide-step-num">1</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Circulate Hole</span>
+                <span class="guide-step-desc">Condition mud and clean out cuttings before running casing.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">2</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Pump Spacer</span>
+                <span class="guide-step-desc">Pump fluid spacer to separate slurry from chemical contact with mud.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">3</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Release Bottom Plug</span>
+                <span class="guide-step-desc">Pump bottom plug, then mix and pump cement slurry.</span>
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="guide-step-num">4</span>
+              <div class="guide-step-content">
+                <span class="guide-step-title">Displace Slurry</span>
+                <span class="guide-step-desc">Release top plug; pump displacement fluid to push cement to annulus. Bump plug.</span>
+              </div>
+            </div>
+          </ul>
+        `
+      };
+    case "cement_additives":
+      return {
+        title: "Cement Additives",
+        bodyHTML: `
+          <p class="guide-text-block">Chemicals added to slurry to modify curing times, densities, or flow properties.</p>
+          <ul class="guide-bullet-list">
+            <li><strong>Accelerators (CaCl₂):</strong> Shorten cement setting time in shallow, cold zones.</li>
+            <li><strong>Retarders:</strong> Extend setting time to allow deep hot-hole placement.</li>
+            <li><strong>Extenders (Bentonite):</strong> Lower slurry density to prevent breakdown.</li>
+            <li><strong>Fluid Loss Control:</strong> Prevents water loss into permeable formations.</li>
+          </ul>
+        `
+      };
+
+    // ─── FISHING OPERATIONS ───
+    case "overshot":
+      return {
+        title: "Overshot",
+        bodyHTML: `
+          <p class="guide-text-block">The most common external catch tool. Slips over the outside of the fish to grip it firmly using basket or spiral grapples.</p>
+          <span class="guide-section-title">Operation Guide</span>
+          <ul class="guide-bullet-list">
+            <li>Lower slowly over the top of the fish.</li>
+            <li>Apply slight rotation to engage grapple teeth, then pull upward.</li>
+            <li>Circulate through the tool to clean debris before engagement.</li>
+          </ul>
+        `
+      };
+    case "spear":
+      return {
+        title: "Spear",
+        bodyHTML: `
+          <p class="guide-text-block">An internal catch tool. Enters the hollow inside of casing, tubing, or drill pipe and expands slips to grip the fish internally.</p>
+          <span class="guide-section-title">Key Step</span>
+          <ul class="guide-bullet-list">
+            <li>Rotate spear mandrel to expand slip blocks. Once gripped, jar upward.</li>
+          </ul>
+        `
+      };
+    case "junk_basket":
+      return {
+        title: "Junk Basket",
+        bodyHTML: `
+          <p class="guide-text-block">Retrieves loose items (bit cones, hand tools, slips) from the bottom of the wellbore.</p>
+          <span class="guide-section-title">Mechanism</span>
+          <ul class="guide-bullet-list">
+            <li><strong>Reverse Circulation:</strong> Diverts fluid flow to wash junk directly into the inner basket chamber.</li>
+          </ul>
+        `
+      };
+    case "fishing_magnets":
+      return {
+        title: "Fishing Magnets",
+        bodyHTML: `
+          <p class="guide-text-block">High-strength permanent magnets run on drill string to collect small steel junk (shavings, slips, hand tools).</p>
+          <span class="guide-section-title">Pre-run checklist</span>
+          <ul class="guide-bullet-list">
+            <li>Circulate mud right above bottom to clean cuttings off the junk.</li>
+          </ul>
+        `
+      };
+    case "washover_pipe":
+      return {
+        title: "Washover Pipe",
+        bodyHTML: `
+          <p class="guide-text-block">Large-diameter pipe run to cut away packed formation or cement surrounding a stuck drill string to release it.</p>
+          <span class="guide-section-title">Precautions</span>
+          <ul class="guide-bullet-list">
+            <li>Maintain slow, cautious rotation to avoid binding the washover string.</li>
+          </ul>
+        `
+      };
+    default:
+      return { title: "Topic Detail", bodyHTML: "<p>Detail info.</p>" };
+  }
+}
+
+
+// ==========================================
+// IADC BIT DULL GRADING MODULE
+// ==========================================
+
+window.clearIADCForm = () => {
+  state.editingIADCRecordId = null;
+  state.currentDullPhotoBase64 = null;
+  state.iadcCardVisible = false;
+  
+  const typeSelect = document.getElementById('bit-info-type');
+  if (typeSelect) typeSelect.value = 'PDC';
+  
+  const sizeInput = document.getElementById('bit-info-size');
+  if (sizeInput) sizeInput.value = '8.5';
+  
+  const mfgInput = document.getElementById('bit-info-mfg');
+  if (mfgInput) mfgInput.value = '';
+  
+  const snInput = document.getElementById('bit-info-sn');
+  if (snInput) snInput.value = '';
+  
+  const selects = ['bit-grade-i', 'bit-grade-o', 'bit-grade-d', 'bit-grade-l', 'bit-grade-b', 'bit-grade-g', 'bit-grade-o2', 'bit-grade-r'];
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (id === 'bit-grade-d') el.value = 'NO';
+      else if (id === 'bit-grade-l') el.value = 'N';
+      else if (id === 'bit-grade-b') el.value = 'X';
+      else if (id === 'bit-grade-g') el.value = 'I';
+      else if (id === 'bit-grade-o2') el.value = 'X';
+      else if (id === 'bit-grade-r') el.value = 'TD';
+      else el.value = '0';
+    }
+  });
+  
+  const commentsText = document.getElementById('bit-grade-comments');
+  if (commentsText) commentsText.value = '';
+  
+  const cameraInput = document.getElementById('dull-photo-camera-input');
+  const galleryInput = document.getElementById('dull-photo-gallery-input');
+  if (cameraInput) cameraInput.value = '';
+  if (galleryInput) galleryInput.value = '';
+  
+  const previewContainer = document.getElementById('dull-photo-preview-container');
+  const previewImg = document.getElementById('dull-photo-preview');
+  if (previewImg) previewImg.src = '';
+  if (previewContainer) previewContainer.style.display = 'none';
+  
+  const visualGradeCard = document.getElementById('iadc-visual-grade-card');
+  if (visualGradeCard) visualGradeCard.style.display = 'none';
+  
+  const saveBtnText = document.getElementById('iadc-save-btn-text');
+  if (saveBtnText) {
+    saveBtnText.textContent = window.I18n.translate ? window.I18n.translate('Save Record') : 'Save Record';
+  }
+  
+  onBitTypeChanged();
+  
+  state.iadcCardVisible = false;
+  if (visualGradeCard) visualGradeCard.style.display = 'none';
+};
+
+window.onBitTypeChanged = () => {
+  const typeSelect = document.getElementById('bit-info-type');
+  if (!typeSelect) return;
+  const type = typeSelect.value;
+  const bearingSelect = document.getElementById('bit-grade-b');
+  if (bearingSelect) {
+    if (type === 'PDC') {
+      bearingSelect.value = 'X';
+      bearingSelect.disabled = true;
+    } else {
+      bearingSelect.disabled = false;
+      if (bearingSelect.value === 'X') {
+        bearingSelect.value = 'E';
+      }
+    }
+  }
+  generateIADCGrade(true);
+};
+
+window.generateIADCGrade = (bypassValidation) => {
+  const i = document.getElementById('bit-grade-i').value;
+  const o = document.getElementById('bit-grade-o').value;
+  const d = document.getElementById('bit-grade-d').value;
+  const l = document.getElementById('bit-grade-l').value;
+  const b = document.getElementById('bit-grade-b').value;
+  const g = document.getElementById('bit-grade-g').value;
+  const o2 = document.getElementById('bit-grade-o2').value;
+  const r = document.getElementById('bit-grade-r').value;
+  
+  const grade = `${i}-${o}-${d}-${l}-${b}-${g}-${o2}-${r}`;
+  
+  const gradeCodeEl = document.getElementById('iadc-visual-grade-code');
+  if (gradeCodeEl) gradeCodeEl.textContent = grade;
+  
+  const visualGradeCard = document.getElementById('iadc-visual-grade-card');
+  if (visualGradeCard) visualGradeCard.style.display = 'block';
+  
+  state.iadcCardVisible = true;
+  return grade;
+};
+
+window.saveIADCRecord = () => {
+  const mfg = document.getElementById('bit-info-mfg').value.trim();
+  const sn = document.getElementById('bit-info-sn').value.trim();
+  const size = document.getElementById('bit-info-size').value.trim();
+  
+  if (!mfg || !sn || !size) {
+    showToast('Please fill in all bit information fields');
+    return;
+  }
+  
+  const records = JSON.parse(localStorage.getItem('iadcGradingRecords') || '[]');
+  const grade = generateIADCGrade(true);
+  
+  const record = {
+    id: state.editingIADCRecordId || Date.now().toString(),
+    type: document.getElementById('bit-info-type').value,
+    size: size,
+    mfg: mfg,
+    sn: sn,
+    gradeI: document.getElementById('bit-grade-i').value,
+    gradeO: document.getElementById('bit-grade-o').value,
+    gradeD: document.getElementById('bit-grade-d').value,
+    gradeL: document.getElementById('bit-grade-l').value,
+    gradeB: document.getElementById('bit-grade-b').value,
+    gradeG: document.getElementById('bit-grade-g').value,
+    gradeO2: document.getElementById('bit-grade-o2').value,
+    gradeR: document.getElementById('bit-grade-r').value,
+    grade: grade,
+    comments: document.getElementById('bit-grade-comments').value,
+    photo: state.currentDullPhotoBase64,
+    date: new Date().toLocaleDateString()
+  };
+  
+  if (state.editingIADCRecordId) {
+    const idx = records.findIndex(r => r.id === state.editingIADCRecordId);
+    if (idx !== -1) {
+      records[idx] = record;
+    } else {
+      records.push(record);
+    }
+    showToast(window.I18n.translate ? window.I18n.translate('Record updated successfully') : 'Record updated successfully');
+  } else {
+    records.push(record);
+    showToast(window.I18n.translate ? window.I18n.translate('Record saved successfully') : 'Record saved successfully');
+  }
+  
+  localStorage.setItem('iadcGradingRecords', JSON.stringify(records));
+  clearIADCForm();
+  
+  window.navigateTo('iadc-history');
+  renderBitDullGradingHistory();
+};
+
+window.editIADCRecord = (recordId) => {
+  const records = JSON.parse(localStorage.getItem('iadcGradingRecords') || '[]');
+  const rec = records.find(r => r.id === recordId);
+  if (!rec) return;
+  
+  state.editingIADCRecordId = recordId;
+  
+  document.getElementById('bit-info-type').value = rec.type || 'PDC';
+  document.getElementById('bit-info-size').value = rec.size || '';
+  document.getElementById('bit-info-mfg').value = rec.mfg || '';
+  document.getElementById('bit-info-sn').value = rec.sn || '';
+  
+  document.getElementById('bit-grade-i').value = rec.gradeI || '0';
+  document.getElementById('bit-grade-o').value = rec.gradeO || '0';
+  document.getElementById('bit-grade-d').value = rec.gradeD || 'NO';
+  document.getElementById('bit-grade-l').value = rec.gradeL || 'N';
+  document.getElementById('bit-grade-b').value = rec.gradeB || 'X';
+  document.getElementById('bit-grade-g').value = rec.gradeG || 'I';
+  document.getElementById('bit-grade-o2').value = rec.gradeO2 || 'X';
+  document.getElementById('bit-grade-r').value = rec.gradeR || 'TD';
+  
+  document.getElementById('bit-grade-comments').value = rec.comments || '';
+  
+  onBitTypeChanged();
+  generateIADCGrade(true);
+  
+  state.currentDullPhotoBase64 = rec.photo || null;
+  const previewContainer = document.getElementById('dull-photo-preview-container');
+  const previewImg = document.getElementById('dull-photo-preview');
+  if (state.currentDullPhotoBase64) {
+    if (previewImg) previewImg.src = state.currentDullPhotoBase64;
+    if (previewContainer) previewContainer.style.display = 'block';
+  } else {
+    if (previewImg) previewImg.src = '';
+    if (previewContainer) previewContainer.style.display = 'none';
+  }
+  
+  const saveBtnText = document.getElementById('iadc-save-btn-text');
+  if (saveBtnText) {
+    saveBtnText.textContent = window.I18n.translate ? window.I18n.translate('Update Record') : 'Update Record';
+  }
+  
+  window.navigateTo('bit-dull-grading');
+};
+
+window.deleteIADCRecord = (recordId) => {
+  const confirmMsg = window.I18n.translate ? window.I18n.translate('Are you sure you want to delete this record?') : 'Are you sure you want to delete this record?';
+  if (!confirm(confirmMsg)) return;
+  
+  let records = JSON.parse(localStorage.getItem('iadcGradingRecords') || '[]');
+  records = records.filter(r => r.id !== recordId);
+  localStorage.setItem('iadcGradingRecords', JSON.stringify(records));
+  
+  if (state.editingIADCRecordId === recordId) {
+    clearIADCForm();
+  }
+  
+  showToast(window.I18n.translate ? window.I18n.translate('Record deleted') : 'Record deleted');
+  renderBitDullGradingHistory();
+};
+
+window.onDullPhotoSelected = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    state.currentDullPhotoBase64 = e.target.result;
+    const previewContainer = document.getElementById('dull-photo-preview-container');
+    const previewImg = document.getElementById('dull-photo-preview');
+    if (previewImg) previewImg.src = e.target.result;
+    if (previewContainer) previewContainer.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+};
+
+window.removeDullPhoto = () => {
+  state.currentDullPhotoBase64 = null;
+  const cameraInput = document.getElementById('dull-photo-camera-input');
+  const galleryInput = document.getElementById('dull-photo-gallery-input');
+  if (cameraInput) cameraInput.value = '';
+  if (galleryInput) galleryInput.value = '';
+  
+  const previewContainer = document.getElementById('dull-photo-preview-container');
+  const previewImg = document.getElementById('dull-photo-preview');
+  if (previewImg) previewImg.src = '';
+  if (previewContainer) previewContainer.style.display = 'none';
+};
+
+window.viewFullPhoto = (id) => {
+  const records = JSON.parse(localStorage.getItem('iadcGradingRecords') || '[]');
+  const rec = records.find(r => r.id === id);
+  if (!rec || !rec.photo) return;
+  
+  let modal = document.getElementById('iadc-photo-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'iadc-photo-modal';
+    if (!modal.style) modal.style = {};
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:9999; cursor:pointer;';
+    modal.onclick = () => { modal.style.display = 'none'; };
+    
+    const img = document.createElement('img');
+    img.id = 'iadc-photo-modal-img';
+    if (!img.style) img.style = {};
+    img.style.cssText = 'max-width:90%; max-height:90%; border-radius:8px; border:2px solid #fff; box-shadow:0 8px 30px rgba(0,0,0,0.5);';
+    modal.appendChild(img);
+    document.body.appendChild(modal);
+  }
+  
+  const modalImg = document.getElementById('iadc-photo-modal-img');
+  if (modalImg) {
+    modalImg.src = rec.photo;
+    if (!modalImg.style) modalImg.style = {};
+  }
+  if (modal) {
+    if (!modal.style) modal.style = {};
+    modal.style.display = 'flex';
+  }
+};
+
+window.renderBitDullGradingHistory = () => {
+  const container = document.getElementById('iadc-history-list-container');
+  if (!container) return;
+  
+  const records = JSON.parse(localStorage.getItem('iadcGradingRecords') || '[]');
+  container.innerHTML = '';
+  
+  if (records.length === 0) {
+    const noRecsText = window.I18n.translate ? window.I18n.translate('No grading history records found.') : 'No grading history records found.';
+    container.innerHTML = `
+      <div style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px; opacity:0.5;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <p>${noRecsText}</p>
+      </div>
+    `;
+    return;
+  }
+  
+  records.forEach(rec => {
+    const card = document.createElement('div');
+    card.className = 'content-card';
+    if (!card.style) card.style = {};
+    card.style.cssText = 'margin-bottom:12px; display:flex; flex-direction:column; gap:8px; position:relative;';
+    
+    let photoHtml = '';
+    if (rec.photo) {
+      photoHtml = `
+        <div style="width:60px; height:60px; border-radius:6px; overflow:hidden; border:1px solid var(--border-color); cursor:pointer; flex-shrink:0;" onclick="viewFullPhoto('${rec.id}')">
+          <img src="${rec.photo}" style="width:100%; height:100%; object-fit:cover;">
+        </div>
+      `;
+    }
+    
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div style="display:flex; gap:12px; flex:1;">
+          ${photoHtml}
+          <div>
+            <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem;">
+              ${rec.size}" ${rec.type} - ${rec.mfg}
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
+              S/N: ${rec.sn} | ${rec.date}
+            </div>
+            <div style="font-size:1.1rem; font-weight:800; color:var(--accent-color); font-family:monospace; margin-top:4px;">
+              ${rec.grade}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" style="padding:6px; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center;" onclick="editIADCRecord('${rec.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="btn btn-secondary" style="padding:6px; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center; color:var(--error-color, #ff4d4d);" onclick="deleteIADCRecord('${rec.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      ${rec.comments ? `<div style="font-size:0.85rem; color:var(--text-secondary); background:var(--bg-subtle); padding:6px 10px; border-radius:4px; margin-top:4px;">${rec.comments}</div>` : ''}
+    `;
+    container.appendChild(card);
+  });
+};
+
+window.printIADCReport = () => {
+  const type = document.getElementById('bit-info-type').value;
+  const size = document.getElementById('bit-info-size').value;
+  const mfg = document.getElementById('bit-info-mfg').value;
+  const sn = document.getElementById('bit-info-sn').value;
+  const grade = generateIADCGrade(true);
+  const comments = document.getElementById('bit-grade-comments').value;
+  
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Failed to open print window');
+    return;
+  }
+  
+  let imgHtml = '';
+  if (state.currentDullPhotoBase64) {
+    imgHtml = `<div class="photo-container"><img src="${state.currentDullPhotoBase64}"></div>`;
+  }
+  
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>IADC Bit Dull Grading Report</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
+          .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+          .title { font-size: 24px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+          .subtitle { font-size: 14px; color: #666; margin-top: 5px; }
+          .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px; }
+          .grid-item { background: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #ddd; }
+          .label { font-size: 12px; font-weight: bold; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+          .value { font-size: 16px; font-weight: 600; color: #111; }
+          .grade-container { text-align: center; padding: 25px; border: 2px dashed #e6a15c; background: #fffcf8; border-radius: 8px; margin-bottom: 30px; }
+          .grade-code { font-size: 36px; font-weight: 800; color: #e6a15c; font-family: monospace; letter-spacing: 2px; }
+          .comments-container { background: #f5f5f5; padding: 20px; border-radius: 6px; margin-bottom: 30px; }
+          .photo-container { text-align: center; margin-top: 20px; }
+          .photo-container img { max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid #ddd; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">IADC Bit Dull Grading Report</div>
+          <div class="subtitle">Drilling Toolkit - Generated on ${new Date().toLocaleDateString()}</div>
+        </div>
+        
+        <div class="grade-container">
+          <div class="label">Calculated IADC Dull Grade</div>
+          <div class="grade-code">${grade}</div>
+        </div>
+        
+        <div class="grid">
+          <div class="grid-item">
+            <div class="label">Bit Type</div>
+            <div class="value">${type}</div>
+          </div>
+          <div class="grid-item">
+            <div class="label">Bit Size</div>
+            <div class="value">${size}"</div>
+          </div>
+          <div class="grid-item">
+            <div class="label">Manufacturer</div>
+            <div class="value">${mfg}</div>
+          </div>
+          <div class="grid-item">
+            <div class="label">Serial Number</div>
+            <div class="value">${sn}</div>
+          </div>
+        </div>
+        
+        ${comments ? `
+          <div class="comments-container">
+            <div class="label" style="margin-bottom: 8px;">Comments / Remarks</div>
+            <div style="font-size:15px; line-height:1.5;">${comments}</div>
+          </div>
+        ` : ''}
+        
+        ${imgHtml}
+        
+        <script>
+          window.onload = function() {
+            window.print();
+            window.close();
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+};
+
+window.shareIADCReport = () => {
+  const grade = generateIADCGrade(true);
+  const text = `IADC Dull Grade Report: ${grade}`;
+  if (navigator.share) {
+    navigator.share({
+      title: 'IADC Dull Grade Report',
+      text: text,
+      url: window.location.href
+    }).catch(err => {
+      console.log('Error sharing:', err);
+    });
+  } else {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(window.I18n.translate ? window.I18n.translate('Link copied to clipboard!') : 'Link copied to clipboard!');
+      }).catch(err => {
+        showToast('Sharing not supported on this device');
+      });
+    } else {
+      showToast('Sharing not supported on this device');
+    }
+  }
+};
+
 
