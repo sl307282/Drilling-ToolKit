@@ -6856,8 +6856,21 @@ window.toggleQuickRefFavorite = () => {
   window.updateQuickRefFavoriteIcon();
 };
 
+function getQuickRefTitle() {
+  if (quickRefSubState.view === 'drill-bit-torque') return 'Drill Bit Make-Up Torque';
+  if (quickRefSubState.view === 'ring-gaskets') return 'Ring Gaskets & Connections';
+  if (quickRefSubState.view === 'wellhead') return 'Surface Wellhead Information';
+  if (quickRefSubState.view === 'subsea-ref') return 'Subsea Equipment Reference';
+  return 'Quick Reference';
+}
+
 function renderQuickRefScreen() {
   window.updateQuickRefFavoriteIcon();
+  const titleEl = document.getElementById('quick-ref-title');
+  if (titleEl) {
+    const rawTitle = getQuickRefTitle();
+    titleEl.textContent = window.I18n ? window.I18n.translate(rawTitle) : rawTitle;
+  }
   const container = document.getElementById('quick-ref-container');
   if (!container) return;
 
