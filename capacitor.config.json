@@ -5,20 +5,22 @@
   "backgroundColor": "#FDFBF8",
   "plugins": {
     "SplashScreen": {
-      "backgroundColor": "#FDFBF8",
-      "launchShowDuration": 30000,
+      "backgroundColor": "#FFFFFF",
+      "launchShowDuration": 1000,
       "launchAutoHide": false,
-      "launchFadeOutDuration": 500,
+      "launchFadeOutDuration": 300,
       "androidScaleType": "CENTER_INSIDE",
       "showSpinner": false,
       "spinnerColor": "#4A7C59",
       "splashFullScreen": true,
-      "splashImmersive": true
+      "splashImmersive": true,
+      "layoutName": "launch_screen"
     },
     "LiveUpdates": {
       "appId": "77a6899a",
       "channel": "Production",
-      "autoUpdateMethod": "background"
+      "autoUpdateMethod": "background",
+      "enabled": false
     }
   }
 }

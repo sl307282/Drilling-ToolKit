@@ -11,3 +11,6 @@ android/local.properties
 android/.idea/
 ios/App/build/
 ios/App/Pods/
+*.apk
+*.jks
+add_*.js

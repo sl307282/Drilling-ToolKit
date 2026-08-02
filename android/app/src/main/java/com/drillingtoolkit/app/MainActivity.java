@@ -11,6 +11,8 @@ public class MainActivity extends BridgeActivity {
         // Install the Android 12+ SplashScreen API handler
         androidx.core.splashscreen.SplashScreen.installSplashScreen(this);
 
+        registerPlugin(ThemeManagerPlugin.class);
+        
         super.onCreate(savedInstanceState);
 
         // Make WebView background transparent to prevent white flash during bootstrap

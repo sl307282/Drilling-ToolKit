@@ -7,14 +7,13 @@
   <!-- Material Icons Font -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <!-- Firebase SDK Compat -->
-  <script src="firebase-app-compat.js"></script>
-  <script src="firebase-remote-config-compat.js"></script>
+  <script src="firebase-app-compat.js" defer></script>
+  <script src="firebase-remote-config-compat.js" defer></script>
   <script>
     // Initialize theme instantly before body rendering to avoid flashes
     (function() {
       const savedTheme = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+      const theme = savedTheme || 'light';
       document.documentElement.setAttribute('data-theme', theme);
       
       let savedColorTheme = localStorage.getItem('colorTheme') || 'milktea';
@@ -139,21 +138,66 @@
           <div class="card-title">Subsea Stack</div>
         </div>
 
-        <!-- 3. API Tubular Data Card -->
+        <!-- 3. Calculation Hub Card -->
+        <div class="toolkit-card" onclick="navigateTo('drilling-calc');">
+          <div class="card-top-row">
+            <div class="card-icon-container icon-calculator">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Professional Hexagon (Hub) -->
+                <polygon points="12 2.5 20.2 7.25 20.2 16.75 12 21.5 3.8 16.75 3.8 7.25"></polygon>
+                <!-- Mathematical Sigma (Calculation) -->
+                <path d="M15.5 8.5H9l3.5 3.5L9 15.5h6.5"></path>
+              </svg>
+            </div>
+            <span class="card-chevron">&rsaquo;</span>
+          </div>
+          <div class="card-title">Calculation Hub</div>
+        </div>
+
+        <!-- 4. Bit Dull Grading Card -->
+        <div class="toolkit-card" onclick="clearIADCForm(); navigateTo('bit-dull-grading');">
+          <div class="card-top-row">
+            <div class="card-icon-container icon-wellcontrol" style="background: rgba(230, 161, 92, 0.1); color: var(--accent-color);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Threaded Pin -->
+                <path d="M9.5 2h5l1 5h-7l1-5z"></path>
+                <!-- Main Body -->
+                <path d="M6 8h12v2c0 2-1.5 4.5-2.5 6l-.5 2h-6l-.5-2C7.5 14.5 6 12 6 10V8z"></path>
+                <!-- Roller Cones (3 overlapping circles) -->
+                <circle cx="8" cy="18" r="3"></circle>
+                <circle cx="16" cy="18" r="3"></circle>
+                <circle cx="12" cy="20" r="3"></circle>
+                <!-- Center Nozzle Groove -->
+                <path d="M12 11v3"></path>
+              </svg>
+            </div>
+            <span class="card-chevron">&rsaquo;</span>
+          </div>
+          <div class="card-title" data-i18n="Bit Dull Grading">Bit Dull Grading</div>
+        </div>
+
+        <!-- 5. API Tubular Data Card -->
         <div class="toolkit-card" onclick="navigateTo('api-tubular');">
           <div class="card-top-row">
             <div class="card-icon-container icon-tubular">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 13.5L19 7.5"></path>
-                <path d="M13.5 9L21.5 4.2"></path>
-                <path d="M5.5 15.5L15.5 9.5"></path>
-                <circle cx="11.5" cy="10.5" r="2.5"></circle>
-                <circle cx="11.5" cy="10.5" r="1.3"></circle>
-                <circle cx="7.5" cy="17.5" r="2.5"></circle>
-                <circle cx="7.5" cy="17.5" r="1.3"></circle>
-                <circle cx="13.5" cy="15.5" r="2.5"></circle>
-                <circle cx="13.5" cy="15.5" r="1.3"></circle>
-                <path d="M15 13.5L20 10.5"></path>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Top Drill Pipe -->
+                <rect x="2" y="4" width="4" height="4" rx="1"></rect>
+                <path d="M6 5h12"></path>
+                <path d="M6 7h12"></path>
+                <rect x="18" y="4.5" width="4" height="3" rx="0.5"></rect>
+
+                <!-- Middle Drill Pipe -->
+                <rect x="2" y="10" width="4" height="4" rx="1"></rect>
+                <path d="M6 11h12"></path>
+                <path d="M6 13h12"></path>
+                <rect x="18" y="10.5" width="4" height="3" rx="0.5"></rect>
+
+                <!-- Bottom Drill Pipe -->
+                <rect x="2" y="16" width="4" height="4" rx="1"></rect>
+                <path d="M6 17h12"></path>
+                <path d="M6 19h12"></path>
+                <rect x="18" y="16.5" width="4" height="3" rx="0.5"></rect>
               </svg>
             </div>
             <span class="card-chevron">&rsaquo;</span>
@@ -161,8 +205,21 @@
           <div class="card-title">API Tubular Data</div>
         </div>
 
+        <!-- 6. Drilling Guide Card -->
+        <div class="toolkit-card" onclick="navigateTo('drilling-guide');">
+          <div class="card-top-row">
+            <div class="card-icon-container icon-quickref" style="background: rgba(126, 95, 43, 0.1); color: #7E5F2B;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+              </svg>
+            </div>
+            <span class="card-chevron">&rsaquo;</span>
+          </div>
+          <div class="card-title" data-i18n="Drilling Guide">Drilling Guide</div>
+        </div>
 
-        <!-- 5. Petroleum Conversion Card -->
+        <!-- 7. Unit Conversion Card -->
         <div class="toolkit-card" onclick="navigateTo('conversion');">
           <div class="card-top-row">
             <div class="card-icon-container icon-conversion">
@@ -179,56 +236,6 @@
             <span class="card-chevron">&rsaquo;</span>
           </div>
           <div class="card-title">Unit Conversion</div>
-        </div>
-
-        <!-- 6. Drilling Calculator Card -->
-        <div class="toolkit-card" onclick="navigateTo('drilling-calc');">
-          <div class="card-top-row">
-            <div class="card-icon-container icon-calculator">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="5" y="3" width="14" height="18" rx="2"></rect>
-                <rect x="7" y="5" width="10" height="4" rx="1"></rect>
-                <rect x="7" y="11" width="2" height="2" rx="0.5"></rect>
-                <rect x="11" y="11" width="2" height="2" rx="0.5"></rect>
-                <rect x="15" y="11" width="2" height="2" rx="0.5"></rect>
-                <rect x="7" y="15" width="2" height="2" rx="0.5"></rect>
-                <rect x="11" y="15" width="2" height="2" rx="0.5"></rect>
-                <rect x="15" y="15" width="2" height="2" rx="0.5"></rect>
-              </svg>
-            </div>
-            <span class="card-chevron">&rsaquo;</span>
-          </div>
-          <div class="card-title">Drilling Calculator</div>
-        </div>
-
-
-        <!-- 8. Bit Dull Grading Card -->
-        <div class="toolkit-card" onclick="clearIADCForm(); navigateTo('bit-dull-grading');">
-          <div class="card-top-row">
-            <div class="card-icon-container icon-wellcontrol" style="background: rgba(230, 161, 92, 0.1); color: var(--accent-color);">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                <path d="M2 17l10 5 10-5"></path>
-                <path d="M2 12l10 5 10-5"></path>
-              </svg>
-            </div>
-            <span class="card-chevron">&rsaquo;</span>
-          </div>
-          <div class="card-title" data-i18n="Bit Dull Grading">Bit Dull Grading</div>
-        </div>
-
-        <!-- 9. Drilling Guide Card -->
-        <div class="toolkit-card" onclick="navigateTo('drilling-guide');">
-          <div class="card-top-row">
-            <div class="card-icon-container icon-quickref" style="background: rgba(126, 95, 43, 0.1); color: #7E5F2B;">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-              </svg>
-            </div>
-            <span class="card-chevron">&rsaquo;</span>
-          </div>
-          <div class="card-title" data-i18n="Drilling Guide">Drilling Guide</div>
         </div>
 
 
@@ -482,7 +489,7 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Drilling Calculators</h2>
+          <h2 class="screen-title">Calculation Hub</h2>
         </div>
         <span class="screen-subtitle">Applied, basic & well control engineering calculations</span>
       </div>
@@ -737,22 +744,34 @@
         <div class="input-grid">
           <div class="input-group">
             <label class="input-label">Bit Type</label>
-            <select id="bit-info-type" class="toolkit-select" onchange="onBitTypeChanged()">
+            <select id="bit-info-type" class="toolkit-select" onchange="onBitTypeChanged(); state.isIADCSaved = false;">
               <option value="PDC">PDC</option>
               <option value="Roller Cone">Roller Cone</option>
             </select>
           </div>
           <div class="input-group">
             <label class="input-label">Size (in)</label>
-            <input type="number" id="bit-info-size" class="toolkit-input" placeholder="e.g. 8.5" step="0.01" value="8.5">
+            <select id="bit-info-size" class="toolkit-select" onchange="state.isIADCSaved = false;">
+              <option value="36">36"</option>
+              <option value="30">30"</option>
+              <option value="26">26"</option>
+              <option value="17.5">17½"</option>
+              <option value="16">16"</option>
+              <option value="14.75">14¾"</option>
+              <option value="12.25">12¼"</option>
+              <option value="8.5" selected>8½"</option>
+              <option value="6.125">6⅛"</option>
+              <option value="5.875">5⅞"</option>
+              <option value="4.75">4¾"</option>
+            </select>
           </div>
           <div class="input-group">
             <label class="input-label">Manufacturer</label>
-            <input type="text" id="bit-info-mfg" class="toolkit-input" placeholder="e.g. SLB, BH, HM">
+            <input type="text" id="bit-info-mfg" class="toolkit-input" placeholder="e.g. SLB, BH, HM" oninput="state.isIADCSaved = false;">
           </div>
           <div class="input-group">
             <label class="input-label">Serial Number</label>
-            <input type="text" id="bit-info-sn" class="toolkit-input" placeholder="Serial number">
+            <input type="text" id="bit-info-sn" class="toolkit-input" placeholder="Serial number" oninput="state.isIADCSaved = false;">
           </div>
         </div>
       </div>
@@ -931,28 +950,40 @@
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div style="display:flex; gap:12px; margin-top:20px; margin-bottom:16px;">
-        <button class="btn btn-secondary" onclick="clearIADCForm()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
-          Reset
-        </button>
-        <button class="btn btn-primary" onclick="generateIADCGrade(true)" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
-          Generate
-        </button>
-      </div>
-
-      <!-- Visual Grade Card — shown below Generate button -->
-      <div id="iadc-visual-grade-card" class="content-card" style="display:none; background: linear-gradient(135deg, rgba(230,161,92,0.1) 0%, rgba(230,161,92,0.02) 100%); border: 1.5px dashed var(--accent-color); margin-bottom:30px;">
+      <!-- Visual Grade Card — shown above Generate button -->
+      <div id="iadc-visual-grade-card" class="content-card" style="display:none; background: linear-gradient(135deg, rgba(230,161,92,0.1) 0%, rgba(230,161,92,0.02) 100%); border: 1.5px dashed var(--accent-color); margin-bottom:20px;">
         <!-- Grade Code -->
         <div style="text-align: center; padding: 10px 0 14px;">
           <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">IADC Grade</div>
           <div id="iadc-visual-grade-code" style="font-size: 2rem; font-weight: 800; color: var(--accent-color); font-family: monospace; letter-spacing: 2px;">0-0-NO-N-X-I-X-TD</div>
         </div>
-        <!-- Divider -->
-        <div style="border-top: 1px solid var(--border-subtle); margin: 0 -14px 14px;"></div>
-        <!-- Grade Interpretation -->
-        <div style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Grade Interpretation</div>
-        <div id="iadc-grade-interpretation" style="display:flex; flex-direction:column; gap:7px;"></div>
+        
+        <!-- Toggle See More Button -->
+        <div style="text-align: center; margin-bottom: 4px;">
+          <button id="iadc-see-more-btn" onclick="toggleIADCDetails()" style="background:none; border:none; color:var(--accent-color); font-weight:600; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+            See More
+            <span class="material-icons" style="font-size:20px;">expand_more</span>
+          </button>
+        </div>
+
+        <!-- Collapsible Details -->
+        <div id="iadc-details-container" style="display:none;">
+          <!-- Divider -->
+          <div style="border-top: 1px solid var(--border-subtle); margin: 10px -14px 14px;"></div>
+          <!-- Grade Interpretation -->
+          <div style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Grade Interpretation</div>
+          <div id="iadc-grade-interpretation" style="display:flex; flex-direction:column; gap:7px;"></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:12px; margin-top:10px; margin-bottom:30px;">
+        <button class="btn btn-secondary" onclick="clearIADCForm()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+          Reset
+        </button>
+        <button class="btn btn-primary" onclick="saveIADCGradeAndRecord()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+          Generate / Save
+        </button>
       </div>
     </div>
 
@@ -998,10 +1029,10 @@
       <!-- Smart Light/Dark Theme Toggle -->
       <div class="drawer-item theme-toggle-row">
         <div class="drawer-item-left">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drawer-icon">
+          <svg id="theme-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drawer-icon">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
-          <span>Dark Mode</span>
+          <span id="theme-toggle-text">Dark Mode</span>
         </div>
         <label class="switch">
           <input type="checkbox" id="theme-toggle-checkbox">
@@ -1221,34 +1252,10 @@
   <!-- Toast Notification -->
   <div id="toast" class="toast">Action Saved</div>
 
-  <!-- Application Bootloader -->
-  <script>
-    (function() {
-      function loadScript(src, next) {
-        var script = document.createElement('script');
-        script.src = src;
-        script.onload = next;
-        script.onerror = function(err) {
-          console.error('Failed to load script: ' + src, err);
-          next();
-        };
-        document.body.appendChild(script);
-      }
-
-      // Chain load with yields to give WebView background thread slots
-      setTimeout(function() {
-        loadScript('translations.js?v=1.1.3', function() {
-          setTimeout(function() {
-            loadScript('tubulars_db.js?v=1.1.3', function() {
-              setTimeout(function() {
-                loadScript('app.js?v=1.1.3', function() {});
-              }, 50);
-            });
-          }, 50);
-        });
-      }, 50);
-    })();
-  </script>
+  <!-- Application Scripts -->
+  <script src="translations.js?v=1.1.6" defer></script>
+  <script src="tubulars_db.js?v=1.1.6" defer></script>
+  <script src="app.js?v=1.1.6" defer></script>
   <!-- IADC Info Modal -->
   <div id="iadc-info-modal" class="modal-overlay" onclick="closeIADCInfoModal(event)">
     <div class="modal-content" style="max-width:420px;">

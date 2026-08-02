@@ -431,50 +431,100 @@ const updateDynamicBackground = (theme, bgTheme) => {
   }
   metaTheme.setAttribute('content', bodyBg);
 
+};
+
+const syncNativeTheme = (theme, bodyBg) => {
   // Sync Capacitor Status Bar if loaded
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar) {
-    const StatusBar = window.Capacitor.Plugins.StatusBar;
-    try {
-      StatusBar.setStyle({ style: theme === 'dark' ? 'DARK' : 'LIGHT' }).catch(() => { });
-      StatusBar.setBackgroundColor({ color: bodyBg }).catch(() => { });
-    } catch (err) {
-      console.warn('Capacitor StatusBar error:', err);
+  if (window.Capacitor && window.Capacitor.Plugins) {
+    if (window.Capacitor.Plugins.StatusBar) {
+      const StatusBar = window.Capacitor.Plugins.StatusBar;
+      try {
+        StatusBar.setStyle({ style: theme === 'dark' ? 'LIGHT' : 'DARK' }).catch(() => { });
+        if (bodyBg) {
+          StatusBar.setBackgroundColor({ color: bodyBg }).catch(() => { });
+        }
+      } catch (err) {
+        console.warn('Capacitor StatusBar error:', err);
+      }
+    }
+    if (window.Capacitor.Plugins.ThemeManagerPlugin) {
+      window.Capacitor.Plugins.ThemeManagerPlugin.setNightMode({ mode: theme }).catch(() => {});
     }
   }
+};
+
+const withThemeTransition = (updateDOMCallback, postTransitionCallback) => {
+  if (!document.startViewTransition) {
+    updateDOMCallback();
+    if (postTransitionCallback) postTransitionCallback();
+    return;
+  }
+
+  const html = document.documentElement;
+  html.classList.add('disable-theme-transitions');
+
+  const transition = document.startViewTransition(() => {
+    updateDOMCallback();
+  });
+
+  transition.finished.finally(() => {
+    html.classList.remove('disable-theme-transitions');
+    if (postTransitionCallback) postTransitionCallback();
+  });
 };
 
 const initThemeToggler = () => {
   const checkbox = document.getElementById('theme-toggle-checkbox');
   const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
 
+  const updateThemeToggleUI = (theme) => {
+    const icon = document.getElementById('theme-toggle-icon');
+    const text = document.getElementById('theme-toggle-text');
+    if (icon && text) {
+      if (theme === 'dark') {
+        text.textContent = 'Light Mode';
+        icon.innerHTML = `<circle cx="12" cy="12" r="5"></circle>
+                          <line x1="12" y1="1" x2="12" y2="3"></line>
+                          <line x1="12" y1="21" x2="12" y2="23"></line>
+                          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                          <line x1="1" y1="12" x2="3" y2="12"></line>
+                          <line x1="21" y1="12" x2="23" y2="12"></line>
+                          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+      } else {
+        text.textContent = 'Dark Mode';
+        icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+      }
+    }
+  };
+
   // Call updateDynamicBackground on startup to sync meta tag and Capacitor status bar colors
   const currentBg = localStorage.getItem('bgTheme') || 'default';
   updateDynamicBackground(currentTheme, currentBg);
+  syncNativeTheme(currentTheme, currentBg);
+  updateThemeToggleUI(currentTheme);
 
   if (checkbox) {
     checkbox.checked = currentTheme === 'dark';
     checkbox.addEventListener('change', (e) => {
       const newTheme = e.target.checked ? 'dark' : 'light';
-
-      // Gate transitions: add class so CSS transition only fires on this deliberate toggle
-      const html = document.documentElement;
-      html.classList.add('theme-transitioning');
-
-      // Apply theme on next frame so the transition class is painted first
-      requestAnimationFrame(() => {
+      const applyThemeChange = () => {
+        const html = document.documentElement;
         html.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
+        updateThemeToggleUI(newTheme);
 
         const currentBg = localStorage.getItem('bgTheme') || 'default';
         updateDynamicBackground(newTheme, currentBg);
 
         showToast(`${newTheme.charAt(0).toUpperCase() + newTheme.slice(1)} Mode activated`);
-      });
+      };
 
-      // Remove transitioning class after animation completes (250ms + buffer)
-      setTimeout(() => {
-        html.classList.remove('theme-transitioning');
-      }, 350);
+      withThemeTransition(applyThemeChange, () => {
+        const currentBg = localStorage.getItem('bgTheme') || 'default';
+        syncNativeTheme(newTheme, currentBg);
+      });
     });
   }
 };
@@ -547,10 +597,8 @@ const initSettingsPage = (closeDrawer) => {
       if (oldColor === 'sand') oldColor = 'milktea';
       if (newColor === oldColor) return;
 
-      const html = document.documentElement;
-      html.classList.add('theme-transitioning');
-
-      requestAnimationFrame(() => {
+      const applyColorChange = () => {
+        const html = document.documentElement;
         html.setAttribute('data-color-theme', newColor);
         localStorage.setItem('colorTheme', newColor);
 
@@ -572,11 +620,9 @@ const initSettingsPage = (closeDrawer) => {
         }
 
         showToast(`${displayName} theme activated`);
-      });
+      };
 
-      setTimeout(() => {
-        html.classList.remove('theme-transitioning');
-      }, 350);
+      withThemeTransition(applyColorChange);
     });
   }
 
@@ -589,10 +635,8 @@ const initSettingsPage = (closeDrawer) => {
       const oldBg = localStorage.getItem('bgTheme') || 'default';
       if (newBg === oldBg) return;
 
-      const html = document.documentElement;
-      html.classList.add('theme-transitioning');
-
-      requestAnimationFrame(() => {
+      const applyBgChange = () => {
+        const html = document.documentElement;
         html.setAttribute('data-bg-theme', newBg);
         localStorage.setItem('bgTheme', newBg);
 
@@ -618,11 +662,12 @@ const initSettingsPage = (closeDrawer) => {
         }
 
         showToast(`${displayName} background theme activated`);
-      });
+      };
 
-      setTimeout(() => {
-        html.classList.remove('theme-transitioning');
-      }, 350);
+      withThemeTransition(applyBgChange, () => {
+        const theme = document.documentElement.getAttribute('data-theme') || 'light';
+        syncNativeTheme(theme, newBg);
+      });
     });
   }
 
@@ -755,10 +800,7 @@ const initRateModal = (closeDrawer) => {
   if (rateBtn) {
     rateBtn.addEventListener('click', () => {
       closeDrawer();
-      selectedRating = 0;
-      stars.forEach(s => s.classList.remove('active'));
-      if (feedbackInput) feedbackInput.value = '';
-      rateModal.classList.add('active');
+      window.open('https://play.google.com/store/apps/details?id=com.drillingtoolkit.app', '_system');
     });
   }
 
@@ -804,7 +846,23 @@ const initShareModal = (closeDrawer) => {
   if (shareBtn) {
     shareBtn.addEventListener('click', () => {
       closeDrawer();
-      shareModal.classList.add('active');
+      const shareData = {
+        title: 'Drilling Toolkit',
+        text: 'Drilling Toolkit - Smart Wellbore Operations & Calculations',
+        url: 'https://play.google.com/store/apps/details?id=com.drillingtoolkit.app'
+      };
+
+      if (navigator.share) {
+        navigator.share(shareData).catch((err) => {
+          if (err.name !== 'AbortError') {
+            console.log('Sharing aborted.');
+          }
+        });
+      } else {
+        navigator.clipboard.writeText(shareData.url).then(() => {
+          showToast('Web share not supported. Play Store link copied to clipboard.');
+        });
+      }
     });
   }
 
@@ -940,15 +998,15 @@ async function checkForUpdates() {
   }
 
   try {
-    let localVersion = APP_VERSION;
-    let localVersionCode = APP_VERSION_CODE;
+    let localVersion = APP_VERSION.trim();
+    let localVersionCode = Number(APP_VERSION_CODE) || 0;
 
     // Dynamically retrieve the actual installed app version from the device
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
       try {
         const info = await window.Capacitor.Plugins.App.getInfo();
         if (info && info.version) {
-          localVersion = info.version;
+          localVersion = info.version.trim();
         }
         if (info && info.build) {
           localVersionCode = Number(info.build) || APP_VERSION_CODE;
@@ -956,6 +1014,11 @@ async function checkForUpdates() {
       } catch (e) {
         console.error('Failed to get native app version:', e);
       }
+    }
+
+    const versionLabel = document.getElementById('drawer-version-label');
+    if (versionLabel) {
+      versionLabel.textContent = `Drilling Toolkit v${localVersion}`;
     }
 
     // Real Firebase configuration
@@ -990,10 +1053,10 @@ async function checkForUpdates() {
 
     // Fetch and activate config parameters
     await remoteConfig.fetchAndActivate();
-    const latestVersion = remoteConfig.getValue('latest_version').asString();
-    const minimumVersion = remoteConfig.getValue('minimum_version').asString();
-    const latestVersionCode = remoteConfig.getValue('latest_version_code').asNumber();
-    const minimumVersionCode = remoteConfig.getValue('minimum_version_code').asNumber();
+    const latestVersion = remoteConfig.getValue('latest_version').asString().trim();
+    const minimumVersion = remoteConfig.getValue('minimum_version').asString().trim();
+    const latestVersionCode = Number(remoteConfig.getValue('latest_version_code').asNumber()) || 0;
+    const minimumVersionCode = Number(remoteConfig.getValue('minimum_version_code').asNumber()) || 0;
     const releaseNotes = remoteConfig.getValue('release_notes').asString();
 
     console.log(`Update check - Local: ${localVersion} (code: ${localVersionCode}), Latest Remote: ${latestVersion} (code: ${latestVersionCode}), Min Req Remote: ${minimumVersion} (code: ${minimumVersionCode})`);
@@ -1012,11 +1075,17 @@ async function checkForUpdates() {
       return false;
     };
 
-    const forceUpdate = isOutdatedSemantic(localVersion, minimumVersion) || (localVersionCode < minimumVersionCode);
-    const optionalUpdate = isOutdatedSemantic(localVersion, latestVersion) || (localVersionCode < latestVersionCode);
+    const isNewerVersion = (localV, localC, remoteV, remoteC) => {
+      if (isOutdatedSemantic(localV, remoteV)) return true;
+      // Ignore version code comparison to ensure popup only appears when semantic version is less
+      return false;
+    };
+
+    const forceUpdate = isNewerVersion(localVersion, localVersionCode, minimumVersion, minimumVersionCode);
+    const optionalUpdate = isNewerVersion(localVersion, localVersionCode, latestVersion, latestVersionCode);
 
     if (forceUpdate || optionalUpdate) {
-      showUpdatePopup(localVersion, latestVersion, false, releaseNotes);
+      showUpdatePopup(localVersion, latestVersion, forceUpdate, releaseNotes);
     }
   } catch (error) {
     console.error('Failed to perform update check:', error);
@@ -1157,8 +1226,8 @@ const initApp = () => {
     // Run app update check
     checkForUpdates();
 
-    // Wait 1200ms for the webview to finish painting the UI before fading out the logo
-    setTimeout(hideSplash, 1200);
+    // Wait just 100ms for the webview to finish painting the UI before fading out the logo
+    setTimeout(hideSplash, 100);
   } catch (error) {
     console.error('Fatal initialization error in DOMContentLoaded:', error);
     // Ensure native splash screen gets hidden even in case of critical init error
@@ -1198,10 +1267,15 @@ const initApp = () => {
 
   // 2. Edge swipe gestures (Android back gesture convention - Left & Right edges)
   (function initEdgeSwipe() {
-    const EDGE_WIDTH = 40;       // px from edge that starts a valid swipe (increased for reliability)
-    const MIN_SWIPE_X = 60;      // minimum horizontal travel to trigger back
+    // Disable custom JS swipe on Android to let the true native OS back gesture work cleanly
+    if (/android/i.test(navigator.userAgent)) {
+      return;
+    }
+
+    const EDGE_WIDTH = 60;       // px from edge that starts a valid swipe (increased to 60px for better touch recognition)
+    const MIN_SWIPE_X = 50;      // minimum horizontal travel to trigger back (lowered to 50px for responsiveness)
     const MAX_SWIPE_Y = 80;      // maximum vertical drift allowed
-    const MIN_VELOCITY = 0.30;   // px/ms (lowered threshold for smoother triggers)
+    const MIN_VELOCITY = 0.15;   // px/ms (lowered velocity threshold so even casual/slower swipes register)
 
     let touchStartX = 0;
     let touchStartY = 0;
@@ -1238,8 +1312,18 @@ const initApp = () => {
       touchStartTime = Date.now();
 
       const width = window.innerWidth;
-      // Only enable if we have history to navigate back to
-      if (state.screenHistory.length > 0) {
+      
+      // Determine if a back action can be performed (either screen history, an open modal, or an open drawer)
+      const hasHistory = state.screenHistory.length > 0;
+      const langOverlay = document.getElementById('lang-picker-overlay');
+      const isLangActive = langOverlay && langOverlay.classList.contains('active');
+      const isModalActive = !!document.querySelector('.modal-overlay.active');
+      const drawer = document.getElementById('drawer-menu');
+      const isDrawerActive = drawer && drawer.classList.contains('active');
+      
+      const canGoBack = hasHistory || isLangActive || isModalActive || isDrawerActive;
+
+      if (canGoBack) {
         if (t.clientX <= EDGE_WIDTH) {
           swipeEdge = 'left';
           leftHandle.style.opacity = '0.6';
@@ -1259,7 +1343,6 @@ const initApp = () => {
     document.addEventListener('touchmove', (e) => {
       if (!swipeEdge) return;
 
-      // Stop Android WebView from scroll-cancelling our edge swipe back
       if (e.cancelable) {
         e.preventDefault();
         e.stopPropagation();
@@ -1298,12 +1381,38 @@ const initApp = () => {
       const isValidDirection = (swipeEdge === 'left' && dx > 0) || (swipeEdge === 'right' && dx < 0);
 
       if (isValidDirection && dist > MIN_SWIPE_X && dy < MAX_SWIPE_Y && vx > MIN_VELOCITY) {
-        navigateBack();
+        // 1. Close Modals first if active
+        const langOverlay = document.getElementById('lang-picker-overlay');
+        if (langOverlay && langOverlay.classList.contains('active')) {
+          langOverlay.classList.remove('active');
+          swipeEdge = null;
+          return;
+        }
+        const openModal = document.querySelector('.modal-overlay.active');
+        if (openModal) {
+          openModal.classList.remove('active');
+          swipeEdge = null;
+          return;
+        }
+        // 2. Close Drawer if active
+        const drawer = document.getElementById('drawer-menu');
+        if (drawer && drawer.classList.contains('active')) {
+          drawer.classList.remove('active');
+          document.getElementById('drawer-backdrop')?.classList.remove('active');
+          swipeEdge = null;
+          return;
+        }
+        // 3. Otherwise, navigate back in stack
+        if (state.screenHistory.length > 0) {
+          navigateBack();
+        }
       }
       swipeEdge = null;
     }, { passive: true });
   })();
 
+  // Hide splash screen the moment the Home Screen finishes rendering (defer 1 frame)
+  requestAnimationFrame(() => requestAnimationFrame(hideSplash));
 };
 
 // Execute initialization immediately or on DOMContentLoaded
@@ -1340,28 +1449,14 @@ function getEditDistance(a, b) {
 
 // Check if string matches search query
 function fuzzyMatch(str, query) {
-  str = str.toLowerCase();
-  query = query.toLowerCase().trim();
+  if (!str || !query) return false;
+  str = String(str).toLowerCase();
+  query = String(query).toLowerCase().trim();
   if (!query) return false;
-  if (str.includes(query)) return true;
-
-  const words = query.split(/\s+/);
-  for (const word of words) {
-    if (word.length < 3) continue;
-    if (str.includes(word)) return true;
-
-    // Check edit distance for words of target
-    const targetWords = str.split(/[\s_\-\/\(\)\.,]+/);
-    for (const targetWord of targetWords) {
-      if (Math.abs(targetWord.length - word.length) <= 2) {
-        const distance = getEditDistance(targetWord, word);
-        if (distance <= 1 || (word.length > 5 && distance <= 2)) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
+  
+  // Split query into words to ensure all typed words exist somewhere in the string
+  const queryWords = query.split(/\s+/);
+  return queryWords.every(word => str.includes(word));
 }
 
 // Flat search index
@@ -1428,7 +1523,13 @@ function getSearchIndex() {
       badge: 'Well Control',
       bgColor: 'var(--circle-wellcontrol)',
       icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>`,
-      action: () => { navigateTo('well-control'); }
+      action: () => {
+        wellControlSubState.view = 'menu';
+        wellControlSubState.category = null;
+        wellControlSubState.formulaId = null;
+        wellControlSubState.fromScreen = null;
+        navigateTo('well-control');
+      }
     },
     {
       name: 'Drilling Calculator Categories',
@@ -1471,16 +1572,14 @@ function getSearchIndex() {
   // Append all formulas dynamically from formulaDb
   if (typeof formulaDb !== 'undefined') {
     for (const category in formulaDb) {
-      const categoryLabel = category === 'basic' ? 'Basic Formula' :
-        category === 'wellcontrol' ? 'Well Control' : 'Applied Formula';
+      const categoryLabel = category === 'calculations' ? 'Drilling Calculation' : 'Drilling Calculation';
       formulaDb[category].forEach(formula => {
         searchableItems.push({
           name: formula.name,
           desc: formula.desc || 'Drilling calculation formula.',
           type: 'formula',
           badge: categoryLabel,
-          bgColor: category === 'basic' ? 'var(--circle-tubular)' :
-            category === 'wellcontrol' ? 'var(--circle-wellcontrol)' : 'var(--circle-calculator)',
+          bgColor: 'var(--circle-tubular)',
           icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
           action: () => {
             calcSubState.view = 'formula';
@@ -1488,6 +1587,29 @@ function getSearchIndex() {
             calcSubState.formulaId = formula.id;
             calcSubState.search = '';
             navigateTo('drilling-calc');
+          }
+        });
+      });
+    }
+  }
+
+  // Append well control formulas from wellControlDb
+  if (typeof wellControlDb !== 'undefined') {
+    for (const category in wellControlDb) {
+      const categoryLabel = category === 'surface' ? 'Well Control (Surface)' : 'Well Control (Subsea)';
+      wellControlDb[category].forEach(formula => {
+        searchableItems.push({
+          name: formula.name,
+          desc: formula.desc || 'Well control operation calculation.',
+          type: 'formula',
+          badge: categoryLabel,
+          bgColor: 'var(--circle-wellcontrol)',
+          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
+          action: () => {
+            wellControlSubState.view = 'formula';
+            wellControlSubState.category = category;
+            wellControlSubState.formulaId = formula.id;
+            navigateTo('well-control');
           }
         });
       });
@@ -1518,9 +1640,10 @@ function handleSearch(e) {
   menuGrid.style.display = 'none';
 
   const index = getSearchIndex();
-  const matched = index.filter(item =>
-    fuzzyMatch(item.name, query) || fuzzyMatch(item.desc, query)
-  );
+  const matched = index.filter(item => {
+    const combinedText = [item.name, item.desc, item.keywords, item.badge].filter(Boolean).join(' ');
+    return fuzzyMatch(combinedText, query);
+  });
 
   resultsContainer.innerHTML = '';
   resultsContainer.style.display = 'flex';
@@ -1605,6 +1728,18 @@ function renderScreen() {
 
     // Trigger reflow to restart animation reliably
     void activeScreenEl.offsetWidth;
+
+    // Scroll to top on every screen transition — after DOM paint and reflow
+    setTimeout(() => {
+      try {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) appContainer.scrollTop = 0;
+        if (activeScreenEl) activeScreenEl.scrollTop = 0;
+      } catch(e) {}
+    }, 50);
 
     if (screenId === 'kill-data-sheet') {
       activeScreenEl.classList.add('animate-slide-down');
@@ -1952,8 +2087,10 @@ function renderDrillstringSetup() {
   const saveBtn = document.getElementById(`drillstring-save-${flow}`);
   const goBtn = document.getElementById(`drillstring-go-${flow}`);
 
-  // Initially hide the GO button
+  // Initially hide the GO button and ensure Save button is highlighted
   goBtn.style.display = 'none';
+  saveBtn.classList.remove('btn-secondary');
+  saveBtn.classList.add('btn-primary');
 
   // Listen to change events inside the form to hide the GO button if config changes
   wrapper.addEventListener('change', () => {
@@ -2461,73 +2598,73 @@ function renderReferenceValues() {
   // Bind Actions
   const handleSaveState = () => {
     const getVal = (id, fallback) => {
-      const el = document.getElementById(id);
+      const el = container.querySelector('#' + id);
       if (!el || el.value === '' || isNaN(parseFloat(el.value))) return fallback;
       return parseFloat(el.value);
     };
 
     // Save tubular capacities back (convert back to L/m first)
     state.reference.capacities.DP = convertCapacityBack(getVal('cap-dp-input', convertCapacity(state.reference.capacities.DP, state.globalUnit)), state.globalUnit);
-    if (document.getElementById('cap-dp2-input')) {
+    if (container.querySelector('#' + 'cap-dp2-input')) {
       state.reference.capacities.DP2 = convertCapacityBack(getVal('cap-dp2-input', convertCapacity(state.reference.capacities.DP2, state.globalUnit)), state.globalUnit);
     }
-    if (document.getElementById('cap-dp3-input')) {
+    if (container.querySelector('#' + 'cap-dp3-input')) {
       state.reference.capacities.DP3 = convertCapacityBack(getVal('cap-dp3-input', convertCapacity(state.reference.capacities.DP3, state.globalUnit)), state.globalUnit);
     }
     state.reference.capacities.HWDP = convertCapacityBack(getVal('cap-hwdp-input', convertCapacity(state.reference.capacities.HWDP, state.globalUnit)), state.globalUnit);
     state.reference.capacities.DC = convertCapacityBack(getVal('cap-dc-input', convertCapacity(state.reference.capacities.DC, state.globalUnit)), state.globalUnit);
-    if (document.getElementById('cap-dc2-input')) {
+    if (container.querySelector('#' + 'cap-dc2-input')) {
       state.reference.capacities.DC2 = convertCapacityBack(getVal('cap-dc2-input', convertCapacity(state.reference.capacities.DC2, state.globalUnit)), state.globalUnit);
     }
-    if (document.getElementById('cap-dc3-input')) {
+    if (container.querySelector('#' + 'cap-dc3-input')) {
       state.reference.capacities.DC3 = convertCapacityBack(getVal('cap-dc3-input', convertCapacity(state.reference.capacities.DC3, state.globalUnit)), state.globalUnit);
     }
 
     // Save Open Hole capacities
     state.reference.openHoleAnnular.DP = convertCapacityBack(getVal('oh-dp-input', convertCapacity(state.reference.openHoleAnnular.DP || 0, state.globalUnit)), state.globalUnit);
-    if (document.getElementById('oh-dp2-input')) {
+    if (container.querySelector('#' + 'oh-dp2-input')) {
       state.reference.openHoleAnnular.DP2 = convertCapacityBack(getVal('oh-dp2-input', convertCapacity(state.reference.openHoleAnnular.DP2 || 0, state.globalUnit)), state.globalUnit);
     }
-    if (document.getElementById('oh-dp3-input')) {
+    if (container.querySelector('#' + 'oh-dp3-input')) {
       state.reference.openHoleAnnular.DP3 = convertCapacityBack(getVal('oh-dp3-input', convertCapacity(state.reference.openHoleAnnular.DP3 || 0, state.globalUnit)), state.globalUnit);
     }
     state.reference.openHoleAnnular.HWDP = convertCapacityBack(getVal('oh-hwdp-input', convertCapacity(state.reference.openHoleAnnular.HWDP || 0, state.globalUnit)), state.globalUnit);
     state.reference.openHoleAnnular.DC = convertCapacityBack(getVal('oh-dc-input', convertCapacity(state.reference.openHoleAnnular.DC || 0, state.globalUnit)), state.globalUnit);
-    if (document.getElementById('oh-dc2-input')) {
+    if (container.querySelector('#' + 'oh-dc2-input')) {
       state.reference.openHoleAnnular.DC2 = convertCapacityBack(getVal('oh-dc2-input', convertCapacity(state.reference.openHoleAnnular.DC2 || 0, state.globalUnit)), state.globalUnit);
     }
-    if (document.getElementById('oh-dc3-input')) {
+    if (container.querySelector('#' + 'oh-dc3-input')) {
       state.reference.openHoleAnnular.DC3 = convertCapacityBack(getVal('oh-dc3-input', convertCapacity(state.reference.openHoleAnnular.DC3 || 0, state.globalUnit)), state.globalUnit);
     }
 
     // Save Casing capacities
     state.reference.casingAnnular.DP = convertCapacityBack(getVal('cas-dp-input', convertCapacity(state.reference.casingAnnular.DP || 0, state.globalUnit)), state.globalUnit);
-    if (document.getElementById('cas-dp2-input')) {
+    if (container.querySelector('#' + 'cas-dp2-input')) {
       state.reference.casingAnnular.DP2 = convertCapacityBack(getVal('cas-dp2-input', convertCapacity(state.reference.casingAnnular.DP2 || 0, state.globalUnit)), state.globalUnit);
     }
-    if (document.getElementById('cas-dp3-input')) {
+    if (container.querySelector('#' + 'cas-dp3-input')) {
       state.reference.casingAnnular.DP3 = convertCapacityBack(getVal('cas-dp3-input', convertCapacity(state.reference.casingAnnular.DP3 || 0, state.globalUnit)), state.globalUnit);
     }
     state.reference.casingAnnular.HWDP = convertCapacityBack(getVal('cas-hwdp-input', convertCapacity(state.reference.casingAnnular.HWDP || 0, state.globalUnit)), state.globalUnit);
     state.reference.casingAnnular.DC = convertCapacityBack(getVal('cas-dc-input', convertCapacity(state.reference.casingAnnular.DC || 0, state.globalUnit)), state.globalUnit);
-    if (document.getElementById('cas-dc2-input')) {
+    if (container.querySelector('#' + 'cas-dc2-input')) {
       state.reference.casingAnnular.DC2 = convertCapacityBack(getVal('cas-dc2-input', convertCapacity(state.reference.casingAnnular.DC2 || 0, state.globalUnit)), state.globalUnit);
     }
-    if (document.getElementById('cas-dc3-input')) {
+    if (container.querySelector('#' + 'cas-dc3-input')) {
       state.reference.casingAnnular.DC3 = convertCapacityBack(getVal('cas-dc3-input', convertCapacity(state.reference.casingAnnular.DC3 || 0, state.globalUnit)), state.globalUnit);
     }
 
     // Subsea specific saves
     if (state.flowType === 'subsea') {
-      const riserAnnEl = document.getElementById('riser-ann-input');
+      const riserAnnEl = container.querySelector('#' + 'riser-ann-input');
       if (riserAnnEl) {
         state.reference.riserAnnular = convertCapacityBack(getVal('riser-ann-input', convertCapacity(state.reference.riserAnnular || 0, state.globalUnit)), state.globalUnit);
       }
-      const chokeCapEl = document.getElementById('cap-choke-input');
+      const chokeCapEl = container.querySelector('#' + 'cap-choke-input');
       if (chokeCapEl) {
         state.reference.chokeCapacity = convertCapacityBack(getVal('cap-choke-input', convertCapacity(state.reference.chokeCapacity || 0, state.globalUnit)), state.globalUnit);
       }
-      const riserCapEl = document.getElementById('cap-riser-input');
+      const riserCapEl = container.querySelector('#' + 'cap-riser-input');
       if (riserCapEl) {
         DB.pipeData.RISER.capacity = convertCapacityBack(getVal('cap-riser-input', convertCapacity(DB.pipeData.RISER.capacity || 0, state.globalUnit)), state.globalUnit);
       }
@@ -2555,8 +2692,8 @@ function renderReferenceValues() {
     localStorage.setItem('drillingToolkitReferences', JSON.stringify(state.reference));
   };
 
-  const refSaveBtn = document.getElementById('ref-save-new');
-  const refUseBtn = document.getElementById('ref-use-btn');
+  const refSaveBtn = container.querySelector('#' + 'ref-save-new');
+  const refUseBtn = container.querySelector('#' + 'ref-use-btn');
 
   refSaveBtn.onclick = () => {
     handleSaveState();
@@ -2569,6 +2706,14 @@ function renderReferenceValues() {
 
   refUseBtn.onclick = () => {
     handleSaveState();
+    // Clear depth inputs to require manual entry on a fresh calculation
+    state.calcInputs.holeTVD = '';
+    state.calcInputs.holeMD = '';
+    state.calcInputs.shoeTVD = '';
+    state.calcInputs.shoeMD = '';
+    state.calcInputs.hasRun = false;
+    localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
+    
     navigateTo(`${state.flowType}-calculations`);
   };
 
@@ -2646,7 +2791,7 @@ function renderCalculations() {
       <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
         <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${state.drillstring.dcSize2}" DC 2 Length (${dUnit})</label>
         <div style="position:relative; width:140px; display:inline-block;">
-          <input type="number" step="any" class="form-input" id="dc-len-calc-2" value="${state.calcInputs.dcLength2 || 0}" style="width:100%; margin-bottom:0; padding-right:25px;">
+          <input type="number" step="any" class="form-input" id="dc-len-calc-2" value="${state.calcInputs.dcLength2 || ''}" style="width:100%; margin-bottom:0; padding-right:25px;">
           ${editIcon}
         </div>
       </div>
@@ -2657,7 +2802,7 @@ function renderCalculations() {
       <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
         <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${state.drillstring.dcSize3}" DC 3 Length (${dUnit})</label>
         <div style="position:relative; width:140px; display:inline-block;">
-          <input type="number" step="any" class="form-input" id="dc-len-calc-3" value="${state.calcInputs.dcLength3 || 0}" style="width:100%; margin-bottom:0; padding-right:25px;">
+          <input type="number" step="any" class="form-input" id="dc-len-calc-3" value="${state.calcInputs.dcLength3 || ''}" style="width:100%; margin-bottom:0; padding-right:25px;">
           ${editIcon}
         </div>
       </div>
@@ -2680,7 +2825,7 @@ function renderCalculations() {
       <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
         <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${state.drillstring.dpSize3}" DP 3 Length (${dUnit})</label>
         <div style="position:relative; width:140px; display:inline-block;">
-          <input type="number" step="any" class="form-input" id="dp-len-calc-3" value="${state.calcInputs.dpLength3 || 0}" style="width:100%; margin-bottom:0; padding-right:25px;">
+          <input type="number" step="any" class="form-input" id="dp-len-calc-3" value="${state.calcInputs.dpLength3 || ''}" style="width:100%; margin-bottom:0; padding-right:25px;">
           ${editIcon}
         </div>
       </div>
@@ -2691,7 +2836,7 @@ function renderCalculations() {
       <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
         <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${state.drillstring.dpSize2}" DP 2 Length (${dUnit})</label>
         <div style="position:relative; width:140px; display:inline-block;">
-          <input type="number" step="any" class="form-input" id="dp-len-calc-2" value="${state.calcInputs.dpLength2 || 0}" style="width:100%; margin-bottom:0; padding-right:25px;">
+          <input type="number" step="any" class="form-input" id="dp-len-calc-2" value="${state.calcInputs.dpLength2 || ''}" style="width:100%; margin-bottom:0; padding-right:25px;">
           ${editIcon}
         </div>
       </div>
@@ -2806,7 +2951,7 @@ function renderCalculations() {
     container.appendChild(bopToggleWrapper);
 
     // Bind BOP switch
-    document.getElementById('bop-status-toggle').addEventListener('change', (e) => {
+    container.querySelector('#' + 'bop-status-toggle').addEventListener('change', (e) => {
       state.calcInputs.bopStatus = e.target.checked ? 'closed' : 'open';
       showToast(`BOP Status changed to: ${state.calcInputs.bopStatus.toUpperCase()}`);
       renderCalculations();
@@ -2829,14 +2974,16 @@ function renderCalculations() {
   const resultsContainer = document.createElement('div');
   resultsContainer.id = 'results-dashboard-wrapper';
   resultsContainer.className = 'results-grid';
-  resultsContainer.style.display = 'none';
+  const showResults = state.calcInputs.hasRun;
+  resultsContainer.style.display = showResults ? 'grid' : 'none';
   container.appendChild(resultsContainer);
 
   // Initialize default inputs in state if they do not exist
-  const defaultOMW = isBblFt ? 10.0 : 1.20;
-  const defaultSIDPP = isBblFt ? 500 : 35;
-  const defaultSICP = isBblFt ? 600 : 42;
-  const defaultSCR = isBblFt ? 300 : 21;
+  // Ensure kill data inputs are not auto-filled with defaults, requiring manual entry
+  const defaultOMW = '';
+  const defaultSIDPP = '';
+  const defaultSICP = '';
+  const defaultSCR = '';
 
   if (state.calcInputs.killOMW === undefined) state.calcInputs.killOMW = defaultOMW;
   if (state.calcInputs.killSIDPP === undefined) state.calcInputs.killSIDPP = defaultSIDPP;
@@ -2849,7 +2996,7 @@ function renderCalculations() {
   killSheetBtnCard.className = 'content-card compact-card';
   killSheetBtnCard.style.marginTop = '20px';
   killSheetBtnCard.style.borderTop = '4px solid var(--accent-color)';
-  killSheetBtnCard.style.display = 'none';
+  killSheetBtnCard.style.display = showResults ? 'block' : 'none';
 
   killSheetBtnCard.innerHTML = `
     <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600; color:var(--text-primary);">Well Control Kill Sheet</h3>
@@ -2868,30 +3015,35 @@ function renderCalculations() {
   `;
   container.appendChild(killSheetBtnCard);
 
-  document.getElementById('open-kill-sheet-btn').onclick = () => {
+  container.querySelector('#' + 'open-kill-sheet-btn').onclick = () => {
     navigateTo('kill-data-sheet');
   };
 
   // Sync Input Elements Values & Bind change listeners
-  const holeMEl = document.getElementById('hole-md-calc');
-  const holeTEl = document.getElementById('hole-tvd-calc');
-  const shoeMEl = document.getElementById('shoe-md-calc');
-  const shoeTEl = document.getElementById('shoe-tvd-calc');
-  const dcEl = document.getElementById('dc-len-calc');
-  const hwdpEl = document.getElementById('hwdp-len-calc');
-  const dpEl = document.getElementById('dp-len-calc');
+  const holeMEl = container.querySelector('#' + 'hole-md-calc');
+  const holeTEl = container.querySelector('#' + 'hole-tvd-calc');
+  const shoeMEl = container.querySelector('#' + 'shoe-md-calc');
+  const shoeTEl = container.querySelector('#' + 'shoe-tvd-calc');
+  const dcEl = container.querySelector('#' + 'dc-len-calc');
+  const hwdpEl = container.querySelector('#' + 'hwdp-len-calc');
+  const dpEl = container.querySelector('#' + 'dp-len-calc');
 
   const updateDPLength = () => {
     if (!state.calcInputs.dpLengthOverride) {
+      if (!holeMEl.value || holeMEl.value.trim() === '') {
+        state.calcInputs.dpLength = '';
+        if (dpEl) dpEl.value = '';
+        return;
+      }
       const hMD = parseFloat(holeMEl.value) || 0;
       const dcL = parseFloat(dcEl.value) || 0;
-      const dcL2 = document.getElementById('dc-len-calc-2') ? (parseFloat(document.getElementById('dc-len-calc-2').value) || 0) : 0;
-      const dcL3 = document.getElementById('dc-len-calc-3') ? (parseFloat(document.getElementById('dc-len-calc-3').value) || 0) : 0;
+      const dcL2 = container.querySelector('#' + 'dc-len-calc-2') ? (parseFloat(container.querySelector('#' + 'dc-len-calc-2').value) || 0) : 0;
+      const dcL3 = container.querySelector('#' + 'dc-len-calc-3') ? (parseFloat(container.querySelector('#' + 'dc-len-calc-3').value) || 0) : 0;
 
       const hwL = parseFloat(hwdpEl.value) || 0;
 
-      const dpL2 = document.getElementById('dp-len-calc-2') ? (parseFloat(document.getElementById('dp-len-calc-2').value) || 0) : 0;
-      const dpL3 = document.getElementById('dp-len-calc-3') ? (parseFloat(document.getElementById('dp-len-calc-3').value) || 0) : 0;
+      const dpL2 = container.querySelector('#' + 'dp-len-calc-2') ? (parseFloat(container.querySelector('#' + 'dp-len-calc-2').value) || 0) : 0;
+      const dpL3 = container.querySelector('#' + 'dp-len-calc-3') ? (parseFloat(container.querySelector('#' + 'dp-len-calc-3').value) || 0) : 0;
 
       const dpL = Math.max(0, hMD - dcL - dcL2 - dcL3 - hwL - dpL2 - dpL3);
       state.calcInputs.dpLength = dpL;
@@ -2908,19 +3060,19 @@ function renderCalculations() {
     state.calcInputs.shoeTVD = shoeTEl ? getVal(shoeTEl) : state.calcInputs.shoeMD;
 
     state.calcInputs.dcLength = getVal(dcEl);
-    state.calcInputs.dcLength2 = getVal(document.getElementById('dc-len-calc-2'));
-    state.calcInputs.dcLength3 = getVal(document.getElementById('dc-len-calc-3'));
+    state.calcInputs.dcLength2 = getVal(container.querySelector('#' + 'dc-len-calc-2'));
+    state.calcInputs.dcLength3 = getVal(container.querySelector('#' + 'dc-len-calc-3'));
 
     state.calcInputs.hwdpLength = getVal(hwdpEl);
 
     state.calcInputs.dpLength = getVal(dpEl);
-    state.calcInputs.dpLength2 = getVal(document.getElementById('dp-len-calc-2'));
-    state.calcInputs.dpLength3 = getVal(document.getElementById('dp-len-calc-3'));
+    state.calcInputs.dpLength2 = getVal(container.querySelector('#' + 'dp-len-calc-2'));
+    state.calcInputs.dpLength3 = getVal(container.querySelector('#' + 'dp-len-calc-3'));
 
     if (state.flowType === 'subsea') {
-      state.calcInputs.riserLength = getVal(document.getElementById('riserlength-calc'));
+      state.calcInputs.riserLength = getVal(container.querySelector('#' + 'riserlength-calc'));
       if (state.calcInputs.bopStatus === 'closed') {
-        state.calcInputs.chokeLength = getVal(document.getElementById('choke-len-calc'));
+        state.calcInputs.chokeLength = getVal(container.querySelector('#' + 'choke-len-calc'));
       }
     }
 
@@ -2972,7 +3124,7 @@ function renderCalculations() {
     runCalculationsEngine();
   });
 
-  const dcEl2 = document.getElementById('dc-len-calc-2');
+  const dcEl2 = container.querySelector('#' + 'dc-len-calc-2');
   if (dcEl2) {
     dcEl2.addEventListener('input', () => {
       updateDPLength();
@@ -2981,7 +3133,7 @@ function renderCalculations() {
     });
   }
 
-  const dcEl3 = document.getElementById('dc-len-calc-3');
+  const dcEl3 = container.querySelector('#' + 'dc-len-calc-3');
   if (dcEl3) {
     dcEl3.addEventListener('input', () => {
       updateDPLength();
@@ -3002,7 +3154,7 @@ function renderCalculations() {
     runCalculationsEngine();
   });
 
-  const dpEl2 = document.getElementById('dp-len-calc-2');
+  const dpEl2 = container.querySelector('#' + 'dp-len-calc-2');
   if (dpEl2) {
     dpEl2.addEventListener('input', () => {
       updateDPLength();
@@ -3011,7 +3163,7 @@ function renderCalculations() {
     });
   }
 
-  const dpEl3 = document.getElementById('dp-len-calc-3');
+  const dpEl3 = container.querySelector('#' + 'dp-len-calc-3');
   if (dpEl3) {
     dpEl3.addEventListener('input', () => {
       updateDPLength();
@@ -3021,7 +3173,7 @@ function renderCalculations() {
   }
 
   // Reset auto listener
-  const resetBtn = document.getElementById('reset-dp-auto');
+  const resetBtn = container.querySelector('#' + 'reset-dp-auto');
   if (resetBtn) {
     resetBtn.onclick = () => {
       state.calcInputs.dpLengthOverride = false;
@@ -3033,15 +3185,16 @@ function renderCalculations() {
   }
 
   // Run Calculations initially when button is clicked or after setup
-  const runCalcBtn = document.getElementById('run-calc-btn');
+  const runCalcBtn = container.querySelector('#' + 'run-calc-btn');
   if (runCalcBtn) {
     runCalcBtn.onclick = () => {
+      if (runCalcBtn.disabled) return;
+      
       syncStateFromInputs();
 
       // Validation Check: Find missing data entries
       let hasError = false;
-      const calcContainer = document.getElementById(`calculations-container-${state.flowType}`);
-      const inputsList = calcContainer.querySelectorAll('.form-input:not([disabled])');
+      const inputsList = container.querySelectorAll('.form-input:not([disabled])');
 
       inputsList.forEach(input => {
         // Skip DP1 if it is auto-calculated and not overridden
@@ -3062,14 +3215,64 @@ function renderCalculations() {
         return;
       }
 
-      document.getElementById('results-dashboard-wrapper').style.display = 'grid';
-      document.getElementById('kill-sheet-btn-card').style.display = 'block';
-      runCalculationsEngine();
-      saveCalculationToHistory('dashboard');
-      showToast("Calculations refreshed successfully.");
+      // Logical Validation: Shoe depth must not exceed Hole depth
+      const hTVD = parseFloat(state.calcInputs.holeTVD);
+      const sTVD = parseFloat(state.calcInputs.shoeTVD);
+      const hMD = parseFloat(state.calcInputs.holeMD);
+      const sMD = parseFloat(state.calcInputs.shoeMD);
+      
+      let logicalError = false;
+      if (!isNaN(hTVD) && !isNaN(sTVD) && sTVD > hTVD) {
+        const el = container.querySelector('#shoe-tvd-calc');
+        if (el) el.style.border = '2px solid var(--accent-color)';
+        logicalError = true;
+      }
+      if (!isNaN(hMD) && !isNaN(sMD) && sMD > hMD) {
+        const el = container.querySelector('#shoe-md-calc');
+        if (el) el.style.border = '2px solid var(--accent-color)';
+        logicalError = true;
+      }
 
+      if (logicalError) {
+        showToast("Shoe depth cannot exceed Hole depth.");
+        return;
+      }
+
+      runCalcBtn.disabled = true;
+      const originalText = runCalcBtn.innerHTML;
+      runCalcBtn.innerHTML = "Calculating...";
+
+      // Allow UI to update with "Calculating..." before doing work
       setTimeout(() => {
-        document.getElementById('results-dashboard-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        try {
+          state.calcInputs.hasRun = true;
+          localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
+          container.querySelector('#' + 'results-dashboard-wrapper').style.display = 'grid';
+          container.querySelector('#' + 'kill-sheet-btn-card').style.display = 'block';
+          
+          runCalculationsEngine();
+          saveCalculationToHistory('dashboard');
+          
+          // Request animation frame to ensure the DOM is painted before showing success
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              showToast("Calculations refreshed successfully.");
+              
+              runCalcBtn.disabled = false;
+              runCalcBtn.innerHTML = originalText;
+              
+              setTimeout(() => {
+                const wrapper = container.querySelector('#' + 'results-dashboard-wrapper');
+                if (wrapper) wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
+            });
+          });
+        } catch (e) {
+          console.error(e);
+          runCalcBtn.disabled = false;
+          runCalcBtn.innerHTML = originalText;
+          showToast("An error occurred during calculation");
+        }
       }, 50);
     };
   }
@@ -3078,6 +3281,14 @@ function renderCalculations() {
 
   // Run calculations instantly on render
   runCalculationsEngine();
+
+  // If navigating back, auto-scroll to results so they remain visible to the user
+  if (_navDirection === 'back' && state.calcInputs.hasRun) {
+    setTimeout(() => {
+      const resultsWrap = container.querySelector('#' + 'results-dashboard-wrapper');
+      if (resultsWrap) resultsWrap.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }, 50);
+  }
 }
 
 // Engine to compute values and update Dashboard Results
@@ -4505,112 +4716,112 @@ function renderConversionScreen() {
 
   const units = {
     area: [
-      { name: 'Square Meters (m²)', val: 'm2' },
-      { name: 'Square Feet (ft²)', val: 'ft2' },
-      { name: 'Acres (acre)', val: 'acre' }
+      { name: 'm²', val: 'm2' },
+      { name: 'ft²', val: 'ft2' },
+      { name: 'acre', val: 'acre' }
     ],
     circ: [
-      { name: 'Liters/Minute (L/min)', val: 'l_min' },
-      { name: 'Cubic Meters/Hour (m³/hr)', val: 'm3_hr' },
-      { name: 'Gallons/Minute (gpm)', val: 'gpm' },
-      { name: 'Barrels/Minute (bbl/min)', val: 'bbl_min' }
+      { name: 'L/min', val: 'l_min' },
+      { name: 'm³/hr', val: 'm3_hr' },
+      { name: 'gpm', val: 'gpm' },
+      { name: 'bbl/min', val: 'bbl_min' }
     ],
     force: [
-      { name: 'Newtons (N)', val: 'n' },
-      { name: 'Kilonewtons (kN)', val: 'kn' },
-      { name: 'Pounds Force (lbf)', val: 'lbf' }
+      { name: 'N', val: 'n' },
+      { name: 'kN', val: 'kn' },
+      { name: 'lbf', val: 'lbf' }
     ],
     len: [
-      { name: 'Millimeters (mm)', val: 'mm' },
-      { name: 'Centimeters (cm)', val: 'cm' },
-      { name: 'Meters (m)', val: 'm' },
-      { name: 'Kilometers (km)', val: 'km' },
-      { name: 'Inches (in)', val: 'in' },
-      { name: 'Feet (ft)', val: 'ft' }
+      { name: 'mm', val: 'mm' },
+      { name: 'cm', val: 'cm' },
+      { name: 'm', val: 'm' },
+      { name: 'km', val: 'km' },
+      { name: 'in', val: 'in' },
+      { name: 'ft', val: 'ft' }
     ],
     mudw: [
-      { name: 'Pounds/Gallon (ppg)', val: 'ppg' },
-      { name: 'Specific Gravity (SG)', val: 'sg' },
-      { name: 'Kilograms/Cubic Meter (kg/m³)', val: 'kg_m3' },
-      { name: 'Pounds/Cubic Foot (lb/ft³)', val: 'lb_ft3' }
+      { name: 'ppg', val: 'ppg' },
+      { name: 'SG', val: 'sg' },
+      { name: 'kg/m³', val: 'kg_m3' },
+      { name: 'lb/ft³', val: 'lb_ft3' }
     ],
     power: [
-      { name: 'Watts (W)', val: 'w' },
-      { name: 'Kilowatts (kW)', val: 'kw' },
-      { name: 'Horsepower (hp)', val: 'hp' }
+      { name: 'W', val: 'w' },
+      { name: 'kW', val: 'kw' },
+      { name: 'hp', val: 'hp' }
     ],
     pres: [
-      { name: 'PSI (psi)', val: 'psi' },
-      { name: 'Bar (bar)', val: 'bar' },
-      { name: 'Kilopascals (kPa)', val: 'kpa' },
-      { name: 'Megapascals (MPa)', val: 'mpa' }
+      { name: 'psi', val: 'psi' },
+      { name: 'bar', val: 'bar' },
+      { name: 'kPa', val: 'kpa' },
+      { name: 'MPa', val: 'mpa' }
     ],
     temp: [
-      { name: 'Celsius (°C)', val: 'c' },
-      { name: 'Fahrenheit (°F)', val: 'f' },
-      { name: 'Kelvin (K)', val: 'k' }
+      { name: '°C', val: 'c' },
+      { name: '°F', val: 'f' },
+      { name: 'K', val: 'k' }
     ],
     vel: [
-      { name: 'Meters/Second (m/s)', val: 'm_s' },
-      { name: 'Feet/Second (ft/s)', val: 'ft_s' },
-      { name: 'Kilometers/Hour (km/h)', val: 'km_h' }
+      { name: 'm/s', val: 'm_s' },
+      { name: 'ft/s', val: 'ft_s' },
+      { name: 'km/h', val: 'km_h' }
     ],
     vol: [
-      { name: 'Liters (L)', val: 'l' },
-      { name: 'Cubic Meters (m³)', val: 'm3' },
-      { name: 'Barrels (bbl)', val: 'bbl' },
-      { name: 'Gallons (gal)', val: 'gal' }
+      { name: 'L', val: 'l' },
+      { name: 'm³', val: 'm3' },
+      { name: 'bbl', val: 'bbl' },
+      { name: 'gal', val: 'gal' }
     ],
     weight: [
-      { name: 'Kilograms (kg)', val: 'kg' },
-      { name: 'Grams (g)', val: 'g' },
-      { name: 'Pounds (lb)', val: 'lb' },
-      { name: 'Metric Tons (ton)', val: 'ton' }
+      { name: 'kg', val: 'kg' },
+      { name: 'g', val: 'g' },
+      { name: 'lb', val: 'lb' },
+      { name: 'ton', val: 'ton' }
     ],
     flow: [
-      { name: 'Barrels/Day (bbl/day)', val: 'bbl_d' },
-      { name: 'Cubic Meters/Day (m³/day)', val: 'm3_d' },
-      { name: 'Gallons/Minute (gpm)', val: 'gpm' }
+      { name: 'bbl/day', val: 'bbl_d' },
+      { name: 'm³/day', val: 'm3_d' },
+      { name: 'gpm', val: 'gpm' }
     ],
     dens: [
-      { name: 'Kilograms/Cubic Meter (kg/m³)', val: 'kg_m3' },
-      { name: 'Grams/Cubic Centimeter (g/cm³)', val: 'g_cm3' },
-      { name: 'Pounds/Gallon (ppg)', val: 'ppg' }
+      { name: 'kg/m³', val: 'kg_m3' },
+      { name: 'g/cm³', val: 'g_cm3' },
+      { name: 'ppg', val: 'ppg' }
     ],
     torque: [
-      { name: 'Newton Meters (N·m)', val: 'nm' },
-      { name: 'Foot Pounds (ft·lbf)', val: 'ft_lbf' }
+      { name: 'N·m', val: 'nm' },
+      { name: 'ft·lbf', val: 'ft_lbf' }
     ],
     visc: [
-      { name: 'Centipoise (cP)', val: 'cp' },
-      { name: 'Pascal Seconds (Pa·s)', val: 'pa_s' }
+      { name: 'cP', val: 'cp' },
+      { name: 'Pa·s', val: 'pa_s' }
     ],
     pump: [
-      { name: 'Liters/Stroke (L/stroke)', val: 'l_stk' },
-      { name: 'Barrels/Stroke (bbl/stroke)', val: 'bbl_stk' }
+      { name: 'L/stk', val: 'l_stk' },
+      { name: 'bbl/stk', val: 'bbl_stk' }
     ],
     anncap: [
-      { name: 'Barrels/Foot (bbl/ft)', val: 'bbl_ft' },
-      { name: 'Cubic Meters/Meter (m³/m)', val: 'm3_m' },
-      { name: 'Liters/Meter (L/m)', val: 'l_m' }
+      { name: 'bbl/ft', val: 'bbl_ft' },
+      { name: 'm³/m', val: 'm3_m' },
+      { name: 'L/m', val: 'l_m' }
     ],
     yp: [
-      { name: 'Pounds/100ft² (lb/100ft²)', val: 'lb_100ft2' },
-      { name: 'Pascals (Pa)', val: 'pa' }
+      { name: 'lb/100ft²', val: 'lb_100ft2' },
+      { name: 'Pa', val: 'pa' }
     ],
     gel: [
-      { name: 'Pounds/100ft² (lb/100ft²)', val: 'lb_100ft2' },
-      { name: 'Pascals (Pa)', val: 'pa' }
+      { name: 'lb/100ft²', val: 'lb_100ft2' },
+      { name: 'Pa', val: 'pa' }
     ],
     grad: [
-      { name: 'PSI/Foot (psi/ft)', val: 'psi_ft' },
-      { name: 'Kilopascals/Meter (kPa/m)', val: 'kpa_m' },
-      { name: 'Bar/Meter (bar/m)', val: 'bar_m' }
+      { name: 'psi/ft', val: 'psi_ft' },
+      { name: 'kPa/m', val: 'kpa_m' },
+      { name: 'bar/m', val: 'bar_m' }
     ],
     energy: [
-      { name: 'Joules (J)', val: 'j' },
+      { name: 'J', val: 'j' },
       { name: 'BTU', val: 'btu' },
-      { name: 'Kilowatt Hours (kWh)', val: 'kwh' }
+      { name: 'kWh', val: 'kwh' }
     ]
   };
 
@@ -4839,7 +5050,7 @@ let quickRefSubState = {
 };
 
 const formulaDb = {
-  basic: [
+  calculations: [
     {
       id: 'leak_off',
       name: 'Leak Off Test Calculation',
@@ -5025,6 +5236,335 @@ const formulaDb = {
       unit: 'gal'
     },
     {
+      id: 'acc_bottle_req',
+      name: 'Accumulator Bottle Requirement',
+      desc: 'Calculate number of bottles needed for usable fluid volume.',
+      inputs: [
+        { key: 'totalFluid', label: 'Total Usable Fluid Required (gal)', val: 120 },
+        { key: 'fluidPerBottle', label: 'Usable Fluid per Bottle (gal)', val: 5 }
+      ],
+      calc: (i) => Math.ceil(i.totalFluid / (i.fluidPerBottle || 1)),
+      unit: 'bottles'
+    },
+    {
+      id: 'acc_precharge',
+      name: 'Accumulator Pre-Charge Pressure',
+      desc: 'Calculate optimum pre-charge pressure.',
+      inputs: [
+        { key: 'sysPress', label: 'System Pressure (psi)', val: 3000 }
+      ],
+      calc: (i) => i.sysPress / 3,
+      unit: 'psi'
+    },
+    {
+      id: 'acc_recharge_time',
+      name: 'Accumulator Recharge Time',
+      desc: 'Time to recharge accumulator system.',
+      inputs: [
+        { key: 'vol', label: 'Volume to Recharge (gal)', val: 50 },
+        { key: 'rate', label: 'Pump Rate (gal/min)', val: 10 }
+      ],
+      calc: (i) => i.vol / (i.rate || 1),
+      unit: 'minutes'
+    },
+    {
+      id: 'bop_close_time',
+      name: 'BOP Closing Time',
+      desc: 'Estimated time to close BOP.',
+      inputs: [
+        { key: 'vol', label: 'Closing Volume (gal)', val: 15 },
+        { key: 'rate', label: 'Flow Rate (gal/min)', val: 30 }
+      ],
+      calc: (i) => (i.vol / (i.rate || 1)) * 60,
+      unit: 'seconds'
+    },
+    {
+      id: 'bop_open_time',
+      name: 'BOP Opening Time',
+      desc: 'Estimated time to open BOP.',
+      inputs: [
+        { key: 'vol', label: 'Opening Volume (gal)', val: 14 },
+        { key: 'rate', label: 'Flow Rate (gal/min)', val: 30 }
+      ],
+      calc: (i) => (i.vol / (i.rate || 1)) * 60,
+      unit: 'seconds'
+    },
+    {
+      id: 'ram_close_vol',
+      name: 'Ram Closing Volume',
+      desc: 'Volume required to close ram preventer.',
+      inputs: [
+        { key: 'area', label: 'Piston Area (sq in)', val: 75 },
+        { key: 'stroke', label: 'Stroke Length (in)', val: 10 }
+      ],
+      calc: (i) => (i.area * i.stroke) / 231,
+      unit: 'gal'
+    },
+    {
+      id: 'annular_close_vol',
+      name: 'Annular Closing Volume',
+      desc: 'Volume required to close annular preventer.',
+      inputs: [
+        { key: 'area', label: 'Piston Area (sq in)', val: 150 },
+        { key: 'stroke', label: 'Stroke Length (in)', val: 12 }
+      ],
+      calc: (i) => (i.area * i.stroke) / 231,
+      unit: 'gal'
+    },
+    {
+      id: 'control_fluid_req',
+      name: 'Control Fluid Requirement',
+      desc: 'Total fluid requirement including safety factor.',
+      inputs: [
+        { key: 'vol', label: 'Total Component Volume (gal)', val: 100 },
+        { key: 'sf', label: 'Safety Factor', val: 1.5 }
+      ],
+      calc: (i) => i.vol * i.sf,
+      unit: 'gal'
+    },
+    {
+      id: 'choke_line_cap',
+      name: 'Choke Line Capacity',
+      desc: 'Volume capacity of the choke line.',
+      inputs: [
+        { key: 'id', label: 'Line ID (in)', val: 3.0 },
+        { key: 'len', label: 'Line Length (ft)', val: 500 }
+      ],
+      calc: (i) => (Math.pow(i.id, 2) / 1029.4) * i.len,
+      unit: 'bbl'
+    },
+    {
+      id: 'kill_line_cap',
+      name: 'Kill Line Capacity',
+      desc: 'Volume capacity of the kill line.',
+      inputs: [
+        { key: 'id', label: 'Line ID (in)', val: 3.0 },
+        { key: 'len', label: 'Line Length (ft)', val: 500 }
+      ],
+      calc: (i) => (Math.pow(i.id, 2) / 1029.4) * i.len,
+      unit: 'bbl'
+    },
+    {
+      id: 'surface_line_vol',
+      name: 'Surface Line Volume',
+      desc: 'Volume of surface piping.',
+      inputs: [
+        { key: 'id', label: 'Line ID (in)', val: 4.0 },
+        { key: 'len', label: 'Line Length (ft)', val: 200 }
+      ],
+      calc: (i) => (Math.pow(i.id, 2) / 1029.4) * i.len,
+      unit: 'bbl'
+    },
+    {
+      id: 'bop_function_vol',
+      name: 'BOP Function Volume',
+      desc: 'Total volume for BOP functions.',
+      inputs: [
+        { key: 'open', label: 'Total Opening Volume (gal)', val: 40 },
+        { key: 'close', label: 'Total Closing Volume (gal)', val: 45 }
+      ],
+      calc: (i) => i.open + i.close,
+      unit: 'gal'
+    },
+    {
+      id: 'bop_press_test_vol',
+      name: 'BOP Pressure Test Volume',
+      desc: 'Fluid required for pressure test (compressibility).',
+      inputs: [
+        { key: 'vol', label: 'System Volume (bbl)', val: 50 },
+        { key: 'press', label: 'Test Pressure (psi)', val: 5000 },
+        { key: 'comp', label: 'Fluid Compressibility (per psi)', val: 0.000003 }
+      ],
+      calc: (i) => i.vol * i.press * i.comp,
+      unit: 'bbl'
+    },
+    {
+      id: 'press_rating_verif',
+      name: 'Pressure Rating Verification',
+      desc: 'Checks if BOP rating exceeds max pressure.',
+      inputs: [
+        { key: 'rating', label: 'BOP Rating (psi)', val: 10000 },
+        { key: 'maxP', label: 'Max Anticipated Pressure (psi)', val: 8500 }
+      ],
+      calc: (i) => i.rating - i.maxP,
+      unit: 'psi (Margin)'
+    },
+    {
+      id: 'standpipe_press',
+      name: 'Standpipe Pressure',
+      desc: 'Sum of all pressure losses in the circulating system.',
+      inputs: [
+        { key: 'p_surf', label: 'Surface Equip Loss (psi)', val: 50 },
+        { key: 'p_dp', label: 'Drill Pipe Loss (psi)', val: 500 },
+        { key: 'p_dc', label: 'Drill Collar Loss (psi)', val: 300 },
+        { key: 'p_bit', label: 'Bit Nozzle Loss (psi)', val: 1200 },
+        { key: 'p_ann', label: 'Annular Loss (psi)', val: 200 }
+      ],
+      calc: (i) => i.p_surf + i.p_dp + i.p_dc + i.p_bit + i.p_ann,
+      unit: 'psi'
+    },
+    {
+      id: 'p_loss_dp',
+      name: 'Pressure Loss Inside Drill Pipe',
+      desc: 'Estimated pressure drop through the drill pipe.',
+      inputs: [
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10 },
+        { key: 'len', label: 'Pipe Length (ft)', val: 5000 },
+        { key: 'rate', label: 'Flow Rate (gpm)', val: 300 },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+      ],
+      calc: (i) => (0.000061 * i.mw * i.len * Math.pow(i.rate, 1.86)) / Math.pow(i.id, 4.86),
+      unit: 'psi'
+    },
+    {
+      id: 'p_loss_dc',
+      name: 'Pressure Loss in Drill Collar',
+      desc: 'Estimated pressure drop through the drill collars.',
+      inputs: [
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10 },
+        { key: 'len', label: 'Collar Length (ft)', val: 500 },
+        { key: 'rate', label: 'Flow Rate (gpm)', val: 300 },
+        { key: 'id', label: 'Collar ID (in)', val: 2.5 }
+      ],
+      calc: (i) => (0.000061 * i.mw * i.len * Math.pow(i.rate, 1.86)) / Math.pow(i.id, 4.86),
+      unit: 'psi'
+    },
+    {
+      id: 'p_loss_bit',
+      name: 'Pressure Loss Across Bit Nozzles',
+      desc: 'Pressure drop through the bit.',
+      inputs: [
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10 },
+        { key: 'rate', label: 'Flow Rate (gpm)', val: 300 },
+        { key: 'tfa', label: 'Total Flow Area (sq in)', val: 0.35 }
+      ],
+      calc: (i) => (i.mw * Math.pow(i.rate, 2)) / (10858 * Math.pow(i.tfa || 0.1, 2)),
+      unit: 'psi'
+    },
+    {
+      id: 'p_loss_ann',
+      name: 'Pressure Loss in Annulus',
+      desc: 'Estimated pressure drop in the annulus.',
+      inputs: [
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10 },
+        { key: 'len', label: 'Annular Length (ft)', val: 5000 },
+        { key: 'rate', label: 'Flow Rate (gpm)', val: 300 },
+        { key: 'dh', label: 'Hole Diameter (in)', val: 8.5 },
+        { key: 'dp', label: 'Pipe OD (in)', val: 5.0 }
+      ],
+      calc: (i) => (0.000061 * i.mw * i.len * Math.pow(i.rate, 1.86)) / (Math.pow((i.dh - i.dp), 3) * Math.pow((i.dh + i.dp), 1.86)),
+      unit: 'psi'
+    },
+    {
+      id: 'bhhp',
+      name: 'Bit Hydraulic Horsepower (BHHP)',
+      desc: 'Horsepower delivered at the bit.',
+      inputs: [
+        { key: 'p_bit', label: 'Pressure Loss Across Bit (psi)', val: 1200 },
+        { key: 'rate', label: 'Flow Rate (gpm)', val: 300 }
+      ],
+      calc: (i) => (i.p_bit * i.rate) / 1714,
+      unit: 'HHP'
+    },
+    {
+      id: 'pump_hhp',
+      name: 'Hydraulic Horsepower (HHP)',
+      desc: 'Total horsepower delivered by mud pumps.',
+      inputs: [
+        { key: 'spp', label: 'Standpipe Pressure (psi)', val: 3000 },
+        { key: 'rate', label: 'Flow Rate (gpm)', val: 400 }
+      ],
+      calc: (i) => (i.spp * i.rate) / 1714,
+      unit: 'HHP'
+    },
+    {
+      id: 'jet_impact_force',
+      name: 'Jet Impact Force',
+      desc: 'Force exerted by fluid exiting bit nozzles.',
+      inputs: [
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10 },
+        { key: 'rate', label: 'Flow Rate (gpm)', val: 300 },
+        { key: 'vn', label: 'Nozzle Velocity (ft/sec)', val: 250 }
+      ],
+      calc: (i) => (i.mw * i.rate * i.vn) / 1932,
+      unit: 'lbf'
+    },
+    {
+      id: 'bit_nozzle_size',
+      name: 'Bit Nozzle Size',
+      desc: 'Equivalent nozzle size based on Total Flow Area.',
+      inputs: [
+        { key: 'tfa', label: 'Total Flow Area (sq in)', val: 0.33 },
+        { key: 'num', label: 'Number of Nozzles', val: 3 }
+      ],
+      calc: (i) => Math.sqrt((i.tfa / (i.num || 1)) / (Math.PI / 4)) * 32,
+      unit: '/ 32 inch'
+    },
+    {
+      id: 'bit_tfa',
+      name: 'Bit Nozzle Total Flow Area',
+      desc: 'Calculate TFA for up to three nozzles.',
+      inputs: [
+        { key: 'n1', label: 'Nozzle 1 (1/32 in)', val: 12 },
+        { key: 'n2', label: 'Nozzle 2 (1/32 in)', val: 12 },
+        { key: 'n3', label: 'Nozzle 3 (1/32 in)', val: 12 }
+      ],
+      calc: (i) => (Math.PI / 4) * (Math.pow(i.n1 / 32, 2) + Math.pow(i.n2 / 32, 2) + Math.pow(i.n3 / 32, 2)),
+      unit: 'sq in'
+    },
+    {
+      id: 'pump_eff',
+      name: 'Pump Efficiency',
+      desc: 'Actual volumetric efficiency of the pump.',
+      inputs: [
+        { key: 'act_vol', label: 'Actual Pump Output (bbl/stk)', val: 0.108 },
+        { key: 'theo_vol', label: 'Theoretical Pump Output (bbl/stk)', val: 0.115 }
+      ],
+      calc: (i) => (i.act_vol / (i.theo_vol || 1)) * 100,
+      unit: '%'
+    },
+    {
+      id: 'pump_stroke_req',
+      name: 'Pump Stroke Required',
+      desc: 'Total strokes to pump a given volume.',
+      inputs: [
+        { key: 'vol', label: 'Volume to Pump (bbl)', val: 50 },
+        { key: 'po', label: 'Pump Output (bbl/stk)', val: 0.11 }
+      ],
+      calc: (i) => i.vol / (i.po || 1),
+      unit: 'strokes'
+    },
+    {
+      id: 'flow_regime',
+      name: 'Flow Regime (Laminar/Turbulent)',
+      desc: 'Determines flow regime using Critical Velocity (values >1 turbulent, <1 laminar).',
+      inputs: [
+        { key: 'pv', label: 'Plastic Viscosity (cP)', val: 15 },
+        { key: 'yp', label: 'Yield Point (lb/100ft2)', val: 10 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10 },
+        { key: 'id', label: 'Pipe ID / Annulus Eq Dia (in)', val: 4.276 },
+        { key: 'vel', label: 'Fluid Velocity (ft/min)', val: 200 }
+      ],
+      calc: (i) => {
+        const vc = (1.08 * i.pv + 1.08 * Math.sqrt(Math.pow(i.pv, 2) + 12.34 * i.yp * Math.pow(i.id, 2) * i.mw)) / (i.mw * i.id);
+        return (i.vel / 60) / vc;
+      },
+      unit: 'Ratio (>1 is Turbulent)'
+    },
+    {
+      id: 'reynolds_number',
+      name: 'Reynolds Number',
+      desc: 'Calculates Reynolds Number (Re) for Newtonian fluid.',
+      inputs: [
+        { key: 'mw', label: 'Fluid Density (ppg)', val: 10 },
+        { key: 'vel', label: 'Velocity (ft/sec)', val: 5 },
+        { key: 'dia', label: 'Diameter (in)', val: 4.276 },
+        { key: 'visc', label: 'Viscosity (cP)', val: 15 }
+      ],
+      calc: (i) => (928 * i.mw * i.vel * i.dia) / (i.visc || 1),
+      unit: '(Re)'
+    },
+    {
       id: 'ann_cap',
       name: 'Annular Capacity',
       desc: 'Volumetric capacity between casing/hole ID and pipe OD.',
@@ -5188,291 +5728,6 @@ const formulaDb = {
       ],
       calc: (i) => (i.mw * 0.052 * i.ccap * i.h) / ((i.ccap + i.acap) || 1),
       unit: 'psi'
-    }
-  ],
-  wellcontrol: [
-    {
-      id: 'gas_mig_rate',
-      name: 'Actual Gas Migration Rate',
-      desc: 'Estimated gas upward travel speed in shut-in well.',
-      inputs: [
-        { key: 'rise', label: 'Pressure Rise Rate (psi/hr)', val: 100 },
-        { key: 'grad', label: 'Mud Gradient (psi/ft)', val: 0.52 }
-      ],
-      calc: (i) => i.rise / i.grad,
-      unit: 'ft/hr'
-    },
-    {
-      id: 'adj_masicp',
-      name: 'Adjusted Maximum Allowable Shut-in Casing Pressure for New Mud Weight',
-      desc: 'Recalculates MASICP after weighting up.',
-      inputs: [
-        { key: 'masicp', label: 'Current MASICP (psi)', val: 1200 },
-        { key: 'omw', label: 'Current Mud Weight (ppg)', val: 10.0 },
-        { key: 'nmw', label: 'New Mud Weight (ppg)', val: 11.5 },
-        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
-      ],
-      calc: (i) => i.masicp - 0.052 * (i.nmw - i.omw) * i.tvd,
-      unit: 'psi'
-    },
-    {
-      id: 'est_influx_type',
-      name: 'Estimate Type of Influx from Influx Height',
-      desc: 'Determines kick fluid composition using pressure gradient.',
-      inputs: [
-        { key: 'sidpp', label: 'SIDPP (psi)', val: 400 },
-        { key: 'sicp', label: 'SICP (psi)', val: 650 },
-        { key: 'h', label: 'Influx Height (ft)', val: 500 },
-        { key: 'grad', label: 'Mud Gradient (psi/ft)', val: 0.52 }
-      ],
-      calc: (i) => {
-        const ig = i.grad - (i.sicp - i.sidpp) / i.h;
-        let type = 'Saltwater';
-        if (ig < 0.1) type = 'Gas';
-        else if (ig <= 0.3) type = 'Oil/Gas Mix';
-        return `${ig.toFixed(4)} psi/ft (${type})`;
-      },
-      unit: 'Influx Gradient'
-    },
-    {
-      id: 'est_gas_mig',
-      name: 'Estimate Gas Migration Rate in a Shut-in Well',
-      desc: 'Gas migration speed based on casing pressure behavior.',
-      inputs: [
-        { key: 'rise', label: 'Pressure Rise Rate (psi/hr)', val: 100 },
-        { key: 'grad', label: 'Mud Gradient (psi/ft)', val: 0.52 }
-      ],
-      calc: (i) => i.rise / i.grad,
-      unit: 'ft/hr'
-    },
-    {
-      id: 'fcp',
-      name: 'Final Circulating Pressure',
-      desc: 'Circulating pressure required when kill mud hits bit.',
-      inputs: [
-        { key: 'scr', label: 'Slow Circ. Rate Pressure (psi)', val: 500 },
-        { key: 'kmw', label: 'Kill Mud Weight (ppg)', val: 11.5 },
-        { key: 'omw', label: 'Original Mud Weight (ppg)', val: 10.0 }
-      ],
-      calc: (i) => i.scr * (i.kmw / (i.omw || 1)),
-      unit: 'psi'
-    },
-    {
-      id: 'form_pres',
-      name: 'Formation Pressure from Kick Analysis',
-      desc: 'Computes reservoir pore pressure from shut-in data.',
-      inputs: [
-        { key: 'sidpp', label: 'SIDPP (psi)', val: 400 },
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
-        { key: 'tvd', label: 'Total TVD (ft)', val: 8000 }
-      ],
-      calc: (i) => i.sidpp + 0.052 * i.mw * i.tvd,
-      unit: 'psi'
-    },
-    {
-      id: 'hydro_loss_gas_cut',
-      name: 'Hydrostatic Pressure Loss Due to Gas Cut Mud',
-      desc: 'Loss of hydrostatic column pressure due to gas cutting.',
-      inputs: [
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
-        { key: 'tvd', label: 'Total TVD (ft)', val: 8000 },
-        { key: 'gcmw', label: 'Gas Cut Mud Weight (ppg)', val: 8.5 }
-      ],
-      calc: (i) => 0.052 * (i.mw - i.gcmw) * i.tvd,
-      unit: 'psi'
-    },
-    {
-      id: 'influx_height',
-      name: 'Influx Height',
-      desc: 'Height of kick fluid around BHA.',
-      inputs: [
-        { key: 'gain', label: 'Pit Gain (bbl)', val: 15 },
-        { key: 'cap', label: 'Annular Capacity (bbl/ft)', val: 0.029 }
-      ],
-      calc: (i) => i.gain / i.cap,
-      unit: 'ft'
-    },
-    {
-      id: 'icp',
-      name: 'Initial Circulating Pressure',
-      desc: 'Circulating pressure required to start Driller\'s method.',
-      inputs: [
-        { key: 'scr', label: 'Slow Circ. Rate Pressure (psi)', val: 500 },
-        { key: 'sidpp', label: 'SIDPP (psi)', val: 400 }
-      ],
-      calc: (i) => i.scr + i.sidpp,
-      unit: 'psi'
-    },
-    {
-      id: 'kt_factor',
-      name: 'Kick Tolerance Factor',
-      desc: 'Safety factor comparing fracture load to shut-in casing pressure.',
-      inputs: [
-        { key: 'lop', label: 'Shoe Leak Off Pressure (psi)', val: 800 },
-        { key: 'sicp', label: 'SICP (psi)', val: 600 },
-        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
-      ],
-      calc: (i) => (i.lop - i.sicp) / (0.052 * i.tvd),
-      unit: 'ppg equivalent'
-    },
-    {
-      id: 'kt_vert',
-      name: 'Kick Tolerance (Surface Stack and Vertical Well)',
-      desc: 'Max mud weight increase allowable before fracture.',
-      inputs: [
-        { key: 'lop', label: 'Leak Off Pressure (psi)', val: 1500 },
-        { key: 'hyd', label: 'Shoe Hydrostatic (psi)', val: 1200 },
-        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
-      ],
-      calc: (i) => (i.lop - i.hyd) / (0.052 * i.tvd),
-      unit: 'ppg'
-    },
-    {
-      id: 'kmw_wc',
-      name: 'Kill Mud Weight Driller\'s Method',
-      desc: 'Density of mud required to balance formation pressure.',
-      inputs: [
-        { key: 'mw', label: 'Current Mud Weight (ppg)', val: 10.0 },
-        { key: 'sidpp', label: 'SIDPP (psi)', val: 400 },
-        { key: 'tvd', label: 'Total TVD (ft)', val: 8000 }
-      ],
-      calc: (i) => Math.ceil((i.mw + i.sidpp / (0.052 * i.tvd)) * 10) / 10,
-      unit: 'ppg'
-    },
-    {
-      id: 'max_fp',
-      name: 'Maximum Formation Pressure that Can Withstand When Shut in the Well',
-      desc: 'Maximum pore pressure tolerable before fracture.',
-      inputs: [
-        { key: 'lop', label: 'Leak Off Pressure (psi)', val: 1600 },
-        { key: 'shoeTvd', label: 'Shoe TVD (ft)', val: 5000 },
-        { key: 'wellTvd', label: 'Well TVD (ft)', val: 8000 }
-      ],
-      calc: (i) => i.lop * (i.shoeTvd / i.wellTvd),
-      unit: 'psi'
-    },
-    {
-      id: 'misicp',
-      name: 'Maximum Initial Shut in Casing Pressure (MISICP)',
-      desc: 'Maximum SICP allowable at kickoff to prevent casing shoe fracture.',
-      inputs: [
-        { key: 'fg', label: 'Fracture Gradient (psi/ft)', val: 0.8 },
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
-        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
-      ],
-      calc: (i) => (i.fg - 0.052 * i.mw) * i.tvd,
-      unit: 'psi'
-    },
-    {
-      id: 'max_pit_gain',
-      name: 'Maximum Pit Gain From Gas Kick in Water Based Mud',
-      desc: 'Estimated maximum kick volume expansion at surface.',
-      inputs: [
-        { key: 'v', label: 'Kick Volume (bbl)', val: 10 },
-        { key: 'p', label: 'Formation Pressure (psi)', val: 4500 },
-        { key: 'ps', label: 'Surface Pressure (psi)', val: 800 }
-      ],
-      calc: (i) => i.v * (i.p / i.ps),
-      unit: 'bbl'
-    },
-    {
-      id: 'max_influx_h',
-      name: 'Maximum Possible Influx Height When Equal to Maximum Allowable Shut in Casing Pressure',
-      desc: 'Calculates maximum height of kick fluid before MASICP is reached.',
-      inputs: [
-        { key: 'masicp', label: 'MASICP (psi)', val: 1200 },
-        { key: 'sicp', label: 'SICP (psi)', val: 700 },
-        { key: 'mGrad', label: 'Mud Gradient (psi/ft)', val: 0.52 },
-        { key: 'iGrad', label: 'Influx Gradient (psi/ft)', val: 0.1 }
-      ],
-      calc: (i) => (i.masicp - i.sicp) / ((i.mGrad - i.iGrad) || 1),
-      unit: 'ft'
-    },
-    {
-      id: 'max_surf_pres',
-      name: 'Maximum Surface Pressure from Gas Influx Water Based Mud',
-      desc: 'Approximated surface pressure during gas kick expansion.',
-      inputs: [
-        { key: 'gain', label: 'Pit Gain (bbl)', val: 15 },
-        { key: 'p', label: 'Formation Pressure (psi)', val: 4500 },
-        { key: 'cap', label: 'Annular Capacity (bbl/ft)', val: 0.029 }
-      ],
-      calc: (i) => Math.sqrt((i.p * i.gain) / (2 * i.cap * 1029.4)),
-      unit: 'psi'
-    },
-    {
-      id: 'max_surf_pres_kt',
-      name: 'Maximum Surface Pressure from Kick Tolerance',
-      desc: 'Surface pressure corresponding to kick tolerance limit.',
-      inputs: [
-        { key: 'kt', label: 'Kick Tolerance (ppg)', val: 1.5 },
-        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
-      ],
-      calc: (i) => i.kt * 0.052 * i.tvd,
-      unit: 'psi'
-    },
-    {
-      id: 'new_pump_p_basic',
-      name: 'New Pump Pressure and New Pump Stroke (Basic Calculation)',
-      desc: 'Pressure update using square law of pump speeds.',
-      inputs: [
-        { key: 'p1', label: 'Current Pressure (psi)', val: 1500 },
-        { key: 'spm1', label: 'Current SPM', val: 60 },
-        { key: 'spm2', label: 'New SPM', val: 80 }
-      ],
-      calc: (i) => i.p1 * Math.pow(i.spm2 / i.spm1, 2),
-      unit: 'psi'
-    },
-    {
-      id: 'new_pump_p_adv',
-      name: 'New Pump Pressure and New Pump Stroke (Advanced Calculation)',
-      desc: 'Advanced pressure update using variable exponent.',
-      inputs: [
-        { key: 'p1', label: 'Current Pressure (psi)', val: 1500 },
-        { key: 'spm1', label: 'Current SPM', val: 60 },
-        { key: 'spm2', label: 'New SPM', val: 80 },
-        { key: 'n', label: 'Exponent index (1.8-2.0)', val: 1.86 }
-      ],
-      calc: (i) => i.p1 * Math.pow(i.spm2 / i.spm1, i.n),
-      unit: 'psi'
-    },
-    {
-      id: 'pump_stroke_rel_adv',
-      name: 'Pump Pressure and Pump Stroke Relationship (Advanced Calculation)',
-      desc: 'Determines pressure ratio index from test data.',
-      inputs: [
-        { key: 'p1', label: 'Current Pressure (psi)', val: 1500 },
-        { key: 'p2', label: 'New Pressure (psi)', val: 2500 },
-        { key: 'spm1', label: 'Current SPM', val: 60 },
-        { key: 'spm2', label: 'New SPM', val: 80 }
-      ],
-      calc: (i) => Math.log(i.p2 / i.p1) / Math.log(i.spm2 / i.spm1),
-      unit: 'Exponent index (n)'
-    },
-    {
-      id: 'pump_stroke_rel_basic',
-      name: 'Pump Pressure and Pump Stroke Relationship (Basic Calculation)',
-      desc: 'Ratio verification of speed adjustments.',
-      inputs: [
-        { key: 'p1', label: 'Current Pressure (psi)', val: 1500 },
-        { key: 'spm1', label: 'Current SPM', val: 60 },
-        { key: 'spm2', label: 'New SPM', val: 80 }
-      ],
-      calc: (i) => i.p1 * Math.pow(i.spm2 / i.spm1, 2),
-      unit: 'psi'
-    },
-    {
-      id: 'riser_margin',
-      name: 'Riser Margin',
-      desc: 'Safe mud weight increment for riser removal.',
-      inputs: [
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
-        { key: 'wd', label: 'Water Depth (ft)', val: 3000 },
-        { key: 'ag', label: 'Air Gap (ft)', val: 80 },
-        { key: 'tvd', label: 'Well TVD (ft)', val: 9000 }
-      ],
-      calc: (i) => ((i.wd + i.ag) * i.mw * 0.052) / (0.052 * (i.tvd - i.wd)),
-      unit: 'ppg'
     },
     {
       id: 'tensile_cap',
@@ -5485,38 +5740,6 @@ const formulaDb = {
       calc: (i) => i.ys * i.area,
       unit: 'lb'
     },
-    {
-      id: 'trip_margin',
-      name: 'Trip Margin Calculation',
-      desc: 'Required mud weight offset to overcome swab pressures.',
-      inputs: [
-        { key: 'yp', label: 'Yield Point (lb/100ft²)', val: 15 },
-        { key: 'id', label: 'Hole ID (in)', val: 8.5 },
-        { key: 'od', label: 'Pipe OD (in)', val: 5.0 }
-      ],
-      calc: (i) => i.yp / (11.7 * (i.id - i.od)),
-      unit: 'ppg'
-    },
-    {
-      id: 'volume_to_bleed',
-      name: 'Volume to Bleed to Keep BHP Constant',
-      desc: 'Volume of mud to bleed to keep bottomhole pressure constant during closed well gas migration.',
-      inputs: [
-        { key: 'sidpp', label: 'Shut-In Drill Pipe Pressure (SIDPP - psi)', val: 600 },
-        { key: 'tvd', label: 'True Vertical Depth (TVD - ft)', val: 9500 },
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 11.5 },
-        { key: 'rise', label: 'Pressure Rise Rate (psi/hr)', val: 200 },
-        { key: 'gain', label: 'Pit Gain (bbl)', val: 9.5 }
-      ],
-      calc: (i) => {
-        const fp = i.sidpp + (0.052 * i.tvd * i.mw);
-        const denom = fp - i.rise;
-        return denom !== 0 ? (i.rise * i.gain) / denom : 0;
-      },
-      unit: 'bbl/hr'
-    }
-  ],
-  applied: [
     {
       id: 'dc_wt_vert',
       name: 'Drill Collar Weight for Vertical Wells (lb)',
@@ -5550,6 +5773,174 @@ const formulaDb = {
       ],
       calc: (i) => 0.0000828 * i.len * i.dt,
       unit: 'inches'
+    },
+    {
+      id: 'neutral_point',
+      name: 'Neutral Point Calculation',
+      desc: 'Distance from the bit where the string is neither in compression nor tension.',
+      inputs: [
+        { key: 'wob', label: 'Weight on Bit (lb)', val: 40000 },
+        { key: 'dc_wt', label: 'BHA Weight in Air (lb/ft)', val: 120 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.5 }
+      ],
+      calc: (i) => {
+        const bf = 1 - (i.mw / 65.5);
+        return i.wob / (i.dc_wt * bf || 1);
+      },
+      unit: 'ft'
+    },
+    {
+      id: 'ds_weight_air',
+      name: 'Drill String Weight in Air',
+      desc: 'Total dry weight of the drill string components.',
+      inputs: [
+        { key: 'dp_len', label: 'Drill Pipe Length (ft)', val: 8000 },
+        { key: 'dp_wt', label: 'Drill Pipe Weight (lb/ft)', val: 19.5 },
+        { key: 'hwdp_len', label: 'HWDP Length (ft)', val: 500 },
+        { key: 'hwdp_wt', label: 'HWDP Weight (lb/ft)', val: 50 },
+        { key: 'dc_len', label: 'Drill Collar Length (ft)', val: 600 },
+        { key: 'dc_wt', label: 'Drill Collar Weight (lb/ft)', val: 120 }
+      ],
+      calc: (i) => (i.dp_len * i.dp_wt) + (i.hwdp_len * i.hwdp_wt) + (i.dc_len * i.dc_wt),
+      unit: 'lb'
+    },
+    {
+      id: 'ds_weight_mud',
+      name: 'Drill String Weight in Mud',
+      desc: 'Buoyed weight of the drill string.',
+      inputs: [
+        { key: 'wt_air', label: 'Drill String Weight in Air (lb)', val: 250000 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 12.0 }
+      ],
+      calc: (i) => i.wt_air * (1 - (i.mw / 65.5)),
+      unit: 'lb'
+    },
+    {
+      id: 'buckling_load',
+      name: 'Buckling Load Calculation',
+      desc: 'Estimated critical buckling force in a vertical wellbore.',
+      inputs: [
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 },
+        { key: 'wt_mud', label: 'Buoyed Weight of Pipe (lb/ft)', val: 16.5 }
+      ],
+      calc: (i) => {
+        const I = 0.049087 * (Math.pow(i.od, 4) - Math.pow(i.id, 4));
+        const E = 30000000;
+        const wt_in = i.wt_mud / 12;
+        return 2.85 * Math.pow(E * I * Math.pow(wt_in, 2), 1/3);
+      },
+      unit: 'lb'
+    },
+    {
+      id: 'burst_pressure',
+      name: 'Burst Pressure Rating',
+      desc: 'Barlows formula for pipe burst resistance.',
+      inputs: [
+        { key: 'yield', label: 'Material Yield Strength (psi)', val: 135000 },
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+      ],
+      calc: (i) => {
+        const t = (i.od - i.id) / 2;
+        return (2 * i.yield * t) / i.od;
+      },
+      unit: 'psi'
+    },
+    {
+      id: 'collapse_pressure',
+      name: 'Collapse Pressure Rating',
+      desc: 'Simplified empirical estimate for collapse resistance.',
+      inputs: [
+        { key: 'yield', label: 'Material Yield Strength (psi)', val: 135000 },
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+      ],
+      calc: (i) => {
+        const t = (i.od - i.id) / 2;
+        const dt = i.od / (t || 1);
+        return 2 * i.yield * ((dt - 1) / Math.pow(dt, 2));
+      },
+      unit: 'psi'
+    },
+    {
+      id: 'pipe_body_yield',
+      name: 'Pipe Body Yield Strength',
+      desc: 'Maximum tensile load before plastic deformation.',
+      inputs: [
+        { key: 'yield', label: 'Material Yield Strength (psi)', val: 135000 },
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+      ],
+      calc: (i) => {
+        const area = (Math.PI / 4) * (Math.pow(i.od, 2) - Math.pow(i.id, 2));
+        return i.yield * area;
+      },
+      unit: 'lb'
+    },
+    {
+      id: 'tool_joint_strength',
+      name: 'Tool Joint Strength',
+      desc: 'Tensile capacity of the connection.',
+      inputs: [
+        { key: 'yield', label: 'Material Yield Strength (psi)', val: 120000 },
+        { key: 'tj_od', label: 'Tool Joint OD (in)', val: 6.625 },
+        { key: 'tj_id', label: 'Tool Joint ID (in)', val: 3.25 }
+      ],
+      calc: (i) => {
+        const area = (Math.PI / 4) * (Math.pow(i.tj_od, 2) - Math.pow(i.tj_id, 2));
+        return i.yield * area;
+      },
+      unit: 'lb'
+    },
+    {
+      id: 'hook_load_calc',
+      name: 'Hook Load Calculation',
+      desc: 'Estimated static hook load with buoyed string weight.',
+      inputs: [
+        { key: 'ds_air', label: 'Drill String Weight in Air (lb)', val: 200000 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 11.5 },
+        { key: 'bha_air', label: 'BHA Weight in Air (lb)', val: 40000 },
+        { key: 'block_wt', label: 'Block Assembly Weight (lb)', val: 35000 }
+      ],
+      calc: (i) => {
+        const bf = 1 - (i.mw / 65.5);
+        return ((i.ds_air + i.bha_air) * bf) + i.block_wt;
+      },
+      unit: 'lb'
+    },
+    {
+      id: 'max_allowable_pull',
+      name: 'Maximum Allowable Pull',
+      desc: 'Maximum operational pull considering safety margin.',
+      inputs: [
+        { key: 'yield_lb', label: 'Pipe Body Yield Strength (lb)', val: 500000 },
+        { key: 'sf_pct', label: 'Safety Factor Margin (%)', val: 15 }
+      ],
+      calc: (i) => i.yield_lb * (1 - (i.sf_pct / 100)),
+      unit: 'lb'
+    },
+    {
+      id: 'wob_calc',
+      name: 'Bit Weight on Bottom (WOB)',
+      desc: 'Calculated WOB based on hook load difference.',
+      inputs: [
+        { key: 'hl_free', label: 'Off-Bottom Hook Load (lb)', val: 220000 },
+        { key: 'hl_drill', label: 'On-Bottom Hook Load (lb)', val: 185000 }
+      ],
+      calc: (i) => i.hl_free - i.hl_drill,
+      unit: 'lb'
+    },
+    {
+      id: 'safety_factor_calc',
+      name: 'Safety Factor Calculation',
+      desc: 'Ratio of component strength to applied load.',
+      inputs: [
+        { key: 'strength', label: 'Component Yield Strength (lb)', val: 500000 },
+        { key: 'load', label: 'Applied Tensile Load (lb)', val: 300000 }
+      ],
+      calc: (i) => i.strength / (i.load || 1),
+      unit: 'Ratio'
     },
     {
       id: 'ecd_applied',
@@ -5794,6 +6185,123 @@ const formulaDb = {
       unit: 'ft (Free Pipe Length)'
     },
     {
+      id: 'diff_stick_force',
+      name: 'Differential Sticking Force',
+      desc: 'Estimated force required to overcome differential sticking.',
+      inputs: [
+        { key: 'dp', label: 'Differential Pressure (psi)', val: 500 },
+        { key: 'thick', label: 'Permeable Zone Thickness (ft)', val: 50 },
+        { key: 'width', label: 'Contact Width (in)', val: 2.0 },
+        { key: 'ff', label: 'Friction Factor', val: 0.25 }
+      ],
+      calc: (i) => i.dp * (i.thick * 12) * i.width * i.ff,
+      unit: 'lb'
+    },
+    {
+      id: 'mech_stick_risk',
+      name: 'Mechanical Sticking Analysis',
+      desc: 'Evaluates sticking severity based on drag forces.',
+      inputs: [
+        { key: 'puw', label: 'Pick-Up Weight (lb)', val: 220000 },
+        { key: 'sow', label: 'Slack-Off Weight (lb)', val: 180000 },
+        { key: 'rw', label: 'Rotating Weight (lb)', val: 200000 }
+      ],
+      calc: (i) => ((i.puw - i.rw) + (i.rw - i.sow)) / i.rw * 100,
+      unit: '% (Risk Index)'
+    },
+    {
+      id: 'jar_impact_force',
+      name: 'Jar Force Estimate',
+      desc: 'Estimated impact force generated by drilling jars.',
+      inputs: [
+        { key: 'overpull', label: 'Applied Overpull (lb)', val: 50000 },
+        { key: 'dc_wt', label: 'BHA Weight Above Jar (lb)', val: 30000 },
+        { key: 'accel', label: 'Acceleration Factor', val: 1.5 }
+      ],
+      calc: (i) => i.overpull + (i.dc_wt * i.accel),
+      unit: 'lb'
+    },
+    {
+      id: 'back_off_torque',
+      name: 'Back-Off Torque',
+      desc: 'Recommended left-hand torque for backing off pipe.',
+      inputs: [
+        { key: 'mut', label: 'Connection Make-Up Torque (ft-lb)', val: 15000 },
+        { key: 'sf', label: 'Back-Off Factor (0.7-0.9)', val: 0.8 }
+      ],
+      calc: (i) => i.mut * i.sf,
+      unit: 'ft-lb'
+    },
+    {
+      id: 'fish_string_load',
+      name: 'Fishing String Load',
+      desc: 'Total surface load when pulling on fish.',
+      inputs: [
+        { key: 'wt', label: 'String Weight in Air (lb)', val: 150000 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.5 },
+        { key: 'overpull', label: 'Overpull (lb)', val: 40000 }
+      ],
+      calc: (i) => (i.wt * (1 - i.mw / 65.5)) + i.overpull,
+      unit: 'lb'
+    },
+    {
+      id: 'max_overpull',
+      name: 'Maximum Allowable Overpull',
+      desc: 'Safe overpull margin based on weakest string component.',
+      inputs: [
+        { key: 'yield', label: 'Yield Strength of Weakest Pipe (lb)', val: 350000 },
+        { key: 'sf', label: 'Safety Factor (%)', val: 90 },
+        { key: 'buoy_wt', label: 'Buoyed String Weight (lb)', val: 180000 }
+      ],
+      calc: (i) => (i.yield * (i.sf / 100)) - i.buoy_wt,
+      unit: 'lb'
+    },
+    {
+      id: 'washover_length',
+      name: 'Washover Pipe Capacity',
+      desc: 'Volume required to fill washover pipe.',
+      inputs: [
+        { key: 'id', label: 'Washover Pipe ID (in)', val: 7.0 },
+        { key: 'od', label: 'Fish OD (in)', val: 5.0 },
+        { key: 'len', label: 'Washover Length (ft)', val: 500 }
+      ],
+      calc: (i) => (Math.pow(i.id, 2) - Math.pow(i.od, 2)) / 1029.4 * i.len,
+      unit: 'bbl'
+    },
+    {
+      id: 'milling_time',
+      name: 'Milling Time Estimate',
+      desc: 'Estimated time required to mill a fish.',
+      inputs: [
+        { key: 'len', label: 'Fish Length to Mill (ft)', val: 10 },
+        { key: 'rate', label: 'Average Milling Rate (ft/hr)', val: 1.5 }
+      ],
+      calc: (i) => i.len / (i.rate || 1),
+      unit: 'hrs'
+    },
+    {
+      id: 'spotting_time',
+      name: 'Spotting Fluid Time',
+      desc: 'Time required to pump and spot a pill at stuck depth.',
+      inputs: [
+        { key: 'vol', label: 'Drillstring Volume to Spot Depth (bbl)', val: 120 },
+        { key: 'rate', label: 'Pump Rate (bbl/min)', val: 5 }
+      ],
+      calc: (i) => i.vol / (i.rate || 1),
+      unit: 'mins'
+    },
+    {
+      id: 'pipe_recovery_est',
+      name: 'Pipe Recovery Estimate',
+      desc: 'Percentage of drillstring expected to be recovered free.',
+      inputs: [
+        { key: 'total', label: 'Total Drillstring Length (ft)', val: 10000 },
+        { key: 'free', label: 'Calculated Free Pipe Length (ft)', val: 7500 }
+      ],
+      calc: (i) => (i.free / (i.total || 1)) * 100,
+      unit: '%'
+    },
+    {
       id: 'casing_ton_mile',
       name: 'Ton-Miles for Setting Casing',
       desc: 'Total work done setting a casing string.',
@@ -5841,6 +6349,72 @@ const formulaDb = {
   ]
 };
 
+const drillingCalcSections = [
+  {
+    name: "1. Well Planning & Drill String Design",
+    desc: "Tensile capacities, DC weights, ROP, ECD limits",
+    icon: "architecture",
+    accent: "operations",
+    items: ['tensile_cap', 'dc_wt_vert', 'dc_wt_dev', 'overpull_margin', 'max_rop', 'eff_mud_dens', 'ecd_applied', 'dp_elongation', 'neutral_point', 'ds_weight_air', 'ds_weight_mud', 'buckling_load', 'burst_pressure', 'collapse_pressure', 'pipe_body_yield', 'tool_joint_strength', 'hook_load_calc', 'max_allowable_pull', 'wob_calc', 'safety_factor_calc']
+  },
+  {
+    name: "2. Hydraulics & Pump Calculations",
+    desc: "Pump outputs, pressure changes, break circulation",
+    icon: "water_drop",
+    accent: "hydraulics",
+    items: ['pump_out_duplex', 'pump_out_triplex', 'pump_pres_stroke_basic', 'pump_pres_stroke_adv', 'pump_pressure_spm_change', 'pump_pressure_mw_change', 'pump_pressure_both_change', 'pump_rate_req', 'break_gel', 'break_circ', 'standpipe_press', 'p_loss_dp', 'p_loss_dc', 'p_loss_bit', 'p_loss_ann', 'bhhp', 'pump_hhp', 'jet_impact_force', 'bit_nozzle_size', 'bit_tfa', 'pump_eff', 'pump_stroke_req', 'flow_regime', 'reynolds_number']
+  },
+  {
+    name: "3. Annular Velocity & Hole Cleaning",
+    desc: "Annular capacities, velocities, lag time, cuttings volume",
+    icon: "waves",
+    accent: "bits",
+    items: ['ann_cap', 'ann_vel_dia', 'ann_vel_cap', 'lag_time', 'cuttings_vol_bbl', 'cuttings_vol_gph', 'cuttings_vol_gpm']
+  },
+  {
+    name: "4. Pipe Capacities & Volumes",
+    desc: "Internal capacities and pipe displacement",
+    icon: "data_usage",
+    accent: "casing",
+    items: ['int_cap', 'pipe_disp_applied', 'pipe_disp']
+  },
+  {
+    name: "5. Tripping Operations",
+    desc: "Ton-miles, pipe pulling volumes, slug calculations",
+    icon: "swap_vert",
+    accent: "completion",
+    items: ['rt_ton_mile', 'casing_ton_mile', 'pipe_pulled_dry', 'pipe_pulled_wet', 'dp_pulled_lose_dry', 'dp_pulled_lose_wet', 'slug_vol', 'slug_weight', 'slug_bbl_req']
+  },
+  {
+    name: "6. Hydrostatic",
+    desc: "Leak off tests, hydrostatic pressure losses",
+    icon: "compress",
+    accent: "wellcontrol",
+    items: ['leak_off', 'hydro_dec_dry', 'hydro_dec_wet', 'hydro_grad_gas_cut', 'hydro_mw_gas_cut', 'hydro_loss_float_fail']
+  },
+  {
+    name: "7. Stuck Pipe & Fishing",
+    desc: "Free point constant, stuck pipe limits, spot pills",
+    icon: "anchor",
+    accent: "fishing",
+    items: ['fpc_stuck', 'stuck_pipe_calc', 'stuck_pipe_not_know_fpc', 'spot_pill', 'diff_stick_force', 'mech_stick_risk', 'jar_impact_force', 'back_off_torque', 'fish_string_load', 'max_overpull', 'washover_length', 'milling_time', 'spotting_time', 'pipe_recovery_est']
+  },
+  {
+    name: "8. Mud Properties & Conversions",
+    desc: "Buoyancy factors, pressure gradients, specific gravity",
+    icon: "science",
+    accent: "mud",
+    items: ['bf_ppg', 'bf_lbs', 'grad_to_mw', 'sg_to_mw_ppg', 'sg_to_mw_lbs', 'mw_to_sg', 'sg_to_grad']
+  },
+  {
+    name: "9. BOP & Surface Equipment",
+    desc: "Surface and subsea accumulator capacity sizing",
+    icon: "settings_input_component",
+    accent: "surface",
+    items: ['acc_surf', 'acc_subsea', 'acc_bottle_req', 'acc_precharge', 'acc_recharge_time', 'bop_close_time', 'bop_open_time', 'ram_close_vol', 'annular_close_vol', 'control_fluid_req', 'choke_line_cap', 'kill_line_cap', 'surface_line_vol', 'bop_function_vol', 'bop_press_test_vol', 'press_rating_verif']
+  }
+];
+
 function openFormulaDirectly(formulaId) {
   Object.keys(formulaDb).forEach(cat => {
     const found = formulaDb[cat].find(f => f.id === formulaId);
@@ -5878,6 +6452,7 @@ function renderDrillingCalcScreen() {
         renderDrillingCalcScreen();
       } else if (calcSubState.view === 'list') {
         calcSubState.view = 'categories';
+        calcSubState.formulaId = null;
         renderDrillingCalcScreen();
       } else {
         navigateBack();
@@ -5889,7 +6464,7 @@ function renderDrillingCalcScreen() {
     // Categories Portal View
     container.innerHTML = `
       <div class="menu-grid" style="grid-template-columns:1fr; gap:12px;">
-        <div class="toolkit-card compact-card" id="cat-basic-btn">
+        <div class="toolkit-card compact-card" id="cat-calc-btn">
           <div class="card-left">
             <div class="card-icon-container" style="background-color: var(--circle-tubular)">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D6346" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -5899,38 +6474,26 @@ function renderDrillingCalcScreen() {
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Basic Drilling Formulas</span>
-              <span class="card-desc">POOH, drops, gradients & capacities</span>
+              <span class="card-title">Drilling Calculations</span>
+              <span class="card-desc">Basic & Applied Engineering Formulas</span>
             </div>
           </div>
           <span class="card-chevron">&gt;</span>
         </div>
 
-        <div class="toolkit-card compact-card" id="cat-wellcontrol-btn">
+        <div class="toolkit-card compact-card" id="cat-wellcontrol-ops-btn">
           <div class="card-left">
             <div class="card-icon-container" style="background-color: var(--circle-wellcontrol)">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A16207" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <circle cx="12" cy="11" r="3"></circle>
+                <line x1="12" y1="8" x2="12" y2="14"></line>
+                <line x1="9" y1="11" x2="15" y2="11"></line>
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Well Control Formulas</span>
-              <span class="card-desc">Kill mud, MASP, kick tolerance & MAASP</span>
-            </div>
-          </div>
-          <span class="card-chevron">&gt;</span>
-        </div>
-
-        <div class="toolkit-card compact-card" id="cat-applied-btn">
-          <div class="card-left">
-            <div class="card-icon-container" style="background-color: var(--circle-conversion)">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5F3F7D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-              </svg>
-            </div>
-            <div class="card-info">
-              <span class="card-title">Applied Drilling Formulas</span>
-              <span class="card-desc">DC weight, stuck pipe, ROP, Ton-Miles</span>
+              <span class="card-title">Well Control Calculations</span>
+              <span class="card-desc">Surface & subsea stack well control calculators</span>
             </div>
           </div>
           <span class="card-chevron">&gt;</span>
@@ -5939,119 +6502,149 @@ function renderDrillingCalcScreen() {
     `;
 
     setupSearchInput();
-    document.getElementById('cat-basic-btn').onclick = () => {
+    document.getElementById('cat-calc-btn').onclick = () => {
       calcSubState.view = 'list';
-      calcSubState.category = 'basic';
+      calcSubState.category = 'calculations';
+      calcSubState.formulaId = null;
       renderDrillingCalcScreen();
     };
-    document.getElementById('cat-wellcontrol-btn').onclick = () => {
-      calcSubState.view = 'list';
-      calcSubState.category = 'wellcontrol';
-      renderDrillingCalcScreen();
-    };
-    document.getElementById('cat-applied-btn').onclick = () => {
-      calcSubState.view = 'list';
-      calcSubState.category = 'applied';
-      renderDrillingCalcScreen();
+    document.getElementById('cat-wellcontrol-ops-btn').onclick = () => {
+      wellControlSubState.view = 'menu';
+      wellControlSubState.category = null;
+      wellControlSubState.formulaId = null;
+      wellControlSubState.fromScreen = null;
+      navigateTo('well-control');
     };
 
   } else if (calcSubState.view === 'list') {
     // List formulas inside selected category
-    const catName = calcSubState.category === 'basic' ? 'Basic Drilling Formulas' :
-      (calcSubState.category === 'wellcontrol' ? 'Well Control Formulas' : 'Applied Drilling Formulas');
+    const catName = 'Drilling Calculations';
 
     const list = formulaDb[calcSubState.category] || [];
     const favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
-    const favFormulas = list.filter(m => favs.includes(m.id));
 
-    let favHtml = '';
-    if (favFormulas.length > 0) {
-      favHtml = `
-        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; text-transform: none;">
-          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
-          <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">Favorites</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
-      `;
-      favFormulas.forEach(f => {
-        favHtml += `
-          <div class="guide-quick-btn" onclick="openFormulaDirectly('${f.id}')" style="width: 100%; box-sizing: border-box; display: flex; align-items: center; cursor: pointer;">
-            <button class="guide-fav-btn active" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; margin-right: 8px;" onclick="toggleFormulaFavorite('${f.id}', event)">
-              <span class="material-icons" style="font-size: 1.15rem; color: #EAB308;">star</span>
-            </button>
-            <div class="guide-quick-info" style="flex: 1;">
-              <span class="guide-quick-name" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">${f.name}</span>
-              <span class="guide-quick-cat" style="font-size: 0.65rem; color: var(--text-secondary);">${catName}</span>
-            </div>
-          </div>
-        `;
+    let quickAccessItems = [];
+    if (favs.length > 0) {
+      favs.forEach(itemId => {
+        const item = list.find(x => x.id === itemId);
+        if (item) {
+          let sName = 'Category';
+          let sIcon = 'functions';
+          for(let s of drillingCalcSections) {
+             if(s.items.includes(itemId)) { sName = s.name; sIcon = s.icon; break; }
+          }
+          quickAccessItems.push({ itemId, name: item.name, catName: sName, icon: sIcon });
+        }
       });
-      favHtml += `
-        </div>
-      `;
-    } else {
-      favHtml = `
-        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; text-transform: none;">
-          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
-          <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">Favorites</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1; margin-bottom: 20px; padding: 10px 12px; background: var(--bg-subtle, rgba(141,119,101,0.04)); border: 1px dashed var(--border-subtle); border-radius: 10px;">
-          <span class="material-icons" style="font-size: 0.95rem; color: #EAB308; vertical-align: middle;">star_border</span>
-          <span>No favorites yet. Tap the star on any calculator to add it here.</span>
-        </div>
-      `;
     }
 
-    container.innerHTML = `
+    let html = `
       <div class="content-card">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
           <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="list-back-btn">← Categories</button>
           <h3 style="font-size:0.95rem; font-weight:600; margin:0;">${catName}</h3>
         </div>
-        
-        ${favHtml}
-        
-        <div class="guide-section-title" style="margin-top: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; text-transform: none;">
-          <span style="font-weight: 700; color: var(--text-primary); font-size: 0.82rem;">All Calculators</span>
-        </div>
-        <div class="sizes-grid" style="grid-template-columns:1fr; gap:10px;" id="formula-list-container"></div>
-      </div>
     `;
+
+    if (quickAccessItems.length > 0) {
+      html += `
+        <div class="guide-quick-access">
+          <div class="guide-section-title">
+            <span class="material-icons" style="font-size:1.15rem; color:#EAB308;">star</span>
+            <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
+          </div>
+          <div class="guide-quick-grid">
+      `;
+      quickAccessItems.forEach(qa => {
+        html += `
+          <div class="guide-quick-btn" onclick="openFormulaDirectly('${qa.itemId}')">
+            <span class="material-icons guide-quick-icon">${qa.icon}</span>
+            <div class="guide-quick-info">
+              <span class="guide-quick-name">${qa.name}</span>
+              <span class="guide-quick-cat">${qa.catName}</span>
+            </div>
+            <button class="guide-fav-btn active" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${qa.itemId}', event)">
+              <span class="material-icons" style="font-size: 1.15rem; color: #EAB308;">star</span>
+            </button>
+          </div>
+        `;
+      });
+      html += `
+          </div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="guide-quick-access">
+          <div class="guide-section-title" style="margin-bottom: 6px;">
+            <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
+            <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1; margin-bottom: 20px;">
+            <span class="material-icons" style="font-size: 0.95rem; color: #EAB308;">star_border</span>
+            <span>Tap the star on any calculator to add it here.</span>
+          </div>
+        </div>
+      `;
+    }
+
+    html += `<div style="display:flex; flex-direction:column; gap:12px; padding-bottom:30px;" id="formula-list-container">`;
+    drillingCalcSections.forEach((sec, idx) => {
+      html += `
+        <div class="guide-category-card guide-cat-accent-${sec.accent}" id="calc-cat-${idx}">
+          <div class="guide-category-header" onclick="toggleGuideCategory('calc-cat-${idx}')">
+            <div class="guide-category-title-section">
+              <div class="guide-category-icon-wrapper">
+                <span class="material-icons guide-category-icon">${sec.icon}</span>
+              </div>
+              <div class="guide-category-info">
+                <span class="guide-category-name">${sec.name}</span>
+                <span class="guide-category-desc">${sec.desc}</span>
+              </div>
+            </div>
+            <span class="material-icons guide-category-chevron">chevron_right</span>
+          </div>
+          <div class="guide-subcategory-list">
+      `;
+      sec.items.forEach(itemId => {
+        const item = list.find(x => x.id === itemId);
+        if (!item) return; 
+        const isFav = favs.includes(item.id);
+        html += `
+          <div class="guide-item-row" onclick="openFormulaDirectly('${item.id}')">
+            <div class="guide-item-row-left">
+              <button class="guide-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFormulaFavorite('${item.id}', event)">
+                <span class="material-icons">${isFav ? 'star' : 'star_border'}</span>
+              </button>
+              <span class="guide-item-title">${item.name}</span>
+            </div>
+            <div class="guide-item-right">
+              <span class="guide-item-arrow">&rsaquo;</span>
+            </div>
+          </div>
+        `;
+      });
+      html += `
+          </div>
+        </div>
+      `;
+    });
+    html += `</div></div>`;
+    container.innerHTML = html;
+
+    if (calcSubState.formulaId) {
+      drillingCalcSections.forEach((sec, idx) => {
+        if (sec.items.includes(calcSubState.formulaId)) {
+          window.toggleGuideCategory('calc-cat-' + idx);
+        }
+      });
+    }
 
     document.getElementById('list-back-btn').onclick = () => {
       calcSubState.view = 'categories';
+      calcSubState.formulaId = null;
       renderDrillingCalcScreen();
     };
-
-    const listCont = document.getElementById('formula-list-container');
-    list.forEach(m => {
-      const isFav = favs.includes(m.id);
-      if (isFav) return; // Exclusive ownership: hide favorited items from the master list
-      
-      const item = document.createElement('div');
-      item.className = 'toolkit-card compact-card';
-      item.style.cursor = 'pointer';
-      
-      item.onclick = () => {
-        calcSubState.view = 'formula';
-        calcSubState.formulaId = m.id;
-        renderDrillingCalcScreen();
-      };
-
-      item.innerHTML = `
-        <div class="card-left" style="align-items: center; gap: 12px; display: flex; width: 100%;">
-          <button class="guide-fav-btn ${isFav ? 'active' : ''}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${m.id}', event)">
-            <span class="material-icons" style="font-size: 1.15rem; color: ${isFav ? '#EAB308' : 'var(--text-secondary)'};">${isFav ? 'star' : 'star_border'}</span>
-          </button>
-          <div class="card-info" style="flex: 1;">
-            <span class="card-title" style="font-weight: 600; color: var(--text-primary);">${m.name}</span>
-            <span class="card-desc" style="font-size: 0.75rem; color: var(--text-secondary);">${m.desc}</span>
-          </div>
-        </div>
-        <span class="card-chevron" style="color: var(--text-secondary); font-size: 1.2rem; margin-left: 8px;">&rsaquo;</span>
-      `;
-      listCont.appendChild(item);
-    });
 
   } else if (calcSubState.view === 'formula') {
     // Detailed Calculator View
@@ -6063,11 +6656,17 @@ function renderDrillingCalcScreen() {
       return;
     }
 
+    const favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
+    const isFav = favs.includes(f.id);
+
     container.innerHTML = `
       <div class="content-card">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
           <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="form-back-btn">Back to List</button>
-          <h3 style="font-size:0.95rem; font-weight:600; margin:0;">Calculator</h3>
+          <h3 style="font-size:0.95rem; font-weight:600; margin:0; flex:1;">Calculator</h3>
+          <button class="guide-fav-btn ${isFav ? 'active' : ''}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${f.id}', event)">
+            <span class="material-icons" style="font-size: 1.5rem; color: ${isFav ? '#EAB308' : 'var(--text-secondary)'};">${isFav ? 'star' : 'star_border'}</span>
+          </button>
         </div>
         
         <h4 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin-bottom:4px;">${f.name}</h4>
@@ -6138,7 +6737,8 @@ function updateCalcSearchResultsOnly() {
   const matches = [];
   Object.keys(formulaDb).forEach(cat => {
     formulaDb[cat].forEach(f => {
-      if (fuzzyMatch(f.name, query) || fuzzyMatch(f.desc, query)) {
+      const combinedText = [f.name, f.desc, f.keywords, cat].filter(Boolean).join(' ');
+      if (fuzzyMatch(combinedText, query)) {
         matches.push({ ...f, cat });
       }
     });
@@ -6309,6 +6909,133 @@ const wellControlDb = {
         return denom !== 0 ? (i.rise * i.gain) / denom : 0;
       },
       unit: 'bbl/hr'
+    },
+    {
+      id: 'adj_masicp',
+      name: 'Adjusted MASICP for New Mud Weight',
+      desc: 'Recalculates MASICP after weighting up.',
+      inputs: [
+        { key: 'masicp', label: 'Current MASICP (psi)', val: 1200 },
+        { key: 'omw', label: 'Current Mud Weight (ppg)', val: 10.0 },
+        { key: 'nmw', label: 'New Mud Weight (ppg)', val: 11.5 },
+        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
+      ],
+      calc: (i) => i.masicp - 0.052 * (i.nmw - i.omw) * i.tvd,
+      unit: 'psi'
+    },
+    {
+      id: 'est_influx_type',
+      name: 'Estimate Type of Influx from Influx Height',
+      desc: 'Determines kick fluid composition using pressure gradient.',
+      inputs: [
+        { key: 'sidpp', label: 'SIDPP (psi)', val: 400 },
+        { key: 'sicp', label: 'SICP (psi)', val: 650 },
+        { key: 'h', label: 'Influx Height (ft)', val: 500 },
+        { key: 'grad', label: 'Mud Gradient (psi/ft)', val: 0.52 }
+      ],
+      calc: (i) => {
+        const ig = i.grad - (i.sicp - i.sidpp) / i.h;
+        let type = 'Saltwater';
+        if (ig < 0.1) type = 'Gas';
+        else if (ig <= 0.3) type = 'Oil/Gas Mix';
+        return `${ig.toFixed(4)} psi/ft (${type})`;
+      },
+      unit: 'Influx Gradient'
+    },
+    {
+      id: 'form_pres',
+      name: 'Formation Pressure from Kick Analysis',
+      desc: 'Computes reservoir pore pressure from shut-in data.',
+      inputs: [
+        { key: 'sidpp', label: 'SIDPP (psi)', val: 400 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
+        { key: 'tvd', label: 'Total TVD (ft)', val: 8000 }
+      ],
+      calc: (i) => i.sidpp + 0.052 * i.mw * i.tvd,
+      unit: 'psi'
+    },
+    {
+      id: 'hydro_loss_gas_cut',
+      name: 'Hydrostatic Pressure Loss Due to Gas Cut Mud',
+      desc: 'Loss of hydrostatic column pressure due to gas cutting.',
+      inputs: [
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
+        { key: 'tvd', label: 'Total TVD (ft)', val: 8000 },
+        { key: 'gcmw', label: 'Gas Cut Mud Weight (ppg)', val: 8.5 }
+      ],
+      calc: (i) => 0.052 * (i.mw - i.gcmw) * i.tvd,
+      unit: 'psi'
+    },
+    {
+      id: 'influx_height',
+      name: 'Influx Height',
+      desc: 'Height of kick fluid around BHA.',
+      inputs: [
+        { key: 'gain', label: 'Pit Gain (bbl)', val: 15 },
+        { key: 'cap', label: 'Annular Capacity (bbl/ft)', val: 0.029 }
+      ],
+      calc: (i) => i.gain / i.cap,
+      unit: 'ft'
+    },
+    {
+      id: 'max_fp',
+      name: 'Maximum Formation Pressure to Withstand Shut-in',
+      desc: 'Maximum pore pressure tolerable before fracture.',
+      inputs: [
+        { key: 'lop', label: 'Leak Off Pressure (psi)', val: 1600 },
+        { key: 'shoeTvd', label: 'Shoe TVD (ft)', val: 5000 },
+        { key: 'wellTvd', label: 'Well TVD (ft)', val: 8000 }
+      ],
+      calc: (i) => i.lop * (i.shoeTvd / i.wellTvd),
+      unit: 'psi'
+    },
+    {
+      id: 'misicp',
+      name: 'Maximum Initial Shut in Casing Pressure (MISICP)',
+      desc: 'Maximum SICP allowable at kickoff to prevent casing shoe fracture.',
+      inputs: [
+        { key: 'fg', label: 'Fracture Gradient (psi/ft)', val: 0.8 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
+        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
+      ],
+      calc: (i) => (i.fg - 0.052 * i.mw) * i.tvd,
+      unit: 'psi'
+    },
+    {
+      id: 'max_pit_gain',
+      name: 'Maximum Pit Gain From Gas Kick (WBM)',
+      desc: 'Estimated maximum kick volume expansion at surface.',
+      inputs: [
+        { key: 'v', label: 'Kick Volume (bbl)', val: 10 },
+        { key: 'p', label: 'Formation Pressure (psi)', val: 4500 },
+        { key: 'ps', label: 'Surface Pressure (psi)', val: 800 }
+      ],
+      calc: (i) => i.v * (i.p / i.ps),
+      unit: 'bbl'
+    },
+    {
+      id: 'max_influx_h',
+      name: 'Maximum Possible Influx Height at MASICP Limit',
+      desc: 'Calculates maximum height of kick fluid before MASICP is reached.',
+      inputs: [
+        { key: 'masicp', label: 'MASICP (psi)', val: 1200 },
+        { key: 'sicp', label: 'SICP (psi)', val: 700 },
+        { key: 'mGrad', label: 'Mud Gradient (psi/ft)', val: 0.52 },
+        { key: 'iGrad', label: 'Influx Gradient (psi/ft)', val: 0.1 }
+      ],
+      calc: (i) => (i.masicp - i.sicp) / ((i.mGrad - i.iGrad) || 1),
+      unit: 'ft'
+    },
+    {
+      id: 'max_surf_pres_kt',
+      name: 'Maximum Surface Pressure from Kick Tolerance',
+      desc: 'Surface pressure corresponding to kick tolerance limit.',
+      inputs: [
+        { key: 'kt', label: 'Kick Tolerance (ppg)', val: 1.5 },
+        { key: 'tvd', label: 'Shoe TVD (ft)', val: 5000 }
+      ],
+      calc: (i) => i.kt * 0.052 * i.tvd,
+      unit: 'psi'
     }
   ],
   subsea: [
@@ -6445,6 +7172,33 @@ window.openClfGuide = () => {
 
 function renderWellControlScreen() {
   const container = document.getElementById('well-control-container');
+  const titleEl = document.querySelector('#screen-well-control .screen-title');
+  const subtitleEl = document.querySelector('#screen-well-control .screen-subtitle');
+
+  if (wellControlSubState.view === 'clf-guide') {
+    if (titleEl) titleEl.textContent = "Choke Line Friction (CLF)";
+    if (subtitleEl) subtitleEl.textContent = "Understanding Choke Line Friction measurements for subsea wells";
+  } else if (wellControlSubState.view === 'formula') {
+    const category = wellControlSubState.category;
+    const formulaId = wellControlSubState.formulaId;
+    const list = wellControlDb[category] || [];
+    const f = list.find(x => x.id === formulaId);
+    if (f) {
+      if (titleEl) titleEl.textContent = f.name;
+      const catLabel = category === 'surface' ? 'Surface Stack' : 'Subsea Stack';
+      if (subtitleEl) subtitleEl.textContent = `${catLabel} operations calculation`;
+    } else {
+      if (titleEl) titleEl.textContent = "Well Control Calculations";
+      if (subtitleEl) subtitleEl.textContent = "Surface and subsea stack well control calculators & formulas";
+    }
+  } else if (wellControlSubState.view === 'equations') {
+    if (titleEl) titleEl.textContent = "Well Control Equations";
+    const catLabel = wellControlSubState.category === 'surface' ? 'Surface Stack' : 'Subsea Stack';
+    if (subtitleEl) subtitleEl.textContent = `${catLabel} operations equations`;
+  } else {
+    if (titleEl) titleEl.textContent = "Well Control Calculations";
+    if (subtitleEl) subtitleEl.textContent = "Surface and subsea stack well control calculators & formulas";
+  }
 
   // Intercept screen back button to control our sub-navigation
   const backBtn = document.querySelector('#screen-well-control .back-btn');
@@ -6454,7 +7208,11 @@ function renderWellControlScreen() {
       if (wellControlSubState.fromScreen) {
         const dest = wellControlSubState.fromScreen;
         wellControlSubState.fromScreen = null;
-        navigateTo(dest);
+        if (state.screenHistory.length > 0 && state.screenHistory[state.screenHistory.length - 1] === dest) {
+          navigateBack();
+        } else {
+          navigateTo(dest);
+        }
       } else if (wellControlSubState.view !== 'menu') {
         wellControlSubState.view = 'menu';
         wellControlSubState.category = null;
@@ -6468,121 +7226,268 @@ function renderWellControlScreen() {
 
   if (wellControlSubState.view === 'menu') {
     container.innerHTML = `
-      <div class="well-control-menu">
-        <!-- Surface well control category card -->
-        <div class="wc-category-card">
-          <div class="wc-category-header">
-            <div class="wc-category-icon-container" style="background-color: var(--circle-surface);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#68553F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 22h20M6 22V15M18 22V15"></path>
-                <rect x="8" y="11" width="8" height="4" rx="1"></rect>
-                <path d="M12 11V7M9 7h6M8 4h8"></path>
-                <circle cx="12" cy="7" r="2"></circle>
-              </svg>
+      <div style="display:flex; flex-direction:column; gap:12px; padding-bottom:30px;">
+        <!-- 1. Surface Stack Card -->
+        <div class="guide-category-card guide-cat-accent-surface" id="wc-cat-surface">
+          <div class="guide-category-header" onclick="toggleWcCategory('wc-cat-surface')">
+            <div class="guide-category-title-section">
+              <div class="guide-category-icon-wrapper">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#68553F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 22h20M6 22V15M18 22V15"></path>
+                  <rect x="8" y="11" width="8" height="4" rx="1"></rect>
+                  <path d="M12 11V7M9 7h6M8 4h8"></path>
+                  <circle cx="12" cy="7" r="2"></circle>
+                </svg>
+              </div>
+              <div class="guide-category-info">
+                <span class="guide-category-name">Surface</span>
+                <span class="guide-category-desc">Calculations for surface stack operations</span>
+              </div>
             </div>
-            <div class="wc-category-info">
-              <h3 class="wc-category-title">Surface</h3>
-              <p class="wc-category-desc">Calculations for surface stack operations</p>
-            </div>
+            <span class="material-icons guide-category-chevron">chevron_right</span>
           </div>
-          <div class="wc-formula-list">
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'icp')">
-              <span>Initial Circulating Pressure</span>
-              <span class="chevron">&rsaquo;</span>
+          <div class="guide-subcategory-list" style="max-height: 0px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1); border-top: 0px solid var(--border-subtle);">
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'icp')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Initial Circulating Pressure</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'fcp')">
-              <span>Final Circulating Pressure</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'fcp')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Final Circulating Pressure</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'kmw')">
-              <span>Kill Mud Weight</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'kmw')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Kill Mud Weight</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'kick_tolerance')">
-              <span>Kick Tolerance</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'kick_tolerance')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Kick Tolerance</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'maasp')">
-              <span>MAASP</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'maasp')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">MAASP</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'trip_margin')">
-              <span>Trip Margin</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'trip_margin')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Trip Margin</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'safety_margin')">
-              <span>Safety Margin</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'safety_margin')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Safety Margin</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('surface', 'volume_to_bleed')">
-              <span>Volume to Bleed to Keep BHP Constant</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'volume_to_bleed')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Volume to Bleed to Keep BHP Constant</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'adj_masicp')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Adjusted MASICP for New Mud Weight</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'est_influx_type')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Estimate Type of Influx from Influx Height</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'form_pres')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Formation Pressure from Kick Analysis</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'hydro_loss_gas_cut')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Hydrostatic Pressure Loss Due to Gas Cut Mud</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'influx_height')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Influx Height</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'max_fp')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Maximum Formation Pressure to Withstand Shut-in</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'misicp')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Maximum Initial Shut in Casing Pressure (MISICP)</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'max_pit_gain')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Maximum Pit Gain From Gas Kick (WBM)</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'max_influx_h')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Maximum Possible Influx Height at MASICP Limit</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
+            </div>
+            <div class="guide-item-row" onclick="openWcFormula('surface', 'max_surf_pres_kt')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Maximum Surface Pressure from Kick Tolerance</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Subsea well control category card -->
-        <div class="wc-category-card">
-          <div class="wc-category-header">
-            <div class="wc-category-icon-container" style="background-color: var(--circle-subsea);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2B556C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 3c2 0 3 1 5 1s3-1 5-1 3 1 5 1" stroke-dasharray="2,2"></path>
-                <path d="M2 6c2 0 3 1 5 1s3-1 5-1 3 1 5 1"></path>
-                <rect x="8" y="11" width="8" height="8" rx="1.5"></rect>
-                <path d="M12 8v3M5 19h14M12 19v3"></path>
-              </svg>
+        <!-- 2. Subsea Stack Card -->
+        <div class="guide-category-card guide-cat-accent-subsea" id="wc-cat-subsea">
+          <div class="guide-category-header" onclick="toggleWcCategory('wc-cat-subsea')">
+            <div class="guide-category-title-section">
+              <div class="guide-category-icon-wrapper">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2B556C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 3c2 0 3 1 5 1s3-1 5-1 3 1 5 1" stroke-dasharray="2,2"></path>
+                  <path d="M2 6c2 0 3 1 5 1s3-1 5-1 3 1 5 1"></path>
+                  <rect x="8" y="11" width="8" height="8" rx="1.5"></rect>
+                  <path d="M12 8v3M5 19h14M12 19v3"></path>
+                </svg>
+              </div>
+              <div class="guide-category-info">
+                <span class="guide-category-name">Subsea</span>
+                <span class="guide-category-desc">Calculations for subsea BOP & marine riser operations</span>
+              </div>
             </div>
-            <div class="wc-category-info">
-              <h3 class="wc-category-title">Subsea</h3>
-              <p class="wc-category-desc">Calculations for subsea BOP & marine riser operations</p>
-            </div>
+            <span class="material-icons guide-category-chevron">chevron_right</span>
           </div>
-          <div class="wc-formula-list">
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'riser_margin')">
-              <span>Riser Margin</span>
-              <span class="chevron">&rsaquo;</span>
+          <div class="guide-subcategory-list" style="max-height: 0px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1); border-top: 0px solid var(--border-subtle);">
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'riser_margin')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Riser Margin</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'subsea_accumulator')">
-              <span>Subsea Accumulator Capacity</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'subsea_accumulator')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Subsea Accumulator Capacity</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'gas_migration')">
-              <span>Gas Migration</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'gas_migration')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Gas Migration</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'max_surface_pressure')">
-              <span>Maximum Surface Pressure</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'max_surface_pressure')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Maximum Surface Pressure</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'kmw')">
-              <span>Kill Mud Weight</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'kmw')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Kill Mud Weight</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'kick_tolerance')">
-              <span>Kick Tolerance</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'kick_tolerance')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Kick Tolerance</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'safety_margin')">
-              <span>Safety Margin</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'safety_margin')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Safety Margin</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
-            <div class="wc-formula-item" onclick="openWcFormula('subsea', 'volume_to_bleed')">
-              <span>Volume to Bleed to Keep BHP Constant</span>
-              <span class="chevron">&rsaquo;</span>
+            <div class="guide-item-row" onclick="openWcFormula('subsea', 'volume_to_bleed')">
+              <div class="guide-item-row-left" style="padding-left: 12px;">
+                <span class="guide-item-title">Volume to Bleed to Keep BHP Constant</span>
+              </div>
+              <div class="guide-item-right">
+                <span class="guide-item-arrow">&rsaquo;</span>
+              </div>
             </div>
           </div>
         </div>
-
-
-
       </div>
     `;
   } else if (wellControlSubState.view === 'clf-guide') {
+    const backBtnText = wellControlSubState.fromScreen ? "Back to Hole Selection" : "Back to Menu";
     container.innerHTML = `
       <div class="content-card" style="padding: 16px;">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
-          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="wc-clf-back-btn">Back to Menu</button>
-          <h3 style="font-size:0.95rem; font-weight:600; margin:0;">Choke Line Friction (CLF)</h3>
+          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="wc-clf-back-btn">${backBtnText}</button>
         </div>
         
         <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-primary); margin-bottom:12px; border-bottom: 2px solid var(--border-subtle); padding-bottom: 6px;">What is CLF?</h2>
@@ -6656,7 +7561,11 @@ function renderWellControlScreen() {
       if (wellControlSubState.fromScreen) {
         const dest = wellControlSubState.fromScreen;
         wellControlSubState.fromScreen = null;
-        navigateTo(dest);
+        if (state.screenHistory.length > 0 && state.screenHistory[state.screenHistory.length - 1] === dest) {
+          navigateBack();
+        } else {
+          navigateTo(dest);
+        }
       } else {
         wellControlSubState.view = 'menu';
         renderWellControlScreen();
@@ -7659,7 +8568,8 @@ const drillingGuideData = {
       { id: "kick_indicators", name: "Kick Indicators" },
       { id: "shutin_procedure", name: "Shut-in Procedure" },
       { id: "drillers_method", name: "Driller's Method" },
-      { id: "wait_weight_method", name: "Wait & Weight Method" }
+      { id: "wait_weight_method", name: "Wait & Weight Method" },
+      { id: "slow_circulation_rate", name: "Slow Circulation Rate (SCR)" }
     ]
   },
   casing: {
@@ -7759,6 +8669,15 @@ function renderDrillingGuideScreen() {
   const container = document.getElementById('drilling-guide-container');
   if (!container) return;
 
+  const backBtn = document.querySelector('#screen-drilling-guide .back-btn');
+  if (backBtn) {
+    backBtn.onclick = (e) => {
+      e.preventDefault();
+      state.selectedGuideId = null;
+      navigateBack();
+    };
+  }
+
   let html = '';
 
   // 2. Favorites / Quick Access Grid
@@ -7778,9 +8697,9 @@ function renderDrillingGuideScreen() {
       <div class="guide-quick-access">
         <div class="guide-section-title">
           <span class="material-icons" style="font-size:1.15rem; color:#EAB308;">star</span>
-          <span>QUICK ACCESS</span>
+          <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
         </div>
-        <div class="guide-quick-grid">
+        <div class="guide-quick-grid" style="grid-template-columns: repeat(2, 1fr);">
     `;
 
     quickAccessItems.forEach(qa => {
@@ -7791,6 +8710,9 @@ function renderDrillingGuideScreen() {
             <span class="guide-quick-name">${qa.name}</span>
             <span class="guide-quick-cat">${qa.catName}</span>
           </div>
+          <button class="guide-fav-btn active" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleGuideFavorite('${qa.itemId}', event)">
+            <span class="material-icons" style="font-size: 1.15rem; color: #EAB308;">star</span>
+          </button>
         </div>
       `;
     });
@@ -7804,7 +8726,7 @@ function renderDrillingGuideScreen() {
       <div class="guide-quick-access">
         <div class="guide-section-title" style="margin-bottom: 6px;">
           <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
-          <span>QUICK ACCESS</span>
+          <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1;">
           <span class="material-icons" style="font-size: 0.95rem; color: #EAB308;">star_border</span>
@@ -7862,6 +8784,18 @@ function renderDrillingGuideScreen() {
   
   html += `</div>`;
   container.innerHTML = html;
+  
+  if (state.selectedGuideId) {
+    for (const catKey in drillingGuideData) {
+      const items = drillingGuideData[catKey].items || [];
+      if (items.some(item => item.id === state.selectedGuideId)) {
+        setTimeout(() => {
+          window.toggleGuideCategory('guide-cat-' + catKey);
+        }, 0);
+        break;
+      }
+    }
+  }
 }
 
 window.filterGuideTopics = () => {
@@ -7890,7 +8824,8 @@ window.filterGuideTopics = () => {
     for (const catKey in drillingGuideData) {
       const cat = drillingGuideData[catKey];
       cat.items.forEach(item => {
-        if (item.name.toLowerCase().includes(query) || cat.name.toLowerCase().includes(query)) {
+        const combinedText = [item.name, cat.name].filter(Boolean).join(' ');
+        if (fuzzyMatch(combinedText, query)) {
           matches.push({ item, catName: cat.name, catKey });
         }
       });
@@ -7975,6 +8910,27 @@ window.toggleGuideCategory = (cardId) => {
   
   // Collapse all others first for accordion effect
   document.querySelectorAll('.guide-category-card').forEach(otherCard => {
+    otherCard.classList.remove('expanded');
+    const otherList = otherCard.querySelector('.guide-subcategory-list');
+    if (otherList) otherList.style.maxHeight = null;
+  });
+  
+  if (!isExpanded) {
+    card.classList.add('expanded');
+    const list = card.querySelector('.guide-subcategory-list');
+    if (list) {
+      list.style.maxHeight = list.scrollHeight + 'px';
+    }
+  }
+};
+
+window.toggleWcCategory = (cardId) => {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  
+  const isExpanded = card.classList.contains('expanded');
+  
+  document.querySelectorAll('#well-control-container .guide-category-card').forEach(otherCard => {
     otherCard.classList.remove('expanded');
     const otherList = otherCard.querySelector('.guide-subcategory-list');
     if (otherList) otherList.style.maxHeight = null;
@@ -8223,10 +9179,13 @@ window.calculateGuideKillParameters = () => {
   const sidpp = parseFloat(document.getElementById('ww-sidpp').value) || 0;
   const scrp = parseFloat(document.getElementById('ww-scrp').value) || 0;
   const tvd = parseFloat(document.getElementById('ww-tvd').value) || 0;
+  const stksEl = document.getElementById('ww-stks');
+  const stks = stksEl ? (parseFloat(stksEl.value) || 1000) : 1000;
 
   const kmwEl = document.getElementById('ww-val-kmw');
   const icpEl = document.getElementById('ww-val-icp');
   const fcpEl = document.getElementById('ww-val-fcp');
+  const scheduleRowsEl = document.getElementById('ww-step-schedule-rows');
 
   if (omw > 0 && tvd > 0) {
     const kmw = omw + (sidpp / (0.052 * tvd));
@@ -8236,6 +9195,37 @@ window.calculateGuideKillParameters = () => {
     if (kmwEl) kmwEl.textContent = kmw.toFixed(2);
     if (icpEl) icpEl.textContent = icp.toFixed(0);
     if (fcpEl) fcpEl.textContent = fcp.toFixed(0);
+
+    if (scheduleRowsEl) {
+      let scheduleHTML = '';
+      const stepsCount = 5;
+      for (let i = 0; i <= stepsCount; i++) {
+        const fraction = i / stepsCount;
+        const currentStks = Math.round(stks * fraction);
+        const currentPress = Math.round(icp - (icp - fcp) * fraction);
+        const label = i === 0 ? `0 stks (Start)` : i === stepsCount ? `${currentStks} stks (At Bit)` : `${currentStks} stks`;
+        scheduleHTML += `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; padding: 5px 10px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.05)); color: var(--text-primary); align-items: center;">
+            <span style="font-weight: 500;">${label}</span>
+            <span style="text-align: right; font-weight: 700; color: var(--accent-color, #f39c12);">${currentPress} psi</span>
+          </div>
+        `;
+      }
+      scheduleRowsEl.innerHTML = scheduleHTML;
+    }
+  }
+};
+
+window.toggleStepDownSchedule = () => {
+  const container = document.getElementById('ww-step-schedule-container');
+  const label = document.getElementById('ww-step-schedule-toggle-lbl');
+  if (!container) return;
+  if (container.style.display === 'none' || container.style.display === '') {
+    container.style.display = 'block';
+    if (label) label.textContent = '▼ Hide Step Down Schedule';
+  } else {
+    container.style.display = 'none';
+    if (label) label.textContent = '▶ View Step Down Schedule';
   }
 };
 
@@ -8854,62 +9844,143 @@ function getGuideItemContent(itemId) {
       return {
         title: "Kick Indicators",
         bodyHTML: `
-          <p class="guide-text-block">Key indicators of formation fluid entering the wellbore. Early detection prevents blowouts.</p>
-          <span class="guide-section-title">Primary Indicators</span>
-          <ul class="guide-bullet-list">
-            <li><strong>Increase in Pit Volume:</strong> Inflowing kick fluid displaces mud into active pits.</li>
-            <li><strong>Increase in Flow Rate:</strong> Return flow line indicator shows higher output than pump input.</li>
-            <li><strong>Flowing with Pumps Off:</strong> The well continues to flow after mud pumps are shut down.</li>
-          </ul>
+          <div style="background: linear-gradient(135deg, rgba(243, 156, 18, 0.12), rgba(243, 156, 18, 0.03)); border-left: 4px solid var(--accent-color, #f39c12); padding: 14px 16px; border-radius: 8px; margin-bottom: 18px;">
+            <div style="font-size: 0.95rem; font-weight: 700; color: var(--accent-color, #f39c12); margin-bottom: 6px; letter-spacing: 0.3px;">POSITIVE KICK SIGN</div>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-primary); line-height: 1.5; font-weight: 400;">Positive kick indicators are different from kick warning signs. They indicate that the kick has already entered the well bore. Any of them indicate regular flow checks.</p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 14px 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+              <strong style="display: block; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 6px;">Increase in return flow (Pumps On)</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.48;">After the early warning signs the first positive kick sign is increase in flow rate at the flow line with pumps on. The entrance of any fluid into the well bore causes the flow rate to increase.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 14px 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+              <strong style="display: block; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 6px;">Flow from well (Pumps Off)</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.48;">Stopping the pump causes a reduction in bottom hole pressure equivalent to the annular pressure drop, so flow check is a reliable method of checking for a well kick. If the well does not flow when the pump is shut off and remains static for two or three minutes, then no well kick is entering.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 14px 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+              <strong style="display: block; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 6px;">Pit Volume Increase</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.48;">An increase in pit volume is obvious & positive indication of flow into the well bore & can be easily verified. If an increase in pit volume is seen, shut off the pump and make a flow check. If the well does not flow, no kick is entering.</p>
+            </div>
+          </div>
         `
       };
     case "shutin_procedure":
       return {
-        title: "Shut-in Procedure (Hard)",
+        title: "Shut-in Procedures",
         bodyHTML: `
-          <p class="guide-text-block">Standard steps to shut-in a well when kick indicators are identified.</p>
-          <span class="guide-step-list">
-            <div class="guide-step-item">
-              <span class="guide-step-num">1</span>
-              <div class="guide-step-content">
-                <span class="guide-step-title">Space Out</span>
-                <span class="guide-step-desc">Position tool joints clear of BOP rams; stop rotation.</span>
-              </div>
+          <p class="guide-text-block">Standard steps to shut-in a well, varying by rig type, operation, and method.</p>
+          
+          <div style="display:flex; gap:8px; margin-bottom: 16px; background:var(--bg-subtle, rgba(141,119,101,0.05)); padding:12px 10px; border-radius:10px; border: 1px solid var(--border-subtle); align-items:center;">
+            <div class="input-group" style="margin-bottom:0; flex:1.2; min-width:0;">
+              <label class="input-label" style="font-size:0.64rem; font-weight:700; letter-spacing:0.3px; margin-bottom:4px; white-space:nowrap; overflow:visible; color:var(--text-secondary);">RIG TYPE</label>
+              <select id="shutin-rig" class="toolkit-select" onchange="window.updateShutInProcedure()" style="padding:6px 20px 6px 8px; font-size:0.82rem; font-weight:600; height:auto; color:var(--text-primary);">
+                <option value="land">Land/Jack-Up</option>
+                <option value="subsea">Subsea</option>
+              </select>
             </div>
-            <div class="guide-step-item">
-              <span class="guide-step-num">2</span>
-              <div class="guide-step-content">
-                <span class="guide-step-title">Stop Pumps</span>
-                <span class="guide-step-desc">Shut down mud pumps, then verify if well is flowing.</span>
-              </div>
+            <div class="input-group" style="margin-bottom:0; flex:1.15; min-width:0;">
+              <label class="input-label" style="font-size:0.64rem; font-weight:700; letter-spacing:0.3px; margin-bottom:4px; white-space:nowrap; overflow:visible; color:var(--text-secondary);">SHUT-IN METHOD</label>
+              <select id="shutin-method" class="toolkit-select" onchange="window.updateShutInProcedure()" style="padding:6px 20px 6px 8px; font-size:0.82rem; font-weight:600; height:auto; color:var(--text-primary);">
+                <option value="hard">Hard</option>
+                <option value="soft">Soft</option>
+              </select>
             </div>
-            <div class="guide-step-item">
-              <span class="guide-step-num">3</span>
-              <div class="guide-step-content">
-                <span class="guide-step-title">Close BOP</span>
-                <span class="guide-step-desc">Close annular preventer or pipe rams; open choke manifold valve.</span>
-              </div>
+            <div class="input-group" style="margin-bottom:0; flex:1.05; min-width:0;">
+              <label class="input-label" style="font-size:0.64rem; font-weight:700; letter-spacing:0.3px; margin-bottom:4px; white-space:nowrap; overflow:visible; color:var(--text-secondary);">OPERATION</label>
+              <select id="shutin-op" class="toolkit-select" onchange="window.updateShutInProcedure()" style="padding:6px 20px 6px 8px; font-size:0.82rem; font-weight:600; height:auto; color:var(--text-primary);">
+                <option value="drilling">Drilling</option>
+                <option value="tripping">Tripping</option>
+                <option value="ooh">Out of Hole</option>
+              </select>
             </div>
-            <div class="guide-step-item">
-              <span class="guide-step-num">4</span>
-              <div class="guide-step-content">
-                <span class="guide-step-title">Record Pressures</span>
-                <span class="guide-step-desc">Record SIDPP, SICP, and pit gain once stabilized.</span>
-              </div>
-            </div>
-          </ul>
+          </div>
+
+          <div id="shutin-steps-container">
+            <!-- Rendered by updateShutInProcedure -->
+          </div>
+          
+          <div style="margin-top:20px; padding:10px 14px; background:var(--bg-subtle, rgba(230,161,92,0.08)); border-left:3px solid var(--accent-color, #e6a15c); border-radius:6px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+            <strong style="color:var(--text-primary);">Disclaimer:</strong> Verify all procedures against your company's approved well control documentation before use.
+          </div>
+
+          <img src="x" onerror="if(window.updateShutInProcedure) window.updateShutInProcedure(); this.onerror=null;" style="display:none;">
         `
       };
     case "drillers_method":
       return {
         title: "Driller's Method",
         bodyHTML: `
-          <p class="guide-text-block">A two-circulation well control method. In the 1st circulation, kick is pumped out with original mud. In the 2nd circulation, kill mud is pumped.</p>
-          <span class="guide-section-title">First Circulation</span>
-          <ul class="guide-bullet-list">
-            <li>Pump kick out using original mud weight (OMW).</li>
-            <li>Maintain casing pressure constant until pumps reach SCR rate, then maintain drillpipe pressure constant until kick is out.</li>
-          </ul>
+          <div style="background: linear-gradient(135deg, rgba(243, 156, 18, 0.12), rgba(243, 156, 18, 0.03)); border-left: 4px solid var(--accent-color, #f39c12); padding: 14px 16px; border-radius: 8px; margin-bottom: 18px;">
+            <div style="font-size: 0.95rem; font-weight: 700; color: var(--accent-color, #f39c12); margin-bottom: 6px; letter-spacing: 0.3px;">TWO-CIRCULATION WELL CONTROL</div>
+            <ul style="margin: 0; padding-left: 18px; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
+              <li><strong>First Circulation:</strong> Influx is removed from the well bore using original mud density.</li>
+              <li><strong>Second Circulation:</strong> Kill mud replaces original mud and restores primary control of the well.</li>
+            </ul>
+          </div>
+
+          <span class="guide-section-title" style="margin-top: 14px; display: block; color: var(--accent-color, #f39c12); font-size: 0.95rem;">First Circulation (Killing Procedure)</span>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px; margin-bottom: 16px;">
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">a) Bring Pump Up to Kill Speed</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Bring the pump up to kill speed in steps of 5 SPM, gradually opening the choke holding casing pressure constant.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">b) Maintain Drill Pipe Pressure Constant</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">When the pump is up to kill speed, maintain drill pipe pressure constant.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">c) Circulate Out Influx</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Circulate out the influx from the well maintaining drill pipe pressure constant.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">d) Shut Down & Record Pressures</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">When the influx is out, stop the pump reducing the pump speed in steps of 5 SPM, gradually closing the choke, maintaining casing pressure constant. Record pressure, SIDPP and SICP should be equal to original SIDPP.</p>
+            </div>
+
+            <div style="background: rgba(243, 156, 18, 0.08); border-left: 3px solid var(--accent-color, #f39c12); padding: 12px 14px; border-radius: 6px; margin-top: 2px;">
+              <strong style="display: block; font-size: 0.84rem; color: var(--accent-color, #f39c12); margin-bottom: 4px;">Important Note (First Circulation Analysis)</strong>
+              <p style="margin: 0; font-size: 0.81rem; color: var(--text-secondary); line-height: 1.48;">In case recorded SIDPP & SICP are equal but more than original SIDPP value, it indicates trapped pressure in wellbore. Whereas if SICP is more than original SIDPP, it indicates that some influx is still in the wellbore.</p>
+            </div>
+          </div>
+
+          <span class="guide-section-title" style="margin-top: 18px; display: block; color: var(--accent-color, #f39c12); font-size: 0.95rem;">Second Circulation (Displace with Kill Mud)</span>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px; margin-bottom: 16px;">
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">a) Line Up Kill Mud</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Line up suction with kill mud.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">b) Bring Pump Up to Kill Speed</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Bring the pump up to kill speed in steps of 5 SPM, gradually opening the choke, holding casing pressure constant.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">c) Pump Kill Mud to Bit</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">When the pump is at kill speed, pump kill mud from surface to bit, maintaining casing pressure constant.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">d) Displace Annulus (Bit to Surface)</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Pump kill mud from bit to surface, maintaining drill pipe pressure constant equal to FCP.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">e) Shut Down & Confirm Zero Pressure</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">When the kill mud reaches surface, stop the pump reducing the pump in steps of 5 SPM, gradually closing the choke maintaining casing pressure constant. Record pressures, SIDPP and SICP both should be equal to zero.</p>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(46, 204, 113, 0.12), rgba(46, 204, 113, 0.03)); border-left: 3px solid #2ecc71; padding: 12px 14px; border-radius: 6px; margin-top: 2px;">
+              <strong style="display: block; font-size: 0.84rem; color: #2ecc71; margin-bottom: 4px;">Final Action & Verification</strong>
+              <p style="margin: 0; font-size: 0.81rem; color: var(--text-secondary); line-height: 1.48;">Open & observe the well. Add trip margin before resuming normal operation.</p>
+            </div>
+          </div>
         `
       };
     case "wait_weight_method":
@@ -8935,6 +10006,10 @@ function getGuideItemContent(itemId) {
                 <label class="guide-calc-label">True Vertical Depth (ft)</label>
                 <input type="number" class="guide-calc-input" id="ww-tvd" value="8000" step="100" oninput="calculateGuideKillParameters()">
               </div>
+              <div class="guide-calc-group" style="grid-column: span 2;">
+                <label class="guide-calc-label">Surface to Bit Strokes (stks)</label>
+                <input type="number" class="guide-calc-input" id="ww-stks" value="1000" step="50" oninput="calculateGuideKillParameters()">
+              </div>
             </div>
             <div class="guide-calc-results">
               <div class="guide-calc-result-row">
@@ -8949,7 +10024,90 @@ function getGuideItemContent(itemId) {
                 <span class="guide-calc-result-lbl">Final Circulation Press (FCP)</span>
                 <span class="guide-calc-result-val"><span id="ww-val-fcp">0</span> psi</span>
               </div>
+
+              <div style="margin-top: 14px; border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding-top: 12px;">
+                <button type="button" onclick="toggleStepDownSchedule()" style="background: linear-gradient(135deg, rgba(243, 156, 18, 0.22), rgba(243, 156, 18, 0.08)); border: 1.5px solid var(--accent-color, #f39c12); border-radius: 8px; padding: 10px 14px; font-size: 0.84rem; font-weight: 700; color: var(--accent-color, #f39c12); cursor: pointer; width: 100%; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(243, 156, 18, 0.15); transition: all 0.2s ease;">
+                  <span id="ww-step-schedule-toggle-lbl">▶ View Step Down Schedule</span>
+                </button>
+                <div id="ww-step-schedule-container" style="display: none; margin-top: 10px;">
+                  <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; letter-spacing: 0.2px;">STEP DOWN SCHEDULE (ICP TO FCP)</div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); background: var(--bg-subtle, rgba(0,0,0,0.1)); padding: 6px 10px; border-radius: 6px; margin-bottom: 6px;">
+                    <span>Strokes Pumped</span>
+                    <span style="text-align: right;">Drill Pipe Press (psi)</span>
+                  </div>
+                  <div id="ww-step-schedule-rows" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem;">
+                    <!-- Dynamically populated rows -->
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <span class="guide-section-title" style="margin-top: 20px; display: block; color: var(--accent-color, #f39c12); font-size: 0.95rem;">3.4.1 Killing Procedure (Wait and Weight Method)</span>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px; margin-bottom: 16px;">
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">a) Line Up Kill Mud</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Line up suction with kill mud.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">b) Bring Pump Up to Kill Speed</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Bring the pump up to kill speed in steps of 5 SPM, gradually opening the choke, holding casing pressure constant.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">c) Pump Kill Mud to Bit (Step Down Schedule)</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">When the pump is at kill speed, pump kill mud from surface to bit, maintaining drill pipe pressure as per step down schedule (during this step drill pipe pressure will fall from ICP to FCP).</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">d) Displace Annulus (Bit to Surface)</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Pump kill mud from bit to surface, maintaining drill pipe pressure constant equal to FCP.</p>
+            </div>
+
+            <div style="background: var(--bg-subtle, rgba(141,119,101,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding: 12px 14px; border-radius: 8px;">
+              <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;">e) Shut Down & Confirm Zero Pressure</strong>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">When the kill mud reaches surface, stop the pump reducing the pump speed in steps of 5 SPM, gradually closing the choke maintaining casing pressure constant. Record pressures, SIDPP and SICP both should be equal to zero.</p>
+            </div>
+          </div>
+        `
+      };
+    case "slow_circulation_rate":
+      return {
+        title: "Slow Circulation Rate (SCR)",
+        bodyHTML: `
+          <p class="guide-text-block">During well control operations, to avoid further entry of formation fluid, it is essential to keep BHP at least equal to formation pressure. Kicks must be circulated out at slow circulation rates (SCR) to ensure that back pressure and system losses do not exceed the rating of high pressure lines and other rig equipment.</p>
+          
+          <span class="guide-section-title">Reasons for Slow Circulation</span>
+          <ul class="guide-bullet-list">
+            <li>Ensure that slow circulation pressure plus shut-in drill pipe pressure does not exceed surface line ratings.</li>
+            <li>Allow mud returns to be weighted up and re-circulated within available mud mixing system capabilities.</li>
+            <li>Allow longer reaction time for choke adjustments.</li>
+            <li>Allow sufficient time for disposal of kick fluid / de-gassing at the surface.</li>
+            <li>Reduce annular pressure losses.</li>
+            <li>Reduce the risk of pump breakdown and other mechanical problems.</li>
+            <li>Manage Equivalent Circulating Density (ECD) on open hole.</li>
+            <li>Manage choke line friction pressure (floaters).</li>
+          </ul>
+
+          <span class="guide-section-title">Rate Selection</span>
+          <div style="background-color:rgba(141,119,101,0.04); padding:10px 14px; border-radius:8px; font-size:0.85rem; margin-bottom:15px; color:var(--text-primary); border: 1px solid var(--border-subtle); line-height: 1.45;">
+            The slow circulation rate should ideally be <strong>1/2 to 1/3 of the pump SPM</strong> at the time of drilling. It should be the minimum possible pump speed at which the pump can run smoothly without any knocking.
+          </div>
+
+          <span class="guide-section-title">Recording SCR</span>
+          <p class="guide-text-block" style="margin-bottom: 8px;">The SCR for each pump is selected before any well control problems arise. Standard policy is to measure the pump pressure periodically. It should be recorded near to the bottom for each pump at regular intervals and/or when conditions change:</p>
+          <ul class="guide-bullet-list">
+            <li>At the beginning of each shift.</li>
+            <li>After a change in drilling fluid density.</li>
+            <li>After a change in bit nozzle size or BHA.</li>
+            <li>After drilling a long section of hole (e.g., 500 ft.) in a shift.</li>
+            <li>After pump fluid end repair.</li>
+            <li>After any significant change in mud properties.</li>
+          </ul>
+          <div style="background: linear-gradient(135deg, rgba(243, 156, 18, 0.12), rgba(243, 156, 18, 0.03)); border-left: 3px solid var(--accent-color, #f39c12); padding: 12px 14px; border-radius: 6px; margin-top: 15px;">
+            <strong style="display: block; font-size: 0.86rem; color: var(--accent-color, #f39c12); margin-bottom: 4px;">Important Note</strong>
+            <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">Slow circulation pressure must be recorded from the gauge that is to be used for the well killing operation (typically at the remote choke panel).</p>
           </div>
         `
       };
@@ -9374,7 +10532,19 @@ window.onBitTypeChanged = () => {
   generateIADCGrade(true);
 };
 
-window.generateIADCGrade = (bypassValidation) => {
+window.toggleIADCDetails = () => {
+  const container = document.getElementById('iadc-details-container');
+  const btn = document.getElementById('iadc-see-more-btn');
+  if (container.style.display === 'none') {
+    container.style.display = 'block';
+    btn.innerHTML = 'See Less <span class="material-icons" style="font-size:20px;">expand_less</span>';
+  } else {
+    container.style.display = 'none';
+    btn.innerHTML = 'See More <span class="material-icons" style="font-size:20px;">expand_more</span>';
+  }
+};
+
+window.generateIADCGrade = (bypassValidation, isFromSave = false) => {
   const getLabel = (id) => {
     const sel = document.getElementById(id);
     if (!sel) return '';
@@ -9421,10 +10591,105 @@ window.generateIADCGrade = (bypassValidation) => {
   if (visualGradeCard) {
     visualGradeCard.style.display = 'block';
     visualGradeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Reset "See More" to collapsed state on each new generation if not from save
+    if (!isFromSave) {
+      const section = document.getElementById('iadc-interpretation-section');
+      const label   = document.getElementById('iadc-see-more-label');
+      const chevron = document.getElementById('iadc-see-more-chevron');
+      if (section) { section.style.maxHeight = '0'; section.style.opacity = '0'; }
+      if (label)   label.textContent = 'See More';
+      if (chevron) chevron.style.transform = 'rotate(0deg)';
+      
+      // Also reset save button state since user changed a value
+      state.isIADCSaved = false;
+      const saveBtn = document.getElementById('iadc-save-btn');
+      const saveBtnText = document.getElementById('iadc-save-btn-text');
+      if (saveBtn) saveBtn.style.opacity = '1';
+      if (saveBtnText) saveBtnText.textContent = state.editingIADCRecordId ? 'Update' : 'Save';
+    }
   }
 
   state.iadcCardVisible = true;
   return grade;
+};
+
+// Toggle Grade Interpretation expand / collapse
+window.toggleIADCInterpretation = () => {
+  const section = document.getElementById('iadc-interpretation-section');
+  const label   = document.getElementById('iadc-see-more-label');
+  const chevron = document.getElementById('iadc-see-more-chevron');
+  if (!section) return;
+
+  const isOpen = section.style.maxHeight !== '0px' && section.style.maxHeight !== '0' && section.style.maxHeight !== '';
+
+  if (isOpen) {
+    section.style.maxHeight = '0';
+    section.style.opacity   = '0';
+    if (label)   label.textContent = 'See More';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  } else {
+    section.style.maxHeight = section.scrollHeight + 'px';
+    section.style.opacity   = '1';
+    if (label)   label.textContent = 'See Less';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+  }
+};
+
+// Combined: Generate grade display + Save to history (called by Save button)
+window.saveIADCGradeAndRecord = () => {
+  if (state.isIADCSaved) {
+    showToast('Already saved!');
+    return;
+  }
+
+  // 1. Generate and show the output card (pass true for isFromSave to avoid resetting state)
+  const grade = generateIADCGrade(true, true);
+
+  // 2. Collect form values
+  const type     = document.getElementById('bit-info-type')?.value  || '';
+  const size     = document.getElementById('bit-info-size')?.value.trim()  || '';
+  const mfg      = document.getElementById('bit-info-mfg')?.value.trim()   || '';
+  const sn       = document.getElementById('bit-info-sn')?.value.trim()    || '';
+  const comments = document.getElementById('bit-grade-comments')?.value    || '';
+
+  // 3. Build record
+  const record = {
+    id:       state.editingIADCRecordId || Date.now().toString(),
+    date:     new Date().toLocaleDateString(),
+    type, size, mfg, sn,
+    gradeI:  document.getElementById('bit-grade-i')?.value  || '0',
+    gradeO:  document.getElementById('bit-grade-o')?.value  || '0',
+    gradeD:  document.getElementById('bit-grade-d')?.value  || 'NO',
+    gradeL:  document.getElementById('bit-grade-l')?.value  || 'N',
+    gradeB:  document.getElementById('bit-grade-b')?.value  || 'X',
+    gradeG:  document.getElementById('bit-grade-g')?.value  || 'I',
+    gradeO2: document.getElementById('bit-grade-o2')?.value || 'X',
+    gradeR:  document.getElementById('bit-grade-r')?.value  || 'TD',
+    grade,
+    comments,
+    photo: state.currentDullPhotoBase64 || null
+  };
+
+  // 4. Save to localStorage
+  const records = JSON.parse(localStorage.getItem('iadcGradingRecords') || '[]');
+  if (state.editingIADCRecordId) {
+    const idx = records.findIndex(r => r.id === state.editingIADCRecordId);
+    if (idx !== -1) records[idx] = record; else records.push(record);
+    showToast('Data modified');
+  } else {
+    records.unshift(record);   // newest first
+    showToast('Data saved');
+  }
+  localStorage.setItem('iadcGradingRecords', JSON.stringify(records));
+
+  // 5. Update UI state (disable button visually, don't navigate away)
+  state.isIADCSaved = true;
+  state.editingIADCRecordId = null;
+  const saveBtn = document.getElementById('iadc-save-btn');
+  const saveBtnText = document.getElementById('iadc-save-btn-text');
+  if (saveBtn) saveBtn.style.opacity = '0.5';
+  if (saveBtnText) saveBtnText.textContent = 'Saved';
 };
 
 window.saveIADCRecord = () => {
@@ -9476,7 +10741,7 @@ window.saveIADCRecord = () => {
   localStorage.setItem('iadcGradingRecords', JSON.stringify(records));
   clearIADCForm();
   
-  window.navigateTo('iadc-history');
+  navigateTo('iadc-history');
   renderBitDullGradingHistory();
 };
 
@@ -9495,7 +10760,7 @@ window.editIADCRecord = (recordId) => {
     el.value = val;
     if (el.value === val) return;
     
-    // 2. Extract prefix before ' - ' (e.g. "NO" from "NO - No Dull Characteristic")
+    // 2. Extract prefix before ' - '
     const prefix = val.split(' - ')[0].trim();
     el.value = prefix;
     if (el.value === prefix) return;
@@ -9511,6 +10776,10 @@ window.editIADCRecord = (recordId) => {
   
   const bitTypeEl = document.getElementById('bit-info-type');
   if (bitTypeEl) bitTypeEl.value = rec.type || 'PDC';
+  
+  // MUST call this before setting the grade dropdowns because it rebuilds them based on bit type
+  if (typeof window.onBitTypeChanged === 'function') window.onBitTypeChanged();
+  else if (typeof onBitTypeChanged === 'function') onBitTypeChanged();
   
   const bitSizeEl = document.getElementById('bit-info-size');
   if (bitSizeEl) bitSizeEl.value = rec.size || '';
@@ -9533,8 +10802,9 @@ window.editIADCRecord = (recordId) => {
   const commentsEl = document.getElementById('bit-grade-comments');
   if (commentsEl) commentsEl.value = rec.comments || '';
   
-  onBitTypeChanged();
-  generateIADCGrade(true);
+  if (typeof window.generateIADCGrade === 'function') window.generateIADCGrade(true, true);
+  else if (typeof generateIADCGrade === 'function') generateIADCGrade(true, true);
+  state.isIADCSaved = true;
   
   state.currentDullPhotoBase64 = rec.photo || null;
   const previewContainer = document.getElementById('dull-photo-preview-container');
@@ -9547,12 +10817,7 @@ window.editIADCRecord = (recordId) => {
     if (previewContainer) previewContainer.style.display = 'none';
   }
   
-  const saveBtnText = document.getElementById('iadc-save-btn-text');
-  if (saveBtnText) {
-    saveBtnText.textContent = (window.I18n && window.I18n.translate) ? window.I18n.translate('Update Record') : 'Update Record';
-  }
-  
-  window.navigateTo('bit-dull-grading');
+  navigateTo('bit-dull-grading');
 };
 
 window.deleteIADCRecord = (recordId) => {
@@ -9818,4 +11083,160 @@ window.shareIADCReport = () => {
   }
 };
 
+window.updateShutInProcedure = () => {
+  const container = document.getElementById('shutin-steps-container');
+  if (!container) return;
 
+  const rig = document.getElementById('shutin-rig')?.value || 'land';
+  const op = document.getElementById('shutin-op')?.value || 'drilling';
+  const method = document.getElementById('shutin-method')?.value || 'hard';
+
+  let steps = [];
+
+  if (rig === 'subsea') {
+    if (op === 'drilling') {
+      if (method === 'hard') {
+        steps = [
+          { title: "Stop Rotary Table", desc: "Stop rotary table." },
+          { title: "Raise Kelly / Space Out", desc: "Raise kelly to hang off point ensuring that lower kelly cock is above rotary table and Kelly is at the pre-designated level so that tool joint is clear of ram preventers." },
+          { title: "Stop Mud Pump", desc: "Stop mud pump, check self-flow. If yes, proceed further to shut in the well." },
+          { title: "Close Annular BOP", desc: "Close annular BOP (Preferably upper annular)." },
+          { title: "Open Fail-Safe Valve", desc: "Open fail-safe valve on choke line when remote choke is in close position." },
+          { title: "Close Upper Pipe Rams", desc: "Close the upper pipe rams." },
+          { title: "Hang String & Lock Rams", desc: "Reduce hydraulic pressure on annular, hang the string and ensure rams are locked." },
+          { title: "Bleed Pressure & Open Annular", desc: "Open annular after bleeding trapped pressure between annular and pipe ram." },
+          { title: "Record Pressures", desc: "Record SIDPP, SICP and Pit Gain." }
+        ];
+      } else { // soft
+        steps = [
+          { title: "Stop Rotary Table", desc: "Stop rotary table." },
+          { title: "Raise Kelly / Space Out", desc: "Raise kelly to hang off point ensuring tool joint is clear of ram preventers." },
+          { title: "Stop Mud Pump", desc: "Stop mud pump, check self-flow. If yes, proceed further to shut in the well." },
+          { title: "Open Fail-Safe Valve", desc: "Open fail-safe valve on choke line when remote choke is in partially open position." },
+          { title: "Close Annular BOP", desc: "Close annular BOP (Preferably upper annular)." },
+          { title: "Close Remote Choke", desc: "Gradually close adjustable remote choke, monitoring casing pressure." },
+          { title: "Close Upper Pipe Rams", desc: "Close the upper pipe rams. Reduce operating pressure on annular BOP." },
+          { title: "Hang String & Open Annular", desc: "Reduce hydraulic pressure on annular, hang string and open annular after bleeding trapped pressure." },
+          { title: "Record Pressures", desc: "Record SIDPP, SICP and Pit Gain." }
+        ];
+      }
+    } else if (op === 'tripping') {
+      if (method === 'hard') {
+        steps = [
+          { title: "Set Slips", desc: "Set slips below tool joint." },
+          { title: "Install FOSV", desc: "Install full open safety valve (FOSV) in open position, close it & remove slips." },
+          { title: "Close Annular BOP", desc: "Close annular BOP." },
+          { title: "Open Fail-Safe Valve", desc: "Open fail-safe valve on choke line when remote choke is in close position." },
+          { title: "Space Out String", desc: "Calculate the length of the pup joint and /or length of stick up above rotary table to ensure that the tool joint is clear off the pipe ram to be closed." },
+          { title: "Make Up Kelly & Open FOSV", desc: "Make up kelly & open FOSV." },
+          { title: "Close Upper Pipe Rams", desc: "Close upper pipe rams. Reduce operating pressure on annular BOP." },
+          { title: "Hang String & Open Annular", desc: "Lower drill string & hang it off on the rams. Open Annular BOP after bleeding pressure." },
+          { title: "Record Pressures", desc: "Record SIDPP, SICP and pit gain." }
+        ];
+      } else { // soft
+        steps = [
+          { title: "Set Slips", desc: "Set slips below tool joint." },
+          { title: "Install FOSV", desc: "Install full open safety valve (FOSV) in open position, close it & remove slips." },
+          { title: "Open Fail-Safe Valve", desc: "Open fail-safe valve on choke line when remote choke is in partially open position." },
+          { title: "Close Annular BOP", desc: "Close annular BOP." },
+          { title: "Close Remote Choke", desc: "Gradually close adjustable remote choke, monitoring casing pressure." },
+          { title: "Space Out String", desc: "Calculate the length of the pup joint and /or length of stick up above rotary table to ensure that the tool joint is clear off the pipe ram to be closed." },
+          { title: "Make Up Kelly & Open FOSV", desc: "Make up kelly & open FOSV." },
+          { title: "Close Upper Pipe Rams", desc: "Close upper pipe rams. Reduce operating pressure on annular BOP." },
+          { title: "Hang String & Open Annular", desc: "Lower drill string & hang it off on the rams. Open Annular BOP after bleeding pressure." },
+          { title: "Record Pressures", desc: "Record SIDPP, SICP and pit gain." }
+        ];
+      }
+    } else { // ooh
+      if (method === 'hard') {
+        steps = [
+          { title: "Close Blind Shear Rams", desc: "At the first indication of flow from the well, close the blind shear rams." },
+          { title: "Open Selected Valves", desc: "Open selected subsea Choke & Kill line valves." },
+          { title: "Monitor Riser & Close Diverter", desc: "Monitor flow from the riser & close the diverter as a precautionary measure (ensure riser booster valve is closed)." },
+          { title: "Record Pressures & Prepare", desc: "Record shut-in casing pressure on both Choke & Kill lines, and pit gain. Prepare for stripping, volumetric or bull heading operations." }
+        ];
+      } else { // soft
+        steps = [
+          { title: "Open Fail-Safe Valve", desc: "Open fail-safe valve on choke line when remote choke is in partially open position." },
+          { title: "Close Blind Shear Rams", desc: "At the first indication of flow from the well, close the blind shear rams." },
+          { title: "Close Remote Choke", desc: "Gradually close adjustable remote choke, monitoring casing pressure." },
+          { title: "Monitor Riser & Close Diverter", desc: "Monitor flow from the riser & close the diverter as a precautionary measure (ensure riser booster valve is closed)." },
+          { title: "Record Pressures & Prepare", desc: "Record shut-in casing pressure on both Choke & Kill lines, and pit gain. Prepare for stripping, volumetric or bull heading operations." }
+        ];
+      }
+    }
+  } else {
+    // land / jack-up
+    if (op === 'drilling') {
+      if (method === 'hard') {
+        steps = [
+          { title: "Space Out", desc: "Position tool joints clear of BOP rams; stop rotation." },
+          { title: "Stop Pumps", desc: "Shut down mud pumps, then verify if well is flowing." },
+          { title: "Close BOP", desc: "Close annular preventer or pipe rams." },
+          { title: "Open HCR", desc: "Open HCR / manual valve on choke line when choke is in fully closed position." },
+          { title: "Record Pressures", desc: "Allow pressure to stabilize and record SIDPP, SICP, and pit gain." }
+        ];
+      } else { // soft
+        steps = [
+          { title: "Space Out", desc: "Position tool joints clear of BOP rams; stop rotation." },
+          { title: "Stop Pumps", desc: "Shut down mud pumps, then verify if well is flowing." },
+          { title: "Open HCR", desc: "Open hydraulic control valve (HCR valve) / manual valve on choke line." },
+          { title: "Close BOP", desc: "Close Blow Out Preventer (Preferably Annular Preventer)." },
+          { title: "Close Remote Choke", desc: "Gradually close adjustable remote choke, monitoring casing pressure." },
+          { title: "Record Pressures", desc: "Allow the pressure to stabilize and record SIDPP, SICP and Pit gain." }
+        ];
+      }
+    } else if (op === 'tripping') {
+      if (method === 'hard') {
+        steps = [
+          { title: "Position Tool Joint", desc: "Position tool joint above rotary table and set pipe on slips." },
+          { title: "Install FOSV", desc: "Install full opening safety valve (FOSV) in open position & close it." },
+          { title: "Close BOP", desc: "Close Blow Out preventer (Preferably Annular Preventer)." },
+          { title: "Open HCR", desc: "Open choke line HCR valve with choke in fully closed position." },
+          { title: "Make up Kelly", desc: "Make up kelly and open FOSV." },
+          { title: "Record Pressures", desc: "Allow pressure to stabilise and record SIDPP, SICP and Pit gain." }
+        ];
+      } else { // soft
+        steps = [
+          { title: "Position Tool Joint", desc: "Position tool joint above rotary table and set pipe on slips." },
+          { title: "Install FOSV", desc: "Install full opening safety valve (FOSV) in open position & close it." },
+          { title: "Open HCR", desc: "Open HCR Valve / Manual valve on choke line." },
+          { title: "Close BOP", desc: "Close Blow Out Preventer (Preferably Annular Preventer)." },
+          { title: "Close Remote Choke", desc: "Gradually close adjustable remote choke, monitoring casing pressure." },
+          { title: "Make up Kelly", desc: "Make up kelly and open FOSV." }
+        ];
+      }
+    } else { // ooh
+      if (method === 'hard') {
+        steps = [
+          { title: "Close BOP", desc: "Close Blind / BSR." },
+          { title: "Open HCR", desc: "Open HCR valve on choke line." },
+          { title: "Record Pressures", desc: "Record SICP and pit gain." }
+        ];
+      } else { // soft
+        steps = [
+          { title: "Open HCR", desc: "Open HCR valve on choke line." },
+          { title: "Close BOP", desc: "Close shear or blind ram." },
+          { title: "Close Remote Choke", desc: "Close remote choke." },
+          { title: "Record Pressures", desc: "Record SICP and pit gain." }
+        ];
+      }
+    }
+  }
+
+  let html = '<span class="guide-step-list">';
+  steps.forEach((step, idx) => {
+    html += `
+      <div class="guide-step-item">
+        <span class="guide-step-num">${idx + 1}</span>
+        <div class="guide-step-content">
+          <span class="guide-step-title">${step.title}</span>
+          <span class="guide-step-desc">${step.desc}</span>
+        </div>
+      </div>
+    `;
+  });
+  html += '</span>';
+
+  container.innerHTML = html;
+};
