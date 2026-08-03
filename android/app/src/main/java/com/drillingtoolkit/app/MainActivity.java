@@ -8,8 +8,14 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Install the Android 12+ SplashScreen API handler
-        androidx.core.splashscreen.SplashScreen.installSplashScreen(this);
+        // Install the Android 12+ SplashScreen API handler ONLY on API 31+ to prevent older OxygenOS crashes
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                androidx.core.splashscreen.SplashScreen.installSplashScreen(this);
+            }
+        } catch (Exception e) {
+            // Failsafe fallback
+        }
 
         registerPlugin(ThemeManagerPlugin.class);
         

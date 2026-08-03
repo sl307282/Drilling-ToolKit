@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <link rel="stylesheet" href="style.css?v=1.1.3">
+  <link rel="preload" href="style.css" as="style">
+  <link rel="preload" href="https://fonts.googleapis.com/icon?family=Material+Icons" as="style">
+  <link rel="stylesheet" href="style.css">
   <!-- Material Icons Font -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <!-- Firebase SDK Compat -->
@@ -1254,7 +1256,6 @@
 
   <!-- Application Scripts -->
   <script src="translations.js?v=1.1.6" defer></script>
-  <script src="tubulars_db.js?v=1.1.6" defer></script>
   <script src="app.js?v=1.1.6" defer></script>
   <!-- IADC Info Modal -->
   <div id="iadc-info-modal" class="modal-overlay" onclick="closeIADCInfoModal(event)">

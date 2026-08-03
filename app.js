@@ -439,7 +439,8 @@ const syncNativeTheme = (theme, bodyBg) => {
     if (window.Capacitor.Plugins.StatusBar) {
       const StatusBar = window.Capacitor.Plugins.StatusBar;
       try {
-        StatusBar.setStyle({ style: theme === 'dark' ? 'LIGHT' : 'DARK' }).catch(() => { });
+        // Capacitor Style.DARK = light text (for dark backgrounds). Style.LIGHT = dark text (for light backgrounds).
+        StatusBar.setStyle({ style: theme === 'dark' ? 'DARK' : 'LIGHT' }).catch(() => { });
         if (bodyBg) {
           StatusBar.setBackgroundColor({ color: bodyBg }).catch(() => { });
         }
@@ -1170,17 +1171,22 @@ function showUpdatePopup(current, latest, isRequired = false, notes = '') {
 
 // Initialize Application
 const initApp = () => {
+  // Record the exact time the app started initialization
+  const appStartTime = Date.now();
+  
   // Safe helper to hide native splash screen
+  let splashAttempts = 0;
   const hideSplash = () => {
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => { });
+      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 500 }).catch(() => { });
+    } else if (splashAttempts < 120) { // Keep polling up to 6 seconds (120 * 50ms)
+      splashAttempts++;
+      setTimeout(hideSplash, 50);
     }
   };
 
-
-
-  // Safe Fallback Timer: Hide native splash screen after maximum 4 seconds no matter what
-  setTimeout(hideSplash, 4000);
+  // Safe Fallback Timer: Hide native splash screen after maximum 6 seconds no matter what
+  setTimeout(hideSplash, 6000);
 
   try {
     // Bind core Global events safely
@@ -1219,15 +1225,56 @@ const initApp = () => {
       });
     });
 
-    // Initial render
+    // Initial render (DO IMMEDIATELY SO IT'S READY UNDER THE SPLASH SCREEN)
     renderScreen();
     CardOverrideManager.apply();
 
-    // Run app update check
-    checkForUpdates();
+    // Optimize initialization: Preload essential data BEFORE dismissing splash screen
+    const preloadDataAndShow = () => {
+      const script = document.createElement('script');
+      script.src = 'tubulars_db.js';
+      script.async = true;
+      script.onload = () => {
+        // Data is loaded. Wait 2 frames to guarantee the WebView has fully composited the UI 
+        // to prevent any white flash during the crossfade.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Wait for all CSS and Web Fonts to fully download and parse
+            if (document.fonts && document.fonts.ready) {
+              document.fonts.ready.then(() => {
+                // Enforce the user's requested minimum 2-second splash screen duration
+                const timeElapsed = Date.now() - appStartTime;
+                const remainingTime = Math.max(0, 2000 - timeElapsed);
 
-    // Wait just 100ms for the webview to finish painting the UI before fading out the logo
-    setTimeout(hideSplash, 100);
+                setTimeout(() => {
+                  hideSplash();
+                  checkForUpdates();
+                }, remainingTime); 
+              });
+            } else {
+              // Fallback for older WebViews without document.fonts
+              const timeElapsed = Date.now() - appStartTime;
+              const remainingTime = Math.max(0, 2000 - timeElapsed);
+              setTimeout(() => {
+                hideSplash();
+                checkForUpdates();
+              }, remainingTime);
+            }
+          });
+        });
+      };
+      
+      // Fallback if script fails to load
+      script.onerror = () => {
+        hideSplash();
+        checkForUpdates();
+      };
+      
+      document.body.appendChild(script);
+    };
+
+    // Kick off preloading immediately after initial UI render
+    preloadDataAndShow();
   } catch (error) {
     console.error('Fatal initialization error in DOMContentLoaded:', error);
     // Ensure native splash screen gets hidden even in case of critical init error
@@ -1411,8 +1458,7 @@ const initApp = () => {
     }, { passive: true });
   })();
 
-  // Hide splash screen the moment the Home Screen finishes rendering (defer 1 frame)
-  requestAnimationFrame(() => requestAnimationFrame(hideSplash));
+  // (Splash screen hiding handled in initialization sequence)
 };
 
 // Execute initialization immediately or on DOMContentLoaded
@@ -1743,6 +1789,10 @@ function renderScreen() {
 
     if (screenId === 'kill-data-sheet') {
       activeScreenEl.classList.add('animate-slide-down');
+    } else if (!window._isInitialRenderCompleted) {
+      // Do NOT animate the very first screen on cold boot!
+      // If we animate it from opacity 0, it overlaps with the splash screen fade out, causing a white flash!
+      window._isInitialRenderCompleted = true;
     } else if (_navDirection === 'back') {
       activeScreenEl.classList.add('animate-slide-in-left');
     } else if (_navDirection === 'forward') {

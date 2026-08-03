@@ -1661,6 +1661,7 @@ input:checked + .slider:before {
    Light/Dark Theme Variables & Overrides
    ========================================== */
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg-color: #12100E;
   --body-bg: #0B0A09;
   --card-bg: #1C1815;
@@ -1762,10 +1763,24 @@ input:checked + .slider:before {
 }
 
 [data-theme="dark"] .form-select,
+[data-theme="dark"] .form-select-outlined,
 [data-theme="dark"] .form-input {
   border-color: rgba(243, 236, 230, 0.12);
   color: var(--text-primary);
   background-color: var(--card-bg);
+}
+
+[data-theme="dark"] .form-select:disabled,
+[data-theme="dark"] .form-select-outlined:disabled,
+[data-theme="dark"] .form-input:disabled {
+  background-color: rgba(243, 236, 230, 0.08);
+  color: rgba(243, 236, 230, 0.7);
+  border-color: rgba(243, 236, 230, 0.15);
+}
+
+/* Light SVG arrow for dark mode dropdowns */
+[data-theme="dark"] .form-select-outlined {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23E6DFD8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
 }
 
 [data-theme="dark"] .data-table th {

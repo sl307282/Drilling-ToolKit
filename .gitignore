@@ -14,3 +14,4 @@ ios/App/Pods/
 *.apk
 *.jks
 add_*.js
+venv/
