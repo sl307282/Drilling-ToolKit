@@ -49354,6 +49354,19 @@ const TUBULAR_DB = {
   ],
   "drillpipe": [
   {
+    "connection": "XT-57",
+    "od": "5 7/8",
+    "weight": "26.30",
+    "grade": "S-135",
+    "class": "Class 1",
+    "id": "5.045",
+    "toolJointOd": "7.000",
+    "toolJointId": "4.250",
+    "capacity": "0.0240",
+    "displacement": "0.0343",
+    "closedDisplacement": "0.0343"
+  },
+  {
     "od": "2 3/8",
     "weight": "4.85",
     "grade": "E (75)",
@@ -53673,6 +53686,19 @@ const TUBULAR_DB = {
     {
       "connection": "Weld-on",
       "od": "30.000",
+      "grade": "X56",
+      "weight": "310.0",
+      "id": "28.000",
+      "drift": "27.750",
+      "burst": "3270",
+      "collapse": "1860",
+      "tensile": "4430000",
+      "capacity": "0.7616",
+      "displacement": "0.1127"
+    },
+    {
+      "connection": "Weld-on",
+      "od": "30.000",
       "grade": "X52",
       "weight": "200.0",
       "id": "29.000",
@@ -53707,5 +53733,21 @@ const TUBULAR_DB = {
       "tensile": "3680000",
       "capacity": "1.1969"
     }
+  ]
+,
+  "riser": [
+    {
+      "name": "19.5\" Marine Riser",
+      "id_inch": 19.5,
+      "od_inch": 21.0,
+      "capacity_bbl_ft": 0.3693
+    }
+  ],
+  "open_hole": [
+    { "name": "36\" Open Hole", "size_inch": 36.0, "capacity_bbl_ft": 1.2589 },
+    { "name": "26\" Open Hole", "size_inch": 26.0, "capacity_bbl_ft": 0.6567 },
+    { "name": "17 ½\" Open Hole", "size_inch": 17.5, "capacity_bbl_ft": 0.2975 },
+    { "name": "12 ¼\" Open Hole", "size_inch": 12.25, "capacity_bbl_ft": 0.1458 },
+    { "name": "8 ½\" Open Hole", "size_inch": 8.5, "capacity_bbl_ft": 0.0702 }
   ]
 };

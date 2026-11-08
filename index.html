@@ -423,6 +423,29 @@
       <div id="calculations-container-subsea"></div>
     </div>
 
+    <!-- Screen: Cementing Module -->
+    <div id="screen-cementing" class="screen">
+      <div id="cementing-fixed-header-wrapper" class="cementing-fixed-header-wrapper">
+        <div class="screen-header">
+          <div class="screen-header-top">
+            <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+            </button>
+            <div style="display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap;">
+              <h2 class="screen-title" id="cementing-screen-title" style="margin:0;">Casing Cementing</h2>
+              <span id="cementing-header-badge" class="cement-badge-model" style="display:none;"></span>
+            </div>
+          </div>
+          <span class="screen-subtitle" id="cementing-screen-subtitle">Subsea & riserless casing cement calculation</span>
+        </div>
+        <div id="cementing-job-header-slot"></div>
+      </div>
+      <div id="cementing-container" style="padding-bottom: 40px;"></div>
+    </div>
+
     <!-- ========================================== -->
     <!-- BONUS SCREENS                             -->
     <!-- ========================================== -->
@@ -708,12 +731,8 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title" id="guide-detail-title">Topic Detail</h2>
-          <button class="top-bar-btn" id="guide-detail-fav-btn" onclick="toggleDetailGuideFavorite()" style="margin-left:auto; padding:4px; margin-top:0;">
-            <span class="material-icons" style="color: #EAB308;">star_border</span>
-          </button>
+          <h2 class="screen-title" id="guide-detail-title" data-i18n="Drilling Guide">Drilling Guide</h2>
         </div>
-        <span class="screen-subtitle" id="guide-detail-subtitle">Category</span>
       </div>
       <div id="drilling-guide-detail-container" class="app-container-inner" style="padding: 16px;">
         <!-- Dynamically rendered -->
@@ -733,7 +752,7 @@
             </svg>
           </button>
           <h2 class="screen-title" data-i18n="Bit Dull Grading">Bit Dull Grading</h2>
-          <button class="back-btn" onclick="navigateTo('iadc-history')" style="margin-left:auto;" aria-label="History">
+          <button class="history-btn" onclick="navigateTo('iadc-history')" style="margin-left:auto;" aria-label="History">
             <span class="material-icons" style="font-size: 1.35rem;">history</span>
           </button>
         </div>
@@ -1256,7 +1275,9 @@
 
   <!-- Application Scripts -->
   <script src="translations.js?v=1.1.6" defer></script>
+  <script src="cementing_engine.js?v=1.1.6" defer></script>
   <script src="app.js?v=1.1.6" defer></script>
+  <script src="cementing_ui.js?v=1.1.6" defer></script>
   <!-- IADC Info Modal -->
   <div id="iadc-info-modal" class="modal-overlay" onclick="closeIADCInfoModal(event)">
     <div class="modal-content" style="max-width:420px;">

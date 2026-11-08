@@ -15,3 +15,5 @@ ios/App/Pods/
 *.jks
 add_*.js
 venv/
+android/app/release/
+emulator_*.png

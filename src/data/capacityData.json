@@ -1,0 +1,482 @@
+[
+  {
+    "id": "csg_36_552",
+    "type": "casing",
+    "label": "36\" 552#",
+    "od_in": 36.0,
+    "id_in": 33.0,
+    "weight_ppf": 552.0,
+    "cap_bbl_ft": 1.0579,
+    "disp_bbl_ft": 0.20109
+  },
+  {
+    "id": "csg_30_310",
+    "type": "casing",
+    "label": "30\" 310#",
+    "od_in": 30.0,
+    "id_in": 28.0,
+    "weight_ppf": 310.0,
+    "cap_bbl_ft": 0.7616,
+    "disp_bbl_ft": 0.1127
+  },
+  {
+    "id": "csg_30_457",
+    "type": "casing",
+    "label": "30\" 457#",
+    "od_in": 30.0,
+    "id_in": 27.0,
+    "weight_ppf": 457.0,
+    "cap_bbl_ft": 0.70818,
+    "disp_bbl_ft": 0.16612
+  },
+  {
+    "id": "csg_20_94",
+    "type": "casing",
+    "label": "20\" 94#",
+    "od_in": 20.0,
+    "id_in": 19.124,
+    "weight_ppf": 94.0,
+    "cap_bbl_ft": 0.35528,
+    "disp_bbl_ft": 0.03329
+  },
+  {
+    "id": "csg_20_106.5",
+    "type": "casing",
+    "label": "20\" 106.5#",
+    "od_in": 20.0,
+    "id_in": 19.0,
+    "weight_ppf": 106.5,
+    "cap_bbl_ft": 0.35069,
+    "disp_bbl_ft": 0.03789
+  },
+  {
+    "id": "csg_20_133",
+    "type": "casing",
+    "label": "20\" 133#",
+    "od_in": 20.0,
+    "id_in": 18.73,
+    "weight_ppf": 133.0,
+    "cap_bbl_ft": 0.3408,
+    "disp_bbl_ft": 0.0483
+  },
+  {
+    "id": "csg_20_169",
+    "type": "casing",
+    "label": "20\" 169#",
+    "od_in": 20.0,
+    "id_in": 18.376,
+    "weight_ppf": 169.0,
+    "cap_bbl_ft": 0.32803,
+    "disp_bbl_ft": 0.06054
+  },
+  {
+    "id": "csg_18.625_87.5",
+    "type": "casing",
+    "label": "18 5/8\" 87.5#",
+    "od_in": 18.625,
+    "id_in": 17.755,
+    "weight_ppf": 87.5,
+    "cap_bbl_ft": 0.30624,
+    "disp_bbl_ft": 0.03075
+  },
+  {
+    "id": "csg_18.625_94.5",
+    "type": "casing",
+    "label": "18 5/8\" 94.5#",
+    "od_in": 18.625,
+    "id_in": 17.689,
+    "weight_ppf": 94.5,
+    "cap_bbl_ft": 0.30397,
+    "disp_bbl_ft": 0.03303
+  },
+  {
+    "id": "csg_18.625_106",
+    "type": "casing",
+    "label": "18 5/8\" 106#",
+    "od_in": 18.625,
+    "id_in": 17.563,
+    "weight_ppf": 106.0,
+    "cap_bbl_ft": 0.29965,
+    "disp_bbl_ft": 0.03734
+  },
+  {
+    "id": "csg_18.625_117.5",
+    "type": "casing",
+    "label": "18 5/8\" 117.5#",
+    "od_in": 18.625,
+    "id_in": 17.439,
+    "weight_ppf": 117.5,
+    "cap_bbl_ft": 0.29544,
+    "disp_bbl_ft": 0.04156
+  },
+  {
+    "id": "csg_13.625_88.2",
+    "type": "casing",
+    "label": "13 5/8\" 88.2#",
+    "od_in": 13.625,
+    "id_in": 12.355,
+    "weight_ppf": 88.2,
+    "cap_bbl_ft": 0.14829,
+    "disp_bbl_ft": 0.03205
+  },
+  {
+    "id": "csg_13.375_48",
+    "type": "casing",
+    "label": "13 3/8\" 48#",
+    "od_in": 13.375,
+    "id_in": 12.715,
+    "weight_ppf": 48.0,
+    "cap_bbl_ft": 0.15705,
+    "disp_bbl_ft": 0.01673
+  },
+  {
+    "id": "csg_13.375_54.5",
+    "type": "casing",
+    "label": "13 3/8\" 54.5#",
+    "od_in": 13.375,
+    "id_in": 12.615,
+    "weight_ppf": 54.5,
+    "cap_bbl_ft": 0.15459,
+    "disp_bbl_ft": 0.01919
+  },
+  {
+    "id": "csg_13.375_61",
+    "type": "casing",
+    "label": "13 3/8\" 61#",
+    "od_in": 13.375,
+    "id_in": 12.515,
+    "weight_ppf": 61.0,
+    "cap_bbl_ft": 0.15215,
+    "disp_bbl_ft": 0.02163
+  },
+  {
+    "id": "csg_13.375_68",
+    "type": "casing",
+    "label": "13 3/8\" 68#",
+    "od_in": 13.375,
+    "id_in": 12.415,
+    "weight_ppf": 68.0,
+    "cap_bbl_ft": 0.1497,
+    "disp_bbl_ft": 0.0243
+  },
+  {
+    "id": "csg_13.375_72",
+    "type": "casing",
+    "label": "13 3/8\" 72#",
+    "od_in": 13.375,
+    "id_in": 12.347,
+    "weight_ppf": 72.0,
+    "cap_bbl_ft": 0.1481,
+    "disp_bbl_ft": 0.0257
+  },
+  {
+    "id": "csg_13.375_77",
+    "type": "casing",
+    "label": "13 3/8\" 77#",
+    "od_in": 13.375,
+    "id_in": 12.275,
+    "weight_ppf": 77.0,
+    "cap_bbl_ft": 0.14637,
+    "disp_bbl_ft": 0.02741
+  },
+  {
+    "id": "csg_13.375_86",
+    "type": "casing",
+    "label": "13 3/8\" 86#",
+    "od_in": 13.375,
+    "id_in": 12.125,
+    "weight_ppf": 86.0,
+    "cap_bbl_ft": 0.14282,
+    "disp_bbl_ft": 0.03096
+  },
+  {
+    "id": "csg_10.75_40.5",
+    "type": "casing",
+    "label": "10 3/4\" 40.5#",
+    "od_in": 10.75,
+    "id_in": 10.05,
+    "weight_ppf": 40.5,
+    "cap_bbl_ft": 0.09812,
+    "disp_bbl_ft": 0.01415
+  },
+  {
+    "id": "csg_10.75_45.5",
+    "type": "casing",
+    "label": "10 3/4\" 45.5#",
+    "od_in": 10.75,
+    "id_in": 9.95,
+    "weight_ppf": 45.5,
+    "cap_bbl_ft": 0.09618,
+    "disp_bbl_ft": 0.01609
+  },
+  {
+    "id": "csg_10.75_51",
+    "type": "casing",
+    "label": "10 3/4\" 51#",
+    "od_in": 10.75,
+    "id_in": 9.85,
+    "weight_ppf": 51.0,
+    "cap_bbl_ft": 0.09425,
+    "disp_bbl_ft": 0.01801
+  },
+  {
+    "id": "csg_10.75_55.5",
+    "type": "casing",
+    "label": "10 3/4\" 55.5#",
+    "od_in": 10.75,
+    "id_in": 9.76,
+    "weight_ppf": 55.5,
+    "cap_bbl_ft": 0.09254,
+    "disp_bbl_ft": 0.01972
+  },
+  {
+    "id": "csg_10.75_60.7",
+    "type": "casing",
+    "label": "10 3/4\" 60.7#",
+    "od_in": 10.75,
+    "id_in": 9.66,
+    "weight_ppf": 60.7,
+    "cap_bbl_ft": 0.09065,
+    "disp_bbl_ft": 0.02161
+  },
+  {
+    "id": "csg_10.75_65.7",
+    "type": "casing",
+    "label": "10 3/4\" 65.7#",
+    "od_in": 10.75,
+    "id_in": 9.56,
+    "weight_ppf": 65.7,
+    "cap_bbl_ft": 0.08878,
+    "disp_bbl_ft": 0.02348
+  },
+  {
+    "id": "csg_9.625_36",
+    "type": "casing",
+    "label": "9 5/8\" 36#",
+    "od_in": 9.625,
+    "id_in": 8.921,
+    "weight_ppf": 36.0,
+    "cap_bbl_ft": 0.07731,
+    "disp_bbl_ft": 0.01268
+  },
+  {
+    "id": "csg_9.625_40",
+    "type": "casing",
+    "label": "9 5/8\" 40#",
+    "od_in": 9.625,
+    "id_in": 8.835,
+    "weight_ppf": 40.0,
+    "cap_bbl_ft": 0.07583,
+    "disp_bbl_ft": 0.01416
+  },
+  {
+    "id": "csg_9.625_43.5",
+    "type": "casing",
+    "label": "9 5/8\" 43.5#",
+    "od_in": 9.625,
+    "id_in": 8.755,
+    "weight_ppf": 43.5,
+    "cap_bbl_ft": 0.07446,
+    "disp_bbl_ft": 0.01553
+  },
+  {
+    "id": "csg_9.625_47",
+    "type": "casing",
+    "label": "9 5/8\" 47#",
+    "od_in": 9.625,
+    "id_in": 8.681,
+    "weight_ppf": 47.0,
+    "cap_bbl_ft": 0.0732,
+    "disp_bbl_ft": 0.0169
+  },
+  {
+    "id": "csg_9.625_53.5",
+    "type": "casing",
+    "label": "9 5/8\" 53.5#",
+    "od_in": 9.625,
+    "id_in": 8.535,
+    "weight_ppf": 53.5,
+    "cap_bbl_ft": 0.07077,
+    "disp_bbl_ft": 0.01923
+  },
+  {
+    "id": "csg_9.625_58.4",
+    "type": "casing",
+    "label": "9 5/8\" 58.4#",
+    "od_in": 9.625,
+    "id_in": 8.435,
+    "weight_ppf": 58.4,
+    "cap_bbl_ft": 0.06912,
+    "disp_bbl_ft": 0.02088
+  },
+  {
+    "id": "csg_7_23",
+    "type": "casing",
+    "label": "7\" 23#",
+    "od_in": 7.0,
+    "id_in": 6.366,
+    "weight_ppf": 23.0,
+    "cap_bbl_ft": 0.03937,
+    "disp_bbl_ft": 0.00823
+  },
+  {
+    "id": "csg_7_26",
+    "type": "casing",
+    "label": "7\" 26#",
+    "od_in": 7.0,
+    "id_in": 6.276,
+    "weight_ppf": 26.0,
+    "cap_bbl_ft": 0.03826,
+    "disp_bbl_ft": 0.00934
+  },
+  {
+    "id": "csg_7_29",
+    "type": "casing",
+    "label": "7\" 29#",
+    "od_in": 7.0,
+    "id_in": 6.184,
+    "weight_ppf": 29.0,
+    "cap_bbl_ft": 0.03715,
+    "disp_bbl_ft": 0.01045
+  },
+  {
+    "id": "csg_7_32",
+    "type": "casing",
+    "label": "7\" 32#",
+    "od_in": 7.0,
+    "id_in": 6.094,
+    "weight_ppf": 32.0,
+    "cap_bbl_ft": 0.03608,
+    "disp_bbl_ft": 0.01152
+  },
+  {
+    "id": "csg_7_35",
+    "type": "casing",
+    "label": "7\" 35#",
+    "od_in": 7.0,
+    "id_in": 6.004,
+    "weight_ppf": 35.0,
+    "cap_bbl_ft": 0.03502,
+    "disp_bbl_ft": 0.01258
+  },
+  {
+    "id": "csg_7_38",
+    "type": "casing",
+    "label": "7\" 38#",
+    "od_in": 7.0,
+    "id_in": 5.92,
+    "weight_ppf": 38.0,
+    "cap_bbl_ft": 0.03405,
+    "disp_bbl_ft": 0.01355
+  },
+  {
+    "id": "dp_5_19.5",
+    "type": "drillpipe",
+    "label": "5\" 19.5#",
+    "od_in": 5.0,
+    "id_in": 4.276,
+    "weight_ppf": 19.5,
+    "cap_bbl_ft": 0.01776,
+    "disp_bbl_ft": 0.00653
+  },
+  {
+    "id": "dp_5_25.6",
+    "type": "drillpipe",
+    "label": "5\" 25.6#",
+    "od_in": 5.0,
+    "id_in": 4.0,
+    "weight_ppf": 25.6,
+    "cap_bbl_ft": 0.01554,
+    "disp_bbl_ft": 0.00874
+  },
+  {
+    "id": "dp_5.5_21.9",
+    "type": "drillpipe",
+    "label": "5 1/2\" 21.9#",
+    "od_in": 5.5,
+    "id_in": 4.778,
+    "weight_ppf": 21.9,
+    "cap_bbl_ft": 0.02218,
+    "disp_bbl_ft": 0.00721
+  },
+  {
+    "id": "dp_5.875_23.4",
+    "type": "drillpipe",
+    "label": "5 7/8\" 23.4#",
+    "od_in": 5.875,
+    "id_in": 5.045,
+    "weight_ppf": 23.4,
+    "cap_bbl_ft": 0.024,
+    "disp_bbl_ft": 0.0103
+  },
+  {
+    "id": "dp_6.625_27.7",
+    "type": "drillpipe",
+    "label": "6 5/8\" 27.7#",
+    "od_in": 6.625,
+    "id_in": 5.303,
+    "weight_ppf": 27.7,
+    "cap_bbl_ft": 0.027316,
+    "disp_bbl_ft": 0.016674
+  },
+  {
+    "id": "oh_36",
+    "type": "openhole",
+    "label": "36\" Open Hole",
+    "od_in": 36.0,
+    "id_in": 36.0,
+    "weight_ppf": 0,
+    "cap_bbl_ft": 1.2589,
+    "disp_bbl_ft": 0.0
+  },
+  {
+    "id": "oh_26",
+    "type": "openhole",
+    "label": "26\" Open Hole",
+    "od_in": 26.0,
+    "id_in": 26.0,
+    "weight_ppf": 0,
+    "cap_bbl_ft": 0.6567,
+    "disp_bbl_ft": 0.0
+  },
+  {
+    "id": "oh_17.5",
+    "type": "openhole",
+    "label": "17 1/2\" Open Hole",
+    "od_in": 17.5,
+    "id_in": 17.5,
+    "weight_ppf": 0,
+    "cap_bbl_ft": 0.2975,
+    "disp_bbl_ft": 0.0
+  },
+  {
+    "id": "oh_12.25",
+    "type": "openhole",
+    "label": "12 1/4\" Open Hole",
+    "od_in": 12.25,
+    "id_in": 12.25,
+    "weight_ppf": 0,
+    "cap_bbl_ft": 0.1458,
+    "disp_bbl_ft": 0.0
+  },
+  {
+    "id": "oh_8.5",
+    "type": "openhole",
+    "label": "8 1/2\" Open Hole",
+    "od_in": 8.5,
+    "id_in": 8.5,
+    "weight_ppf": 0,
+    "cap_bbl_ft": 0.07019,
+    "disp_bbl_ft": 0.0
+  },
+  {
+    "id": "riser_19.5",
+    "type": "riser",
+    "label": "Riser 19.5\" ID",
+    "od_in": 21.0,
+    "id_in": 19.5,
+    "weight_ppf": 0,
+    "cap_bbl_ft": 0.36939,
+    "disp_bbl_ft": 0.0
+  }
+]

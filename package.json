@@ -1,10 +1,11 @@
 {
   "name": "drilling-toolkit",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "",
   "main": "app.js",
   "scripts": {
-    "build": "mkdir -p www && cp index.html style.css app.js translations.js tubulars_db.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/"
+    "build": "mkdir -p www && cp index.html style.css app.js translations.js tubulars_db.js cementing_engine.js cementing_ui.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +24,8 @@
     "canvas": "^3.2.3"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.5"
+    "@capacitor/assets": "^3.0.5",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12"
   }
 }
