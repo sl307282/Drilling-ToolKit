@@ -5,16 +5,12 @@
   "backgroundColor": "#00000000",
   "plugins": {
     "SplashScreen": {
-      "backgroundColor": "#FDFBF8",
-      "launchShowDuration": 50000,
+      "backgroundColor": "#FBFAF7",
+      "launchShowDuration": 0,
       "launchAutoHide": false,
-      "launchFadeOutDuration": 500,
-      "useDialog": true,
-      "androidScaleType": "CENTER_INSIDE",
-      "showSpinner": false,
-      "splashFullScreen": true,
-      "splashImmersive": true,
-      "layoutName": "launch_screen"
+      "launchFadeOutDuration": 250,
+      "useDialog": false,
+      "showSpinner": false
     },
     "LiveUpdates": {
       "appId": "77a6899a",

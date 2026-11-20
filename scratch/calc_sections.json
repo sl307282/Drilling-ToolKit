@@ -1,0 +1,38 @@
+[
+  [
+    "1. Well Planning & Drill String Design",
+    "Tensile capacities, DC weights, ROP, ECD limits"
+  ],
+  [
+    "2. Hydraulics & Pump Calculations",
+    "Pump outputs, pressure changes, break circulation"
+  ],
+  [
+    "3. Annular Velocity & Hole Cleaning",
+    "Annular capacities, velocities, lag time, cuttings volume"
+  ],
+  [
+    "4. Pipe Capacities & Volumes",
+    "Internal capacities and pipe displacement"
+  ],
+  [
+    "5. Tripping Operations",
+    "Ton-miles, pipe pulling volumes, slug calculations"
+  ],
+  [
+    "6. Hydrostatic",
+    "Leak off tests, hydrostatic pressure losses"
+  ],
+  [
+    "7. Stuck Pipe & Fishing",
+    "Free point constant, stuck pipe limits, spot pills"
+  ],
+  [
+    "8. Mud Properties & Conversions",
+    "Buoyancy factors, pressure gradients, specific gravity"
+  ],
+  [
+    "9. BOP & Surface Equipment",
+    "Surface and subsea accumulator capacity sizing"
+  ]
+]

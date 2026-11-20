@@ -33,8 +33,8 @@ img.paste(drill, (x, y), drill)
 
 # 5. Draw Professional Text below the logo
 draw = ImageDraw.Draw(img)
-# On Android, font size was 44 on 800px. 44 * (2732/800) ≈ 150
-font = ImageFont.truetype(font_path, 150)
+# On Android, font size was 44 on 800px. 44 * (2732/800) ≈ 150 (+20% -> 180)
+font = ImageFont.truetype(font_path, 180)
 text = "Calculators • Guides • References"
 
 bbox = draw.textbbox((0, 0), text, font=font)

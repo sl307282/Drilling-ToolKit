@@ -89,7 +89,7 @@
   function normalizeOd(od) {
     if (typeof od === 'number') return od;
     if (!od) return 0;
-    const s = String(od).trim().replace(/"/g, '').replace(/-/g, ' ');
+    const s = String(od).trim().replace(/"/g, '').replace(/-/g, ' ').replace(',', '.');
     if (s.includes(' ')) {
       const parts = s.split(/\s+/);
       const whole = parseFloat(parts[0]) || 0;
@@ -715,7 +715,7 @@
     referenceIsDirty: false,
     results: null,
     collapsed: {
-      schematic: true,
+      schematic: false,
       inputs: false,
       capacities: false,
       placement: false,
@@ -792,7 +792,7 @@
       }
       cementingState.referenceIsDirty = true;
       cementingState.unit = getStoredUnit();
-      cementingState.collapsed.schematic = true;
+      cementingState.collapsed.schematic = false;
       cementingState.view = 'capacities'; // STEP 1: Always start with Capacities step
     } else {
       cementingState.view = 'chooser';
@@ -803,16 +803,16 @@
       ? state.currentScreen
       : (window.state && window.state.currentScreen);
 
-    if (curScreen === 'cementing') {
+    if (curScreen === 'cement-planner-subsea' || curScreen === 'cementing') {
       renderCementingScreen();
       const appContainer = document.querySelector('.app-container');
       if (appContainer) appContainer.scrollTop = 0;
       window.scrollTo(0, 0);
     } else {
       if (typeof navigateTo === 'function') {
-        navigateTo('cementing');
+        navigateTo('cement-planner-subsea');
       } else if (typeof window.navigateTo === 'function') {
-        window.navigateTo('cementing');
+        window.navigateTo('cement-planner-subsea');
       } else {
         renderCementingScreen();
       }
@@ -845,7 +845,7 @@
           const wrapper = document.getElementById('cementing-fixed-header-wrapper');
           if (wrapper && cementingState && cementingState.view !== 'chooser') {
             const appContainer = document.querySelector('.app-container');
-            const screenEl = document.getElementById('screen-cementing');
+            const screenEl = document.getElementById('screen-cement-planner-subsea') || document.getElementById('screen-cementing');
             const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || (appContainer ? appContainer.scrollTop : 0) || (screenEl ? screenEl.scrollTop : 0) || 0;
             if (scrollY > 15) {
               wrapper.classList.add('is-scrolled');
@@ -865,7 +865,7 @@
     if (appContainer) {
       appContainer.addEventListener('scroll', onScroll, { passive: true });
     }
-    const screenEl = document.getElementById('screen-cementing');
+    const screenEl = document.getElementById('screen-cement-planner-subsea') || document.getElementById('screen-cementing');
     if (screenEl) {
       screenEl.addEventListener('scroll', onScroll, { passive: true });
     }
@@ -901,7 +901,7 @@
     const titleEl = document.getElementById('cementing-screen-title');
     const subtitleEl = document.getElementById('cementing-screen-subtitle');
     let badgeEl = document.getElementById('cementing-header-badge');
-    const screenEl = document.getElementById('screen-cementing');
+    const screenEl = document.getElementById('screen-cement-planner-subsea') || document.getElementById('screen-cementing');
 
     if (cementingState.view === 'chooser') {
       if (screenEl) screenEl.classList.remove('job-active');
@@ -910,10 +910,10 @@
         appContainer.classList.remove('cementing-job-active');
       }
       if (container) container.style.paddingTop = '0px';
-      if (titleEl) titleEl.textContent = 'Casing Cementing';
+      if (titleEl) titleEl.textContent = t('Subsea Wellhead');
       if (badgeEl) badgeEl.style.display = 'none';
       if (subtitleEl) {
-        subtitleEl.textContent = 'Select casing string to initialize calculation';
+        subtitleEl.textContent = t('Floater Rig · Subsea & riserless casing cement calculation');
         subtitleEl.style.display = '';
       }
       renderCementingChooser(container);
@@ -923,7 +923,7 @@
         appContainer.classList.add('cementing-active', 'cementing-job-active');
       }
       const preset = SECTION_PRESETS[cementingState.section] || SECTION_PRESETS['custom'];
-      if (titleEl) titleEl.textContent = preset.label;
+      if (titleEl) titleEl.textContent = t(preset.label);
       if (!badgeEl && titleEl && titleEl.parentNode) {
         badgeEl = document.createElement('span');
         badgeEl.id = 'cementing-header-badge';
@@ -1026,15 +1026,15 @@
             </div>
             <div>
               <div style="font-weight:700; font-size:0.95rem; color:var(--text-primary); margin-bottom:2px;">
-                ${sec.title}
+                ${t(sec.title)}
               </div>
               <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.3;">
-                ${sec.sub}
+                ${t(sec.sub)}
               </div>
             </div>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <span class="cement-badge-model ${sec.badgeClass}">${sec.badge}</span>
+            <span class="cement-badge-model ${sec.badgeClass}">${t(sec.badge)}</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-secondary);"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </div>
         </div>
@@ -1048,15 +1048,15 @@
     let savedHtml = `
       <div class="content-card" style="margin-top:24px; padding:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <h3 style="font-size:0.92rem; font-weight:700; color:var(--text-primary); margin:0;">Saved Cementing Jobs</h3>
-          <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">${saved.length} saved</span>
+          <h3 style="font-size:0.92rem; font-weight:700; color:var(--text-primary); margin:0;">${t('Saved Cementing Jobs')}</h3>
+          <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">${saved.length} ${t('saved')}</span>
         </div>
     `;
 
     if (saved.length === 0) {
       savedHtml += `
         <p style="font-size:0.75rem; color:var(--text-secondary); margin:0; line-height:1.4;">
-          No saved jobs yet. Configure any section and click "Save Job" to keep your well parameters for later.
+          ${t('No saved jobs yet. Configure any section and click "Save Job" to keep your well parameters for later.')}
         </p>
       `;
     } else {
@@ -1070,7 +1070,7 @@
               <div style="font-size:0.7rem; color:var(--text-secondary);">${escapeAttr(job.date || '')} · ${escapeAttr(job.sectionLabel || (job.section + '" Section'))} (${escapeAttr((job.model || 'subsea').toUpperCase())})</div>
             </div>
             <div style="display:flex; gap:6px; align-items:center; margin-left:8px;">
-              <button type="button" class="btn btn-primary" data-load-id="${jobId}" style="padding:6px 12px; font-size:0.75rem; margin:0;">Load</button>
+              <button type="button" class="btn btn-primary" data-load-id="${jobId}" style="padding:6px 12px; font-size:0.75rem; margin:0;">${t('Load')}</button>
               <button type="button" class="btn btn-secondary" data-del-id="${jobId}" style="padding:6px 10px; font-size:0.75rem; margin:0; color:#EF4444;">✕</button>
             </div>
           </div>
@@ -1174,7 +1174,7 @@
     }
 
     cementingState.unit = job.unitSystem || job.unit || getStoredUnit();
-    cementingState.collapsed.schematic = true;
+    cementingState.collapsed.schematic = false;
 
     // Load saved results or compute fresh
     if (job.results) {
@@ -1193,7 +1193,7 @@
     }
 
     cementingState.view = 'results';
-    if (typeof showToast === 'function') showToast(`Loaded "${cementingState.jobName}"`);
+    if (typeof showToast === 'function') showToast(`${t('Loaded')} "${cementingState.jobName}"`);
     renderCementingScreen();
   }
 
@@ -1203,7 +1203,7 @@
   function deleteSavedCementingJob(id) {
     cementingState.savedJobs = cementingState.savedJobs.filter((j, idx) => String(j.id || idx) !== String(id));
     persistSavedJobs(cementingState.savedJobs);
-    if (typeof showToast === 'function') showToast('Job deleted');
+    if (typeof showToast === 'function') showToast(t('Job deleted'));
     renderCementingScreen();
   }
 
@@ -1231,7 +1231,7 @@
     // Depth values in cementingState.inputs are stored in ONE canonical unit (metres).
     // They are converted only for display and user entry, so repeated toggling has ZERO drift.
     renderCementingScreen();
-    if (typeof showToast === 'function') showToast(`Units switched to ${newUnit.toUpperCase()}`);
+    if (typeof showToast === 'function') showToast(t('Units switched to {0}', newUnit.toUpperCase()));
   }
 
   /**
@@ -1334,13 +1334,13 @@
     bar.className = 'cement-header-row cement-readonly-header-row';
     bar.innerHTML = `
       <div class="cement-readonly-job-wrap">
-        <span class="cement-readonly-caption">Job Name</span>
+        <span class="cement-readonly-caption">${t('Job Name')}</span>
         <div class="cement-readonly-job-name" title="${escapeAttr(displayName)}">
           ${escapeAttr(displayName)}
         </div>
       </div>
       <div class="cement-readonly-unit-wrap">
-        <span class="cement-readonly-caption">UNIT</span>
+        <span class="cement-readonly-caption">${t('UNIT')}</span>
         <span class="cement-unit-readonly-badge">${escapeAttr(unit)}</span>
       </div>
     `;
@@ -1434,7 +1434,7 @@
     cementingState.referenceIsDirty = false;
 
     if (typeof showToast === 'function') {
-      showToast('Reference saved');
+      showToast(t('Reference saved'));
     }
     if (saveBtn) {
       saveBtn.className = 'btn btn-secondary';
@@ -1566,10 +1566,10 @@
     btnRow.style.cssText = 'margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:10px;';
     btnRow.innerHTML = `
       <button type="button" class="btn ${isSaved ? 'btn-secondary' : 'btn-primary'}" id="btn-save-reference-wizard" style="width:100%; margin:0; padding:11px 6px; font-size:0.82rem; font-weight:700; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">
-        Save as Reference
+        ${t('Save as Reference')}
       </button>
       <button type="button" class="btn ${isSaved ? 'btn-primary' : 'btn-secondary'}" id="btn-use-reference-wizard" style="width:100%; margin:0; padding:11px 6px; font-size:0.82rem; font-weight:700; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" ${isSaved ? '' : 'disabled'}>
-        Use Reference
+        ${t('Use Reference')}
       </button>
     `;
     container.appendChild(btnRow);
@@ -1594,7 +1594,7 @@
   function openCopyFromPreviousJobModal() {
     const jobs = cementingState.savedJobs || [];
     if (!jobs || jobs.length === 0) {
-      if (typeof showToast === 'function') showToast('No saved jobs available to copy from');
+      if (typeof showToast === 'function') showToast(t('No saved jobs available to copy from'));
       return;
     }
 
@@ -1604,17 +1604,17 @@
       <div class="cement-modal-card" style="max-height:85vh; display:flex; flex-direction:column;">
         <div class="cement-modal-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy from Previous Job
+          ${t('Copy from Previous Job')}
         </div>
         <p class="cement-modal-desc" style="margin-bottom:12px;">
-          Select a saved job to copy its well elevations, fluids, and mechanical limits into this form.
+          ${t('Select a saved job to copy its well elevations, fluids, and mechanical limits into this form.')}
         </p>
         <div style="overflow-y:auto; flex:1; margin-bottom:14px; padding-right:4px;">
           ${jobs.map((j, idx) => {
-            const name = j.name || `Job #${idx + 1}`;
+            const name = j.name || `${t('Job')} #${idx + 1}`;
             const sec = j.sectionId || j.section || '30';
-            const dateStr = j.timestamp ? new Date(j.timestamp).toLocaleDateString() : 'Previous';
-            const modelBadge = (j.inputs && j.inputs.model === 'riserless') ? 'Riserless' : 'Subsea';
+            const dateStr = j.timestamp ? new Date(j.timestamp).toLocaleDateString() : t('Previous');
+            const modelBadge = (j.inputs && j.inputs.model === 'riserless') ? t('Riserless') : t('Subsea');
             return `
               <div class="cement-copy-job-item" data-idx="${idx}">
                 <div style="min-width:0; flex:1;">
@@ -1626,14 +1626,14 @@
                   </div>
                 </div>
                 <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:6px 12px; margin:0; pointer-events:none;">
-                  Select
+                  ${t('Select')}
                 </button>
               </div>
             `;
           }).join('')}
         </div>
         <div class="cement-modal-actions">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-copy-modal">Cancel</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-copy-modal">${t('Cancel')}</button>
         </div>
       </div>
     `;
@@ -1663,7 +1663,7 @@
           });
           saveWellDataDraft();
           if (typeof showToast === 'function') {
-            showToast(`Copied data from "${sourceJob.name || 'previous job'}"`);
+            showToast(t('Copied data from "{0}"', sourceJob.name || t('previous job')));
           }
           renderCementingScreen();
         }
@@ -1732,22 +1732,22 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <h3 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-          Well Data
+          ${t('Well Data')}
         </h3>
-        <button type="button" class="btn-copy-prev-job" id="btn-copy-from-previous-job" title="Copy inputs from a previous job">
+        <button type="button" class="btn-copy-prev-job" id="btn-copy-from-previous-job" title="${t('Copy inputs from a previous job')}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          <span>Copy from previous job</span>
+          <span>${t('Copy from previous job')}</span>
         </button>
       </div>
 
       ${cementingState.section === 'custom' ? `
         <div style="margin-bottom:14px; display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-subtle); border-radius:10px; border:1px solid var(--border-subtle);">
-          <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Well Model:</span>
+          <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">${t('Well Model')}:</span>
           <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px; cursor:pointer;">
-            <input type="radio" name="custom-model-radio" value="subsea" ${inp.model === 'subsea' ? 'checked' : ''}> Subsea
+            <input type="radio" name="custom-model-radio" value="subsea" ${inp.model === 'subsea' ? 'checked' : ''}> ${t('Subsea')}
           </label>
           <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px; cursor:pointer;">
-            <input type="radio" name="custom-model-radio" value="riserless" ${inp.model === 'riserless' ? 'checked' : ''}> Riserless
+            <input type="radio" name="custom-model-radio" value="riserless" ${inp.model === 'riserless' ? 'checked' : ''}> ${t('Riserless')}
           </label>
         </div>
       ` : ''}
@@ -1755,7 +1755,7 @@
       <!-- Section 1: Well Elevations & Depths -->
       <div class="section-collapse-header" data-section="depths">
         <div class="section-title-wrap">
-          <span class="section-title" style="margin:0 !important;">Well Elevations & Depths (${depthUnit.toUpperCase()})</span>
+          <span class="section-title" style="margin:0 !important;">${t('Well Elevations & Depths')} (${depthUnit.toUpperCase()})</span>
           <span class="section-count-chip" id="chip-depths">${countFilled(depthFieldKeys)}/${depthFieldKeys.length}</span>
         </div>
         <svg class="section-chevron ${collapsed.depths ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -1775,7 +1775,7 @@
       <!-- Section 2: Fluids & Slurries -->
       <div class="section-collapse-header" data-section="fluids">
         <div class="section-title-wrap">
-          <span class="section-title" style="margin:0 !important;">Fluids & Slurries</span>
+          <span class="section-title" style="margin:0 !important;">${t('Fluids & Slurries')}</span>
           <span class="section-count-chip" id="chip-fluids">${countFilled(fluidFieldKeys)}/${fluidFieldKeys.length}</span>
         </div>
         <svg class="section-chevron ${collapsed.fluids ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -1805,7 +1805,7 @@
           ${errors['slurry_pair'] ? `
             <div id="cement-slurry-pair-error" class="cement-slurry-pair-error">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-              <span>${escapeAttr(errors['slurry_pair'])}</span>
+              <span>${escapeAttr(t(errors['slurry_pair']))}</span>
             </div>
           ` : ''}
         </div>
@@ -1814,7 +1814,7 @@
       <!-- Section 3: Pumping & Mechanical Limits -->
       <div class="section-collapse-header" data-section="limits">
         <div class="section-title-wrap">
-          <span class="section-title" style="margin:0 !important;">Pumping & Mechanical Limits</span>
+          <span class="section-title" style="margin:0 !important;">${t('Pumping & Mechanical Limits')}</span>
           <span class="section-count-chip" id="chip-limits">${countFilled(limitFieldKeys)}/${limitFieldKeys.length}</span>
         </div>
         <svg class="section-chevron ${collapsed.limits ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -1830,10 +1830,10 @@
         </div>
       </div>
 
-      <!-- Sticky Result Button -->
-      <div class="cement-sticky-submit-wrap">
+      <!-- Inline Result Button -->
+      <div class="cement-submit-wrap cement-sticky-submit-wrap">
         <button class="btn btn-primary" id="btn-go-to-results" type="button">
-          Result
+          ${t('Result')}
         </button>
       </div>
     `;
@@ -1920,7 +1920,7 @@
         if (rawVal === '') {
           inp[key] = '';
         } else {
-          const num = parseFloat(rawVal);
+          const num = parseFloat(rawVal.replace(',', '.'));
           if (!isNaN(num)) {
             if (DEPTH_KEYS.includes(key)) {
               inp[key] = cementingState.unit === 'ft' ? (num * M_PER_FT) : num;
@@ -2016,6 +2016,493 @@
     };
   }
 
+  /**
+   * Interactive Schematic Viewer Controller (Zoom 1.0x–3.0x, Pan, Pinch, Wheel, Reset)
+   * With Priority Panning & Smooth Handoff to Outer Page Scroll at Top & Bottom Limits
+   */
+  function createSchematicViewer(viewportEl, canvasEl, controls) {
+    if (!viewportEl || !canvasEl) return null;
+    let scale = 1.0;
+    let panX = 0;
+    let panY = 0;
+    const isModal = Boolean(viewportEl.closest('.schematic-fs-overlay'));
+
+    const MIN_SCALE = 1.0;
+    const MAX_SCALE = 3.0;
+
+    function getPanBounds() {
+      if (scale <= 1.001) {
+        return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+      }
+      const vpW = viewportEl.clientWidth || 360;
+      const vpH = viewportEl.clientHeight || 520;
+      const cvW = canvasEl.offsetWidth || vpW;
+      const cvH = canvasEl.offsetHeight || vpH;
+
+      // Top limit (RKB 0 in view):
+      const maxPanY = Math.max(0, (cvH * scale - vpH) / 2 + 16);
+      // Bottom limit (TD in view):
+      const minPanY = -maxPanY;
+
+      // Left & right bounds:
+      const maxPanX = Math.max(0, (cvW * scale - vpW) / 2 + 20);
+      const minPanX = -maxPanX;
+
+      return { minX: minPanX, maxX: maxPanX, minY: minPanY, maxY: maxPanY };
+    }
+
+    function applyTransform(smooth) {
+      canvasEl.style.transition = smooth ? 'transform 0.18s ease-out' : 'none';
+      canvasEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      updateUI();
+    }
+
+    function clampPan() {
+      const bounds = getPanBounds();
+      panX = Math.max(bounds.minX, Math.min(bounds.maxX, panX));
+      panY = Math.max(bounds.minY, Math.min(bounds.maxY, panY));
+    }
+
+    function setZoom(newScale, smooth = true) {
+      scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.round(newScale * 100) / 100));
+      clampPan();
+      applyTransform(smooth);
+    }
+
+    function reset() {
+      scale = 1.0;
+      panX = 0;
+      panY = 0;
+      applyTransform(true);
+    }
+
+    function updateUI() {
+      const pct = Math.round(scale * 100);
+      if (controls && controls.resetBtn) {
+        controls.resetBtn.textContent = `${pct}%`;
+        if (pct === 100 && panX === 0 && panY === 0) {
+          controls.resetBtn.classList.remove('active');
+        } else {
+          controls.resetBtn.classList.add('active');
+        }
+      }
+      if (controls && controls.zoomOutBtn) {
+        controls.zoomOutBtn.disabled = (pct <= 100);
+      }
+      if (controls && controls.zoomInBtn) {
+        controls.zoomInBtn.disabled = (pct >= 300);
+      }
+    }
+
+    if (controls) {
+      if (controls.zoomOutBtn) {
+        controls.zoomOutBtn.onclick = (e) => {
+          e.stopPropagation();
+          setZoom(scale - 0.25, true);
+        };
+      }
+      if (controls.zoomInBtn) {
+        controls.zoomInBtn.onclick = (e) => {
+          e.stopPropagation();
+          setZoom(scale + 0.25, true);
+        };
+      }
+      if (controls.resetBtn) {
+        controls.resetBtn.onclick = (e) => {
+          e.stopPropagation();
+          reset();
+        };
+      }
+    }
+
+    // Touch interaction with seamless outer page scroll handoff
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let isTouching = false;
+    let isPinching = false;
+    let initialPinchDist = 0;
+    let initialPinchScale = 1.0;
+    let touchMode = null; // 'pan' | 'page-scroll' | 'pinch'
+    let lastTapTime = 0;
+
+    viewportEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        isPinching = true;
+        touchMode = 'pinch';
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        initialPinchDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        initialPinchScale = scale;
+        canvasEl.style.transition = 'none';
+        e.preventDefault();
+        return;
+      }
+
+      if (e.touches.length === 1) {
+        isPinching = false;
+        isTouching = true;
+        touchMode = null;
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        lastTouchX = t.clientX;
+        lastTouchY = t.clientY;
+        canvasEl.style.transition = 'none';
+
+        // Double-tap detection
+        const now = Date.now();
+        if (now - lastTapTime < 300) {
+          if (scale > 1.05 || panX !== 0 || panY !== 0) {
+            reset();
+          } else {
+            setZoom(1.75, true);
+          }
+          lastTapTime = 0;
+          e.preventDefault();
+          return;
+        }
+        lastTapTime = now;
+      }
+    }, { passive: false });
+
+    viewportEl.addEventListener('touchmove', (e) => {
+      if (isPinching && e.touches.length === 2) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        if (initialPinchDist > 0) {
+          const factor = dist / initialPinchDist;
+          setZoom(initialPinchScale * factor, false);
+        }
+        return;
+      }
+
+      if (!isTouching || e.touches.length !== 1) return;
+
+      const t = e.touches[0];
+      const currentX = t.clientX;
+      const currentY = t.clientY;
+      const dx = currentX - lastTouchX;
+      const dy = currentY - lastTouchY;
+      lastTouchX = currentX;
+      lastTouchY = currentY;
+
+      // At 100% Zoom: pass straight through to native outer page scroll
+      if (scale <= 1.001) {
+        return;
+      }
+
+      // When zoomed in (> 100%):
+      const bounds = getPanBounds();
+
+      if (!touchMode) {
+        const totalAbsX = Math.abs(currentX - touchStartX);
+        const totalAbsY = Math.abs(currentY - touchStartY);
+
+        if (totalAbsY >= totalAbsX) {
+          // Vertical gesture
+          if (!isModal && dy > 0 && panY >= bounds.maxY - 1) {
+            touchMode = 'page-scroll';
+            window.scrollBy({ top: -dy, behavior: 'auto' });
+            return;
+          } else if (!isModal && dy < 0 && panY <= bounds.minY + 1) {
+            touchMode = 'page-scroll';
+            window.scrollBy({ top: -dy, behavior: 'auto' });
+            return;
+          } else {
+            touchMode = 'pan';
+          }
+        } else {
+          touchMode = 'pan';
+        }
+      }
+
+      if (touchMode === 'page-scroll') {
+        if (!isModal) {
+          window.scrollBy({ top: -dy, behavior: 'auto' });
+        }
+        return;
+      }
+
+      // Priority Panning Inside Schematic First
+      e.preventDefault();
+
+      // 1. Horizontal pan:
+      if (bounds.maxX > bounds.minX) {
+        panX = Math.max(bounds.minX, Math.min(bounds.maxX, panX + dx));
+      }
+
+      // 2. Vertical pan with smooth handoff to outer page scroll at limits:
+      if (dy > 0) {
+        // Dragging DOWN (revealing upper sections towards RKB)
+        if (panY < bounds.maxY) {
+          const newPanY = Math.min(bounds.maxY, panY + dy);
+          const consumed = newPanY - panY;
+          panY = newPanY;
+          const excess = dy - consumed;
+          if (excess > 0 && !isModal) {
+            window.scrollBy({ top: -excess, behavior: 'auto' });
+          }
+        } else if (!isModal) {
+          window.scrollBy({ top: -dy, behavior: 'auto' });
+        }
+      } else if (dy < 0) {
+        // Dragging UP (revealing lower sections towards TD)
+        if (panY > bounds.minY) {
+          const newPanY = Math.max(bounds.minY, panY + dy);
+          const consumed = newPanY - panY;
+          panY = newPanY;
+          const excess = dy - consumed; // excess is negative
+          if (excess < 0 && !isModal) {
+            window.scrollBy({ top: -excess, behavior: 'auto' });
+          }
+        } else if (!isModal) {
+          window.scrollBy({ top: -dy, behavior: 'auto' });
+        }
+      }
+
+      applyTransform(false);
+    }, { passive: false });
+
+    function endTouch() {
+      isTouching = false;
+      isPinching = false;
+      touchMode = null;
+      clampPan();
+      applyTransform(true);
+    }
+    viewportEl.addEventListener('touchend', endTouch);
+    viewportEl.addEventListener('touchcancel', endTouch);
+
+    // Mouse drag support for desktop
+    let isMouseDown = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    viewportEl.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || scale <= 1.001) return;
+      isMouseDown = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      canvasEl.style.transition = 'none';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDown || scale <= 1.001) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+
+      const bounds = getPanBounds();
+      panX = Math.max(bounds.minX, Math.min(bounds.maxX, panX + dx));
+
+      if (dy > 0) {
+        if (panY < bounds.maxY) {
+          const newPanY = Math.min(bounds.maxY, panY + dy);
+          const consumed = newPanY - panY;
+          panY = newPanY;
+          const excess = dy - consumed;
+          if (excess > 0 && !isModal) window.scrollBy(0, -excess);
+        } else if (!isModal) {
+          window.scrollBy(0, -dy);
+        }
+      } else if (dy < 0) {
+        if (panY > bounds.minY) {
+          const newPanY = Math.max(bounds.minY, panY + dy);
+          const consumed = newPanY - panY;
+          panY = newPanY;
+          const excess = dy - consumed;
+          if (excess < 0 && !isModal) window.scrollBy(0, -excess);
+        } else if (!isModal) {
+          window.scrollBy(0, -dy);
+        }
+      }
+      applyTransform(false);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isMouseDown) {
+        isMouseDown = false;
+        clampPan();
+        applyTransform(true);
+      }
+    });
+
+    // Wheel support
+    viewportEl.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+        setZoom(scale * zoomFactor, true);
+        return;
+      }
+
+      if (scale <= 1.001) {
+        return; // Allow page scroll
+      }
+
+      const dy = -e.deltaY;
+      const bounds = getPanBounds();
+      if (dy > 0 && panY >= bounds.maxY - 1) return;
+      if (dy < 0 && panY <= bounds.minY + 1) return;
+
+      e.preventDefault();
+      if (dy > 0) {
+        panY = Math.min(bounds.maxY, panY + dy);
+      } else {
+        panY = Math.max(bounds.minY, panY + dy);
+      }
+      applyTransform(false);
+    }, { passive: false });
+
+    applyTransform(false);
+    return { setZoom, reset, updateUI, getPanBounds, getPanY: () => panY, getScale: () => scale };
+  }
+
+  function openSchematicFullscreenModal(svgMarkup, titleText, subtitleText) {
+    const modal = document.getElementById('schematic-fullscreen-modal');
+    if (!modal) return;
+    const titleEl = document.getElementById('schematic-fs-title');
+    const subtitleEl = document.getElementById('schematic-fs-subtitle');
+    const canvasEl = document.getElementById('schematic-fs-canvas');
+    const viewportEl = document.getElementById('schematic-fs-viewport');
+
+    if (titleEl) titleEl.textContent = titleText || 'Well Cementing Schematic';
+    if (subtitleEl) subtitleEl.textContent = subtitleText || 'Floater Rig · Schematic Profile';
+    if (canvasEl) {
+      canvasEl.innerHTML = svgMarkup;
+    }
+
+    const fsControls = {
+      zoomOutBtn: document.getElementById('btn-fs-zoom-out'),
+      resetBtn: document.getElementById('btn-fs-zoom-reset'),
+      zoomInBtn: document.getElementById('btn-fs-zoom-in')
+    };
+
+    createSchematicViewer(viewportEl, canvasEl, fsControls);
+
+    const closeBtn = document.getElementById('btn-close-schematic-fs');
+    if (closeBtn) {
+      closeBtn.onclick = () => closeSchematicFullscreenModal();
+    }
+
+    bindSchematicLayerClicks(modal);
+
+    modal.style.display = 'flex';
+    modal.classList.add('active');
+  }
+
+  function closeSchematicFullscreenModal() {
+    const modal = document.getElementById('schematic-fullscreen-modal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.classList.remove('active');
+    const canvasEl = document.getElementById('schematic-fs-canvas');
+    if (canvasEl) canvasEl.innerHTML = '';
+  }
+
+  /**
+   * Helper to localize dynamic check messages from cementing engine
+   */
+  function formatCementingCheckMessage(msg) {
+    if (!msg) return '';
+    if (typeof t === 'function') {
+      const direct = t(msg);
+      if (direct !== msg) return direct;
+    }
+    let m;
+    m = msg.match(/^OK [–-] No slurry pumped$/);
+    if (m) return t('OK – No slurry pumped');
+    m = msg.match(/^OK [–-] No slurry volume entered$/);
+    if (m) return t('OK – No slurry volume entered');
+    m = msg.match(/^OK [–-] No tail slurry \(single-slurry job\)$/);
+    if (m) return t('OK – No tail slurry (single-slurry job)');
+    m = msg.match(/^CHECK [–-] Tail slurry does not clear shoe into annulus \(fills rathole\/shoe track only\)$/);
+    if (m) return t('CHECK – Tail slurry does not clear shoe into annulus (fills rathole/shoe track only)');
+    m = msg.match(/^CHECK [–-] Tail slurry does not clear shoe into annulus$/);
+    if (m) return t('CHECK – Tail slurry does not clear shoe into annulus');
+    m = msg.match(/^OK [–-] No net collapse differential load at shoe$/);
+    if (m) return t('OK – No net collapse differential load at shoe');
+    m = msg.match(/^OK [–-] No burst limit specified$/);
+    if (m) return t('OK – No burst limit specified');
+
+    m = msg.match(/^OK [–-] Cement top \(([\d.]+) ft\) is below subsea wellhead \(([\d.]+) ft\)$/);
+    if (m) {
+      return t('OK – Cement top ({0} ft) is below subsea wellhead ({1} ft)')
+        .replace('{0}', m[1]).replace('{1}', m[2]);
+    }
+    m = msg.match(/^CHECK [–-] Cement entered marine riser! \(([\d.]+) ft in riser\)$/);
+    if (m) {
+      return t('CHECK – Cement entered marine riser! ({0} ft in riser)')
+        .replace('{0}', m[1]);
+    }
+    m = msg.match(/^CHECK [–-] Slurry volume \(([\d.]+) bbl\) does not fill shoe track & rathole \(([\d.]+) bbl\)$/);
+    if (m) {
+      return t('CHECK – Slurry volume ({0} bbl) does not fill shoe track & rathole ({1} bbl)')
+        .replace('{0}', m[1]).replace('{1}', m[2]);
+    }
+    m = msg.match(/^OK [–-] Tail slurry placed ([\d.]+) ft into annulus$/);
+    if (m) {
+      return t('OK – Tail slurry placed {0} ft into annulus')
+        .replace('{0}', m[1]);
+    }
+    m = msg.match(/^OK [–-] LOT margin at (prev|30") shoe is \+([\d.]+) ppg \(EMW ([\d.-]+) vs LOT ([\d.]+)\)$/);
+    if (m) {
+      return t('OK – LOT margin at {0} shoe is +{1} ppg (EMW {2} vs LOT {3})')
+        .replace('{0}', m[1]).replace('{1}', m[2]).replace('{2}', m[3]).replace('{3}', m[4]);
+    }
+    m = msg.match(/^CHECK [–-] EMW at (prev|30") shoe \(([\d.-]+) ppg\) exceeds LOT \(([\d.]+) ppg\) by ([\d.]+) ppg! Loss risk\.$/);
+    if (m) {
+      return t('CHECK – EMW at {0} shoe ({1} ppg) exceeds LOT ({2} ppg) by {3} ppg! Loss risk.')
+        .replace('{0}', m[1]).replace('{1}', m[2]).replace('{2}', m[3]).replace('{3}', m[4]);
+    }
+    m = msg.match(/^OK [–-] Collapse safety factor is ([\d.]+) \(≥ 1\.10\)$/);
+    if (m) {
+      return t('OK – Collapse safety factor is {0} (≥ 1.10)')
+        .replace('{0}', m[1]);
+    }
+    m = msg.match(/^CHECK [–-] Collapse safety factor is ([\d.]+) \(< 1\.10 design limit\)$/);
+    if (m) {
+      return t('CHECK – Collapse safety factor is {0} (< 1.10 design limit)')
+        .replace('{0}', m[1]);
+    }
+    m = msg.match(/^OK [–-] Bump pressure ([\d.]+) psi ≤ 80% burst limit \(([\d.]+) psi\)$/);
+    if (m) {
+      return t('OK – Bump pressure {0} psi ≤ 80% burst limit ({1} psi)')
+        .replace('{0}', m[1]).replace('{1}', m[2]);
+    }
+    m = msg.match(/^CHECK [–-] Bump pressure ([\d.]+) psi exceeds 80% burst limit \(([\d.]+) psi\)$/);
+    if (m) {
+      return t('CHECK – Bump pressure {0} psi exceeds 80% burst limit ({1} psi)')
+        .replace('{0}', m[1]).replace('{1}', m[2]);
+    }
+    m = msg.match(/^OK [–-] Max pump pressure ([\d.]+) psi ≤ 80% burst limit \(([\d.]+) psi\)$/);
+    if (m) {
+      return t('OK – Max pump pressure {0} psi ≤ 80% burst limit ({1} psi)')
+        .replace('{0}', m[1]).replace('{1}', m[2]);
+    }
+    m = msg.match(/^CHECK [–-] Max pump pressure ([\d.]+) psi exceeds 80% burst limit \(([\d.]+) psi\)$/);
+    if (m) {
+      return t('CHECK – Max pump pressure {0} psi exceeds 80% burst limit ({1} psi)')
+        .replace('{0}', m[1]).replace('{1}', m[2]);
+    }
+    m = msg.match(/^OK [–-] Cement returns observed at seabed \(([\d.]+) bbl excess returned\)$/);
+    if (m) {
+      return t('OK – Cement returns observed at seabed ({0} bbl excess returned)')
+        .replace('{0}', m[1]);
+    }
+    m = msg.match(/^CHECK [–-] No cement returns to seabed! TOC is ([\d.]+) ft below mudline\.$/);
+    if (m) {
+      return t('CHECK – No cement returns to seabed! TOC is {0} ft below mudline.')
+        .replace('{0}', m[1]);
+    }
+    return typeof t === 'function' ? t(msg) : msg;
+  }
 
   /**
    * STEP 4: Render Results Screen
@@ -2061,32 +2548,32 @@
     echoStrip.className = 'cement-results-summary-strip';
     echoStrip.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-        <span style="font-size:0.72rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">Job Summary</span>
+        <span style="font-size:0.72rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">${t('Job Summary')}</span>
         <span class="cement-badge-model ${inp.model === 'riserless' ? 'cement-badge-riserless' : 'cement-badge-subsea'}">${inp.model.toUpperCase()}</span>
       </div>
       <div class="cement-summary-grid">
         <div>
-          <div class="cement-summary-cell-title">Job Name</div>
+          <div class="cement-summary-cell-title">${t('Job Name')}</div>
           <div class="cement-summary-cell-val">${escapeAttr(inp.name || cementingState.jobName || preset.label)}</div>
         </div>
         <div>
-          <div class="cement-summary-cell-title">Section</div>
-          <div class="cement-summary-cell-val">${preset.label}</div>
+          <div class="cement-summary-cell-title">${t('Section')}</div>
+          <div class="cement-summary-cell-val">${t(preset.label)}</div>
         </div>
         <div>
-          <div class="cement-summary-cell-title">Shoe Depth</div>
+          <div class="cement-summary-cell-title">${t('Shoe Depth')}</div>
           <div class="cement-summary-cell-val">${formatDepthDisplay(inp.shoe)} ${depthUnit.toUpperCase()}</div>
         </div>
         <div>
-          <div class="cement-summary-cell-title">Total Slurry</div>
+          <div class="cement-summary-cell-title">${t('Total Slurry')}</div>
           <div class="cement-summary-cell-val">${(result.total_slurry || 0).toFixed(1)} bbl</div>
         </div>
         <div>
-          <div class="cement-summary-cell-title">Total Pumped</div>
+          <div class="cement-summary-cell-title">${t('Total Pumped')}</div>
           <div class="cement-summary-cell-val">${(result.total_pumped || 0).toFixed(1)} bbl</div>
         </div>
         <div>
-          <div class="cement-summary-cell-title">EMW at Shoe</div>
+          <div class="cement-summary-cell-title">${t('EMW at Shoe')}</div>
           <div class="cement-summary-cell-val">${result.emw_shoe !== undefined ? result.emw_shoe.toFixed(2) + ' ppg' : '-'}</div>
         </div>
       </div>
@@ -2101,26 +2588,26 @@
       <div class="cement-accordion-header" onclick="window.toggleCementingCard(this, 'placement')">
         <span class="cement-accordion-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-          Placement & Cement Rise
+          ${t('Placement & Cement Rise')}
         </span>
         <span class="cement-chevron">▼</span>
       </div>
       <div class="cement-accordion-body">
         <div class="cement-metrics-grid">
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Top of Cement (TOC)</div>
+            <div class="cement-metric-label">${t('Top of Cement (TOC)')}</div>
             <div class="cement-metric-val">${formatMetricDepth(result.toc, isMetric)}<span class="cement-metric-unit">${depthUnit}</span></div>
           </div>
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Tail Slurry Top</div>
+            <div class="cement-metric-label">${t('Tail Slurry Top')}</div>
             <div class="cement-metric-val">${formatMetricDepth(result.tail_top, isMetric)}<span class="cement-metric-unit">${depthUnit}</span></div>
           </div>
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Spacer Top</div>
+            <div class="cement-metric-label">${t('Spacer Top')}</div>
             <div class="cement-metric-val">${formatMetricDepth(result.sp_top, isMetric)}<span class="cement-metric-unit">${depthUnit}</span></div>
           </div>
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Total Slurry Vol</div>
+            <div class="cement-metric-label">${t('Total Slurry Vol')}</div>
             <div class="cement-metric-val">${(result.total_slurry || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span></div>
           </div>
         </div>
@@ -2128,24 +2615,24 @@
         ${inp.model === 'subsea' ? `
           <div class="cement-metrics-grid">
             <div class="cement-metric-box">
-              <div class="cement-metric-label">Cement in Riser</div>
+              <div class="cement-metric-label">${t('Cement in Riser')}</div>
               <div class="cement-metric-val" style="color:${(result.cement_in_riser || 0) > 0 ? '#EF4444' : 'inherit'};">
                 ${formatMetricDist(result.cement_in_riser || 0, isMetric)}<span class="cement-metric-unit">${depthUnit}</span>
               </div>
             </div>
             <div class="cement-metric-box">
-              <div class="cement-metric-label">Returns at Surface</div>
+              <div class="cement-metric-label">${t('Returns at Surface')}</div>
               <div class="cement-metric-val">${(result.returns_surface || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span></div>
             </div>
           </div>
         ` : `
           <div class="cement-metrics-grid">
             <div class="cement-metric-box">
-              <div class="cement-metric-label">TOC Below Mudline</div>
+              <div class="cement-metric-label">${t('TOC Below Mudline')}</div>
               <div class="cement-metric-val">${formatMetricDist(result.toc_below_mudline || 0, isMetric)}<span class="cement-metric-unit">${depthUnit}</span></div>
             </div>
             <div class="cement-metric-box">
-              <div class="cement-metric-label">Cement Returns at Seabed</div>
+              <div class="cement-metric-label">${t('Cement Returns at Seabed')}</div>
               <div class="cement-metric-val" style="color:${(result.cement_returns_seabed || 0) > 0 ? '#15803D' : '#B45309'};">
                 ${(result.cement_returns_seabed || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span>
               </div>
@@ -2158,45 +2645,45 @@
           <table class="cement-systematic-table">
             <thead>
               <tr>
-                <th style="width: 40%; text-align: left;">Interval</th>
-                <th style="width: 30%; text-align: right;">Volume</th>
-                <th style="width: 30%; text-align: right;">Rise Height</th>
+                <th style="width: 40%; text-align: left;">${t('Interval')}</th>
+                <th style="width: 30%; text-align: right;">${t('Volume')}</th>
+                <th style="width: 30%; text-align: right;">${t('Rise Height')}</th>
               </tr>
             </thead>
             <tbody>
               ${Number(inp.tail_vol || 0) > 0 || (result.rise_tail || 0) > 0 ? `
                 <tr>
-                  <td class="col-name">Tail Slurry</td>
+                  <td class="col-name">${t('Tail Slurry')}</td>
                   <td class="col-num"><span class="cement-table-num">${Number(inp.tail_vol || 0).toFixed(1)}</span> <span class="cement-table-unit">bbl</span></td>
                   <td class="col-num"><span class="cement-table-num">${formatMetricDist(result.rise_tail || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
                 </tr>
               ` : `
                 <tr class="row-muted">
-                  <td class="col-name">Tail Slurry</td>
+                  <td class="col-name">${t('Tail Slurry')}</td>
                   <td class="col-num"><span class="cement-table-num">0.0</span> <span class="cement-table-unit">bbl</span></td>
                   <td class="col-num"><span class="cement-table-num">0.0</span> <span class="cement-table-unit">${depthUnit}</span></td>
                 </tr>
               `}
               <tr>
-                <td class="col-name">Lead Slurry</td>
+                <td class="col-name">${t('Lead Slurry')}</td>
                 <td class="col-num"><span class="cement-table-num">${Number(inp.lead_vol || 0).toFixed(1)}</span> <span class="cement-table-unit">bbl</span></td>
                 <td class="col-num"><span class="cement-table-num">${formatMetricDist(result.rise_lead || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
               </tr>
               <tr>
-                <td class="col-name">Spacer</td>
+                <td class="col-name">${t('Spacer')}</td>
                 <td class="col-num"><span class="cement-table-num">${Number(inp.sp_vol || 0).toFixed(1)}</span> <span class="cement-table-unit">bbl</span></td>
                 <td class="col-num"><span class="cement-table-num">${formatMetricDist(result.rise_sp || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
               </tr>
               ${Number(inp.f2_vol || 0) > 0 ? `
                 <tr>
-                  <td class="col-name">2nd Mud Wash</td>
+                  <td class="col-name">${t('2nd Mud Wash')}</td>
                   <td class="col-num"><span class="cement-table-num">${Number(inp.f2_vol).toFixed(1)}</span> <span class="cement-table-unit">bbl</span></td>
                   <td class="col-num"><span class="cement-table-num">${formatMetricDist(result.rise_f2 || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
                 </tr>
               ` : ''}
               ${Number(inp.f1_vol || 0) > 0 ? `
                 <tr>
-                  <td class="col-name">1st Mud Wash</td>
+                  <td class="col-name">${t('1st Mud Wash')}</td>
                   <td class="col-num"><span class="cement-table-num">${Number(inp.f1_vol).toFixed(1)}</span> <span class="cement-table-unit">bbl</span></td>
                   <td class="col-num"><span class="cement-table-num">${formatMetricDist(result.rise_f1 || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
                 </tr>
@@ -2204,7 +2691,7 @@
             </tbody>
             <tfoot>
               <tr class="cement-table-total-row">
-                <td class="col-name">Total Cement Rise</td>
+                <td class="col-name">${t('Total Cement Rise')}</td>
                 <td class="col-num"><span class="cement-table-num">${(result.total_slurry || 0).toFixed(1)}</span> <span class="cement-table-unit">bbl</span></td>
                 <td class="col-num cement-val-highlight"><span class="cement-table-num">${formatMetricDist(result.rise_tot || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
               </tr>
@@ -2222,7 +2709,7 @@
       <div class="cement-accordion-header" onclick="window.toggleCementingCard(this, 'displacement')">
         <span class="cement-accordion-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          Displacement & Pumping Sequence
+          ${t('Displacement & Pumping Sequence')}
         </span>
         <span class="cement-chevron">▼</span>
       </div>
@@ -2232,17 +2719,17 @@
             <thead>
               <tr>
                 <th style="width: 10%; text-align: center;">#</th>
-                <th style="width: 36%; text-align: left;">Fluid Name</th>
-                <th style="width: 18%; text-align: right;">Vol (bbl)</th>
-                <th style="width: 18%; text-align: right;">MW (ppg)</th>
-                <th style="width: 18%; text-align: right;">Strokes</th>
+                <th style="width: 36%; text-align: left;">${t('Fluid Name')}</th>
+                <th style="width: 18%; text-align: right;">${t('Vol (bbl)')}</th>
+                <th style="width: 18%; text-align: right;">${t('MW (ppg)')}</th>
+                <th style="width: 18%; text-align: right;">${t('Strokes')}</th>
               </tr>
             </thead>
             <tbody>
               ${(result.pumping_sequence || []).map(s => `
                 <tr>
                   <td class="col-center" style="font-weight:700; color:var(--text-secondary);">${s.step}</td>
-                  <td class="col-name">${escapeAttr(s.name)}</td>
+                  <td class="col-name">${escapeAttr(t(s.name))}</td>
                   <td class="col-num"><span class="cement-table-num">${Number(s.volume || 0).toFixed(1)}</span></td>
                   <td class="col-num"><span class="cement-table-num">${Number(s.density || 0).toFixed(1)}</span></td>
                   <td class="col-num"><span class="cement-table-num">${Number(inp.pump_output) > 0 ? (s.volume / Number(inp.pump_output)).toFixed(0) : '-'}</span></td>
@@ -2252,7 +2739,7 @@
             <tfoot>
               <tr class="cement-table-total-row">
                 <td class="col-center"></td>
-                <td class="col-name">Total Pumped</td>
+                <td class="col-name">${t('Total Pumped')}</td>
                 <td class="col-num"><span class="cement-table-num">${(result.total_pumped || 0).toFixed(1)}</span> <span class="cement-table-unit">bbl</span></td>
                 <td class="col-num"><span class="cement-table-dash">-</span></td>
                 <td class="col-num cement-val-highlight"><span class="cement-table-num">${Number(inp.pump_output) > 0 ? ((result.total_pumped || 0) / Number(inp.pump_output)).toFixed(0) : '-'}</span> <span class="cement-table-unit">stk</span></td>
@@ -2263,29 +2750,29 @@
 
         <div class="cement-metrics-grid" style="margin-top:12px;">
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Total Displacement</div>
+            <div class="cement-metric-label">${t('Total Displacement')}</div>
             <div class="cement-metric-val">${(result.disp_tot || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span></div>
           </div>
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Displacement Strokes</div>
+            <div class="cement-metric-label">${t('Displacement Strokes')}</div>
             <div class="cement-metric-val">${(result.strokes || 0).toFixed(0)}<span class="cement-metric-unit">stk</span></div>
           </div>
           ${inp.model === 'subsea' ? `
             <div class="cement-metric-box">
-              <div class="cement-metric-label">Max Disp No Bump</div>
+              <div class="cement-metric-label">${t('Max Disp No Bump')}</div>
               <div class="cement-metric-val">${(result.max_disp_no_bump || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span></div>
             </div>
             <div class="cement-metric-box">
-              <div class="cement-metric-label">Bottom Plug Lands</div>
+              <div class="cement-metric-label">${t('Bottom Plug Lands')}</div>
               <div class="cement-metric-val">${(result.bottom_plug_lands || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span></div>
             </div>
           ` : `
             <div class="cement-metric-box">
-              <div class="cement-metric-label">Shoe Track Vol</div>
+              <div class="cement-metric-label">${t('Shoe Track Vol')}</div>
               <div class="cement-metric-val">${(result.st_vol || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span></div>
             </div>
             <div class="cement-metric-box">
-              <div class="cement-metric-label">Rathole Vol</div>
+              <div class="cement-metric-label">${t('Rathole Vol')}</div>
               <div class="cement-metric-val">${(result.rat_vol || 0).toFixed(1)}<span class="cement-metric-unit">bbl</span></div>
             </div>
           `}
@@ -2301,28 +2788,28 @@
       <div class="cement-accordion-header" onclick="window.toggleCementingCard(this, 'pressures')">
         <span class="cement-accordion-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-          Pressures & EMW
+          ${t('Pressures & EMW')}
         </span>
         <span class="cement-chevron">▼</span>
       </div>
       <div class="cement-accordion-body">
         <div class="cement-metrics-grid">
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Annulus Pressure at FC</div>
+            <div class="cement-metric-label">${t('Annulus Pressure at FC')}</div>
             <div class="cement-metric-val">${(result.p_ann_fc || 0).toFixed(0)}<span class="cement-metric-unit">psi</span></div>
           </div>
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Inside Pressure at FC</div>
+            <div class="cement-metric-label">${t('Inside Pressure at FC')}</div>
             <div class="cement-metric-val">${(result.p_in_fc || 0).toFixed(0)}<span class="cement-metric-unit">psi</span></div>
           </div>
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Differential Pressure (FC)</div>
+            <div class="cement-metric-label">${t('Differential Pressure (FC)')}</div>
             <div class="cement-metric-val" style="color:${(result.diff_press || 0) > 0 ? '#B45309' : '#15803D'};">
               ${(result.diff_press || 0).toFixed(0)}<span class="cement-metric-unit">psi</span>
             </div>
           </div>
           <div class="cement-metric-box">
-            <div class="cement-metric-label">Collapse Safety Factor</div>
+            <div class="cement-metric-label">${t('Collapse Safety Factor')}</div>
             <div class="cement-metric-val" style="color:${(result.collapse_sf || 0) >= 1.1 ? '#15803D' : '#EF4444'};">
               ${(result.collapse_sf !== undefined && result.collapse_sf !== null) ? result.collapse_sf.toFixed(2) : '-'}
             </div>
@@ -2330,35 +2817,35 @@
         </div>
 
         <div style="padding:10px 12px; background:var(--bg-subtle); border-radius:10px; margin-bottom:12px; font-size:0.75rem; border-left:3px solid ${(result.diff_press || 0) > 0 ? '#F59E0B' : '#22C55E'};">
-          <strong>Float Status:</strong> ${escapeAttr(result.diff_meaning || '')}
+          <strong>${t('Float Status')}:</strong> ${escapeAttr(t(result.diff_meaning || ''))}
         </div>
 
         <div class="cement-systematic-table-wrap">
           <table class="cement-systematic-table">
             <thead>
               <tr>
-                <th style="width: 34%; text-align: left;">Datum</th>
-                <th style="width: 22%; text-align: right;">Pressure</th>
-                <th style="width: 22%; text-align: right;">EMW</th>
-                <th style="width: 22%; text-align: right;">LOT / Limit</th>
+                <th style="width: 34%; text-align: left;">${t('Datum')}</th>
+                <th style="width: 22%; text-align: right;">${t('Pressure')}</th>
+                <th style="width: 22%; text-align: right;">${t('EMW')}</th>
+                <th style="width: 22%; text-align: right;">${t('LOT / Limit')}</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="col-name">Float Collar</td>
+                <td class="col-name">${t('Float Collar')}</td>
                 <td class="col-num"><span class="cement-table-num">${(result.p_ann_fc || 0).toFixed(0)}</span> <span class="cement-table-unit">psi</span></td>
                 <td class="col-num"><span class="cement-table-num">${(result.emw_fc || 0).toFixed(2)}</span> <span class="cement-table-unit">ppg</span></td>
                 <td class="col-num"><span class="cement-table-dash">-</span></td>
               </tr>
               <tr>
-                <td class="col-name">Casing Shoe</td>
+                <td class="col-name">${t('Casing Shoe')}</td>
                 <td class="col-num"><span class="cement-table-num">${(result.p_ann_shoe || 0).toFixed(0)}</span> <span class="cement-table-unit">psi</span></td>
                 <td class="col-num"><span class="cement-table-num">${(result.emw_shoe || 0).toFixed(2)}</span> <span class="cement-table-unit">ppg</span></td>
                 <td class="col-num"><span class="cement-table-dash">-</span></td>
               </tr>
               ${result.emw_prev_shoe !== undefined ? `
                 <tr>
-                  <td class="col-name">Previous Shoe</td>
+                  <td class="col-name">${t('Previous Shoe')}</td>
                   <td class="col-num"><span class="cement-table-num">${result.p_prev_shoe !== undefined ? result.p_prev_shoe.toFixed(0) : '-'}</span> <span class="cement-table-unit">${result.p_prev_shoe !== undefined ? 'psi' : ''}</span></td>
                   <td class="col-num"><span class="cement-table-num">${result.emw_prev_shoe.toFixed(2)}</span> <span class="cement-table-unit">ppg</span></td>
                   <td class="col-num">
@@ -2371,7 +2858,7 @@
                 </tr>
               ` : ''}
               <tr>
-                <td class="col-name">${inp.model === 'subsea' ? 'Bump Pressure' : 'Max Pump Press'}</td>
+                <td class="col-name">${inp.model === 'subsea' ? t('Bump Pressure') : t('Max Pump Press')}</td>
                 <td class="col-num"><span class="cement-table-num">${Number((inp.model === 'subsea' ? result.bump_pressure : inp.max_pump_pressure) || 0).toFixed(0)}</span> <span class="cement-table-unit">psi</span></td>
                 <td class="col-num"><span class="cement-table-dash">-</span></td>
                 <td class="col-num"><span class="cement-table-limit-badge" title="80% Casing Burst Limit">≤ ${Number(result.burst_limit || 0).toFixed(0)} psi</span></td>
@@ -2379,7 +2866,7 @@
             </tbody>
           </table>
           <div class="cement-table-footnote">
-            * Pressure limit reflects 80% casing burst rating threshold.
+            ${t('* Pressure limit reflects 80% casing burst rating threshold.')}
           </div>
         </div>
       </div>
@@ -2395,17 +2882,17 @@
       <div class="cement-accordion-header" onclick="window.toggleCementingCard(this, 'checks')">
         <span class="cement-accordion-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          Job Validation Checks (${okCount}/${checks.length})
+          ${t('Job Validation Checks')} (${okCount}/${checks.length})
         </span>
         <span class="cement-chevron">▼</span>
       </div>
       <div class="cement-accordion-body">
         ${checks.map(c => `
           <div class="cement-check-item ${c.status === 'OK' ? 'cement-check-ok' : 'cement-check-alert'}">
-            <span class="cement-chip ${c.status === 'OK' ? 'cement-chip-ok' : 'cement-chip-alert'}">${escapeAttr(c.status)}</span>
+            <span class="cement-chip ${c.status === 'OK' ? 'cement-chip-ok' : 'cement-chip-alert'}">${escapeAttr(t(c.status))}</span>
             <div>
-              <div style="font-weight:700; margin-bottom:2px;">${escapeAttr(c.label || c.name || '')}</div>
-              <div>${escapeAttr(c.message || c.msg || '')}</div>
+              <div style="font-weight:700; margin-bottom:2px;">${escapeAttr(t(c.label || c.name || ''))}</div>
+              <div>${escapeAttr(formatCementingCheckMessage(c.message || c.msg || ''))}</div>
             </div>
           </div>
         `).join('')}
@@ -2422,7 +2909,7 @@
       <div class="cement-accordion-header" id="schematic-header-btn">
         <span class="cement-accordion-title" id="schematic-title-text">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          ${isSchematicOpen ? 'Hide Well Cementing Schematic' : 'Show Well Cementing Schematic'}
+          ${isSchematicOpen ? t('Hide Well Cementing Schematic') : t('Show Well Cementing Schematic')}
         </span>
         <span class="cement-chevron">▼</span>
       </div>
@@ -2435,23 +2922,49 @@
     const schematicBody = schematicCard.querySelector('#schematic-accordion-body');
 
     function renderSchematicContent() {
+      const sectionName = (inp && inp.name) || cementingState.jobName || (preset && preset.name) || 'Well Cementing Schematic';
+      const modelLabel = (inp && inp.model === 'riserless') ? 'Riserless Profile' : 'Subsea Riser Profile';
+      const svgMarkup = renderWellCementingSchematic(result, engineInput, unit);
+
       schematicBody.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap;">
-          <span style="font-size:0.75rem; color:var(--text-secondary);">Vertical profile to TD · sub-mudline section to scale; air gap & water column compressed</span>
-          <button class="btn btn-secondary" id="btn-export-schematic" style="padding:5px 12px; font-size:0.72rem; margin:0;">
-            Export SVG
-          </button>
+        <div class="schematic-toolbar-header">
+          <span class="schematic-helper-text">${t('Vertical profile to TD · sub-mudline section to scale')}</span>
+          <div class="schematic-toolbar-actions">
+            <button type="button" class="schematic-tb-btn" id="btn-zoom-out" title="${t('Zoom Out (100% min)')}" aria-label="${t('Zoom Out')}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button type="button" class="schematic-tb-btn schematic-zoom-reset" id="btn-zoom-reset" title="${t('Fit / Reset (100%)')}" aria-label="${t('Fit / Reset')}">100%</button>
+            <button type="button" class="schematic-tb-btn" id="btn-zoom-in" title="${t('Zoom In (300% max)')}" aria-label="${t('Zoom In')}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button type="button" class="schematic-tb-btn" id="btn-schematic-fullscreen" title="${t('Full Screen View')}" aria-label="${t('Full Screen View')}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+            </button>
+          </div>
         </div>
-        <div class="cement-schematic-svg-box" id="schematic-svg-container">
-          ${renderWellCementingSchematic(result, engineInput, unit)}
+        <div class="cement-schematic-viewport" id="schematic-viewport">
+          <div class="cement-schematic-canvas" id="schematic-canvas">
+            ${svgMarkup}
+          </div>
         </div>
         <div class="cement-layer-tooltip" id="cement-layer-tooltip" style="display:none;"></div>
       `;
-      const exportBtn = schematicBody.querySelector('#btn-export-schematic');
-      if (exportBtn) {
-        exportBtn.onclick = (e) => {
+
+      const viewportEl = schematicBody.querySelector('#schematic-viewport');
+      const canvasEl = schematicBody.querySelector('#schematic-canvas');
+      const controls = {
+        zoomOutBtn: schematicBody.querySelector('#btn-zoom-out'),
+        resetBtn: schematicBody.querySelector('#btn-zoom-reset'),
+        zoomInBtn: schematicBody.querySelector('#btn-zoom-in')
+      };
+
+      createSchematicViewer(viewportEl, canvasEl, controls);
+
+      const fsBtn = schematicBody.querySelector('#btn-schematic-fullscreen');
+      if (fsBtn) {
+        fsBtn.onclick = (e) => {
           e.stopPropagation();
-          exportCementingSchematic();
+          openSchematicFullscreenModal(svgMarkup, sectionName, modelLabel);
         };
       }
       bindSchematicLayerClicks(schematicCard);
@@ -2468,7 +2981,7 @@
         cementingState.collapsed.schematic = false;
         schematicTitle.innerHTML = `
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          Hide Well Cementing Schematic
+          ${t('Hide Well Cementing Schematic')}
         `;
         renderSchematicContent();
       } else {
@@ -2476,7 +2989,7 @@
         cementingState.collapsed.schematic = true;
         schematicTitle.innerHTML = `
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          Show Well Cementing Schematic
+          ${t('Show Well Cementing Schematic')}
         `;
         schematicBody.innerHTML = '';
       }
@@ -2487,8 +3000,18 @@
     actionRow.className = 'cement-step-btn-stack';
     actionRow.style.marginTop = '20px';
     actionRow.innerHTML = `
-      <button class="btn btn-primary" id="btn-save-job" style="width:100%;">Save Job</button>
-      <button class="btn btn-secondary" id="btn-edit-well-data" style="width:100%;">Edit Well Data</button>
+      <button class="btn btn-primary" id="btn-save-job" style="width:100%;">${t('Save Job')}</button>
+      <button class="btn btn-secondary" id="btn-edit-well-data" style="width:100%;">${t('Edit Well Data')}</button>
+      <button class="btn btn-report-pdf" id="btn-generate-pdf-report" style="width:100%;">
+        <svg class="btn-pdf-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <span class="btn-pdf-text">${t('Generate Job Report (PDF)')}</span>
+      </button>
     `;
     resultsWrapper.appendChild(actionRow);
     container.appendChild(resultsWrapper);
@@ -2498,6 +3021,49 @@
       cementingState.view = 'welldata';
       renderCementingScreen();
     };
+
+    const reportBtn = actionRow.querySelector('#btn-generate-pdf-report');
+    if (reportBtn) {
+      reportBtn.onclick = async () => {
+        if (reportBtn.disabled) return;
+        const origHtml = reportBtn.innerHTML;
+        reportBtn.disabled = true;
+        reportBtn.classList.add('loading');
+        reportBtn.innerHTML = `
+          <span class="btn-pdf-spinner"></span>
+          <span>${t('Generating PDF Report...')}</span>
+        `;
+
+        try {
+          if (!cementingState.sectionPresets) {
+            cementingState.sectionPresets = SECTION_PRESETS;
+          }
+          if (window.CementingPDF && typeof window.CementingPDF.generateJobReport === 'function') {
+            const reportResult = await window.CementingPDF.generateJobReport(cementingState);
+            const savedFile = await window.CementingPDF.saveReportToFile(
+              reportResult.dataUri,
+              reportResult.fileName,
+              true,
+              'application/pdf'
+            );
+            showReportReadyDialog(savedFile);
+          } else {
+            throw new Error('PDF generator library is not ready. Please try again.');
+          }
+        } catch (err) {
+          console.error('Failed to generate PDF report:', err);
+          showReportErrorDialog(
+            t('Export failed'),
+            err.message || t('An unexpected error occurred while saving the report.'),
+            () => reportBtn.click()
+          );
+        } finally {
+          reportBtn.disabled = false;
+          reportBtn.classList.remove('loading');
+          reportBtn.innerHTML = origHtml;
+        }
+      };
+    }
   }
 
   function renderCementingJob(container) {
@@ -2547,7 +3113,7 @@
     return `
       <div class="input-group" style="display:flex; flex-direction:column; gap:4px;">
         <label class="input-label" style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">
-          ${label} ${unitLabel ? `(${unitLabel})` : ''}
+          ${t(label)} ${unitLabel ? `(${unitLabel})` : ''}
         </label>
         <input type="text"
                inputmode="decimal"
@@ -2561,7 +3127,7 @@
                autocorrect="off"
                spellcheck="false"
                style="margin-bottom:0; padding:10px 12px; font-size:0.9rem; border-radius:10px; min-height:48px;">
-        ${error ? `<div class="cement-field-error">${escapeAttr(error)}</div>` : ''}
+        ${error ? `<div class="cement-field-error">${escapeAttr(t(error))}</div>` : ''}
       </div>
     `;
   }
@@ -2590,7 +3156,7 @@
     else if (is9) targetCsgOd = 9.625;
     else if (isCustom) {
       if (inp.custom_csg_od !== undefined && inp.custom_csg_od !== null) {
-        targetCsgOd = parseFloat(inp.custom_csg_od);
+        targetCsgOd = parseFloat(String(inp.custom_csg_od).replace(',', '.'));
       } else if (computed.csg) {
         targetCsgOd = computed.csg.od_in;
         inp.custom_csg_od = targetCsgOd;
@@ -2607,7 +3173,7 @@
     else if (is9) targetPrevCsgOd = 13.375;
     else if (isCustom && (tubulars.prev_csg_id || !is30)) {
       if (inp.custom_prev_csg_od !== undefined && inp.custom_prev_csg_od !== null) {
-        targetPrevCsgOd = parseFloat(inp.custom_prev_csg_od);
+        targetPrevCsgOd = parseFloat(String(inp.custom_prev_csg_od).replace(',', '.'));
       } else if (computed.prevCsg) {
         targetPrevCsgOd = computed.prevCsg.od_in;
         inp.custom_prev_csg_od = targetPrevCsgOd;
@@ -2787,11 +3353,11 @@
         </colgroup>
         <thead>
           <tr>
-            <th style="text-align:left;">COMPONENT</th>
-            <th style="text-align:left;">SOURCE</th>
+            <th style="text-align:left;">${t('COMPONENT')}</th>
+            <th style="text-align:left;">${t('SOURCE')}</th>
             <th style="text-align:right;">
               <div class="cement-cap-header-wrap">
-                <span class="cement-cap-header-title">CAPACITY</span>
+                <span class="cement-cap-header-title">${t('CAPACITY')}</span>
                 <select class="cement-cap-header-unit-select" id="cap-global-unit-select" aria-label="Capacity Unit">
                   <option value="BBL/M" ${activeUnit === 'BBL/M' ? 'selected' : ''}>BBL/M</option>
                   <option value="BBL/FT" ${activeUnit === 'BBL/FT' ? 'selected' : ''}>BBL/FT</option>
@@ -2848,8 +3414,8 @@
       html += `
         <tr>
           <td>
-            <div class="cement-cap-comp-title">${escapeAttr(r.componentTitle)}</div>
-            <div class="cement-cap-comp-sub">${escapeAttr(r.componentSub)}</div>
+            <div class="cement-cap-comp-title">${escapeAttr(t(r.componentTitle))}</div>
+            <div class="cement-cap-comp-sub">${escapeAttr(t(r.componentSub))}</div>
           </td>
           <td>
             ${sourceHtml}
@@ -2869,7 +3435,7 @@
         <!-- Capacity Check Warning line -->
         <div class="cement-cap-check-line cement-check-warn">
           <span class="cement-check-icon">⚠</span>
-          <span>Capacity Check: <strong>Warning</strong> — ${escapeAttr(warningMsg)}</span>
+          <span>${t('Capacity Check')}: <strong>${t('Warning')}</strong> — ${escapeAttr(t(warningMsg))}</span>
         </div>
       ` : ''}
     `;
@@ -2965,7 +3531,7 @@
     cardEl.querySelectorAll('input.cement-cap-input').forEach(input => {
       input.addEventListener('input', () => {
         const key = input.getAttribute('data-cap-key');
-        const val = parseFloat(input.value);
+        const val = parseFloat(String(input.value).replace(',', '.'));
         if (!isNaN(val)) {
           const canonical = parseCapValueToCanonical(val, cementingState.capUnit || 'BBL/M');
           cementingState.overrides[key] = canonical;
@@ -2976,7 +3542,7 @@
 
       input.addEventListener('change', () => {
         const key = input.getAttribute('data-cap-key');
-        const val = parseFloat(input.value);
+        const val = parseFloat(String(input.value).replace(',', '.'));
         if (!isNaN(val)) {
           const canonical = parseCapValueToCanonical(val, cementingState.capUnit || 'BBL/M');
           cementingState.overrides[key] = canonical;
@@ -3099,7 +3665,7 @@
         newJob.createdAt = existingJob.createdAt || newJob.createdAt;
         cementingState.savedJobs[existingIndex] = newJob;
         persistSavedJobs(cementingState.savedJobs);
-        if (typeof showToast === 'function') showToast(`Job "${finalName}" updated!`);
+        if (typeof showToast === 'function') showToast(t('Job "{0}" updated!', finalName));
         cementingState.view = 'chooser';
         renderCementingScreen();
       });
@@ -3109,7 +3675,7 @@
     // No duplicate found
     cementingState.savedJobs.unshift(newJob);
     persistSavedJobs(cementingState.savedJobs);
-    if (typeof showToast === 'function') showToast(`Job "${finalName}" saved!`);
+    if (typeof showToast === 'function') showToast(t('Job "{0}" saved!', finalName));
     cementingState.view = 'chooser';
     renderCementingScreen();
   }
@@ -3125,8 +3691,8 @@
     const preset = SECTION_PRESETS[cementingState.section] || SECTION_PRESETS['custom'];
     cementingState.inputs = Object.assign({}, preset);
     cementingState.overrides = {};
-    cementingState.collapsed.schematic = true;
-    if (typeof showToast === 'function') showToast('Reset to section defaults');
+    cementingState.collapsed.schematic = false;
+    if (typeof showToast === 'function') showToast(t('Reset to section defaults'));
     renderCementingScreen();
   }
 
@@ -3254,7 +3820,7 @@
     }
 
     // Build SVG components
-    let svg = `<svg viewBox="0 0 500 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
+    let svg = `<svg viewBox="-16 0 532 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
 
     // Definitions (patterns & filters)
     svg += `
@@ -3283,7 +3849,7 @@
         <!-- Air Gap Zone -->
         <rect x="130" y="${y0}" width="240" height="${yAir - y0}" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="4,3" rx="2" />
         <line x1="120" y1="${y0}" x2="380" y2="${y0}" stroke="#475569" stroke-width="2.5" />
-        <text x="140" y="${y0 + 15}" font-size="9.5" font-weight="700" fill="#64748B" letter-spacing="0.5">AIR GAP</text>
+        <text x="140" y="${y0 + 15}" font-size="9.5" font-weight="700" fill="#64748B" letter-spacing="0.5">${t('AIR GAP')}</text>
 
         <!-- Air Gap Dimension Line -->
         <line x1="370" y1="${y0}" x2="405" y2="${y0}" stroke="#CBD5E1" stroke-dasharray="2,2" stroke-width="1"/>
@@ -3291,7 +3857,7 @@
         <line x1="388" y1="${y0}" x2="388" y2="${yAir}" stroke="#64748B" stroke-width="1.5"/>
         <polygon points="388,${y0} 385,${y0 + 5} 391,${y0 + 5}" fill="#64748B"/>
         <polygon points="388,${yAir} 385,${yAir - 5} 391,${yAir - 5}" fill="#64748B"/>
-        <text x="398" y="${(y0 + yAir) / 2 + 3.5}" font-size="9" font-weight="700" fill="#475569">Air Gap: ${fmtH(inp.air_gap)}</text>
+        <text x="398" y="${(y0 + yAir) / 2 + 3.5}" font-size="9" font-weight="700" fill="#475569">${t('Air Gap')}: ${fmtH(inp.air_gap)}</text>
       `;
     } else {
       // Platform top reference
@@ -3307,7 +3873,7 @@
         <!-- Water Column (Compressed) -->
         <rect x="130" y="${yAir}" width="240" height="${yMud - yAir}" fill="url(#seawater-grad)" stroke="#0284C7" stroke-width="1.2" />
         <path d="M 130 ${yAir} Q 150 ${yAir - 4}, 170 ${yAir} T 210 ${yAir} T 250 ${yAir} T 290 ${yAir} T 330 ${yAir} T 370 ${yAir}" fill="none" stroke="#0284C7" stroke-width="2.5"/>
-        <text x="140" y="${yAir + 14}" font-size="9.5" font-weight="700" fill="#0369A1" letter-spacing="0.5">WATER COLUMN</text>
+        <text x="140" y="${yAir + 14}" font-size="9.5" font-weight="700" fill="#0369A1" letter-spacing="0.5">${t('WATER COLUMN')}</text>
 
         <!-- Water Depth Dimension Line -->
         <line x1="370" y1="${yAir}" x2="405" y2="${yAir}" stroke="#BAE6FD" stroke-dasharray="2,2" stroke-width="1"/>
@@ -3316,9 +3882,9 @@
         <polygon points="388,${yAir} 385,${yAir + 6} 391,${yAir + 6}" fill="#0284C7"/>
         <polygon points="388,${yMud} 385,${yMud - 6} 391,${yMud - 6}" fill="#0284C7"/>
         ${(yMud - yAir) >= 55 ? `
-          <text x="398" y="${yMidWater + 3.5}" font-size="9.5" font-weight="700" fill="#0284C7" transform="rotate(90 398 ${yMidWater})" text-anchor="middle">Water Depth: ${fmtH(inp.water_depth)}</text>
+          <text x="398" y="${yMidWater + 3.5}" font-size="9.5" font-weight="700" fill="#0284C7" transform="rotate(90 398 ${yMidWater})" text-anchor="middle">${t('Water Depth')}: ${fmtH(inp.water_depth)}</text>
         ` : `
-          <text x="398" y="${yMidWater + 3.5}" font-size="9.5" font-weight="700" fill="#0284C7">Water Depth: ${fmtH(inp.water_depth)}</text>
+          <text x="398" y="${yMidWater + 3.5}" font-size="9.5" font-weight="700" fill="#0284C7">${t('Water Depth')}: ${fmtH(inp.water_depth)}</text>
         `}
 
         <!-- Scale Break Indicator (Zig-zag / Wavy Lines) -->
@@ -3327,7 +3893,7 @@
           <path d="M 132 ${yMidWater - 4} L 220 ${yMidWater - 4} L 228 ${yMidWater - 10} L 236 ${yMidWater + 2} L 244 ${yMidWater - 10} L 252 ${yMidWater + 2} L 260 ${yMidWater - 10} L 268 ${yMidWater - 4} L 368 ${yMidWater - 4}" fill="none" stroke="#0284C7" stroke-width="1.8"/>
           <path d="M 132 ${yMidWater + 4} L 220 ${yMidWater + 4} L 228 ${yMidWater - 2} L 236 ${yMidWater + 10} L 244 ${yMidWater - 2} L 252 ${yMidWater + 10} L 260 ${yMidWater - 2} L 268 ${yMidWater + 4} L 368 ${yMidWater + 4}" fill="none" stroke="#0284C7" stroke-width="1.8"/>
           <rect x="185" y="${yMidWater - 8}" width="130" height="16" rx="4" fill="#0284C7" opacity="0.95"/>
-          <text x="250" y="${yMidWater + 3.5}" font-size="9" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">≋ SCALE BREAK ≋</text>
+          <text x="250" y="${yMidWater + 3.5}" font-size="9" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">≋ ${t('SCALE BREAK')} ≋</text>
         </g>
       `;
     }
@@ -3338,7 +3904,7 @@
       <!-- Sub-Mudline Well Section Highlight Panel -->
       <rect x="120" y="${subMudlineTopY}" width="260" height="${Math.max(30, yTD - subMudlineTopY + 12)}" fill="url(#formation-grad)" stroke="#D6CBBF" stroke-width="1.5" rx="6" />
       <rect x="120" y="${subMudlineTopY}" width="260" height="16" fill="#EDE4D6" opacity="0.7" rx="4" />
-      <text x="250" y="${subMudlineTopY + 11.5}" font-size="8.5" font-weight="700" fill="#786656" text-anchor="middle" letter-spacing="0.5">SUB-MUDLINE WELL SECTION (TO SCALE)</text>
+      <text x="250" y="${subMudlineTopY + 11.5}" font-size="8.5" font-weight="700" fill="#786656" text-anchor="middle" letter-spacing="0.5">${t('SUB-MUDLINE WELL SECTION (TO SCALE)')}</text>
     `;
 
     // 4. Mudline / Seabed Bar
@@ -3346,7 +3912,7 @@
       svg += `
         <rect x="115" y="${yMud}" width="270" height="12" fill="url(#mudline-pattern)" stroke="#8D7765" stroke-width="1" />
         <line x1="110" y1="${yMud}" x2="390" y2="${yMud}" stroke="#8D7765" stroke-width="2.5" />
-        <text x="125" y="${yMud + 23}" font-size="9.5" font-weight="700" fill="#706053">Seabed / Mudline</text>
+        <text x="125" y="${yMud + 23}" font-size="9.5" font-weight="700" fill="#706053">${t('Seabed / Mudline')}</text>
       `;
     }
 
@@ -3471,7 +4037,7 @@
           <!-- Subsea Wellhead -->
           <rect x="188" y="${yHanger - 12}" width="124" height="16" rx="3" fill="#1E293B" stroke="#0F172A" stroke-width="1.5"/>
           <polygon points="196,${yHanger + 4} 304,${yHanger + 4} 292,${yHanger + 16} 208,${yHanger + 16}" fill="#334155"/>
-          <text x="130" y="${yHanger - 2}" font-size="9" font-weight="700" fill="#0369A1">Subsea Wellhead</text>
+          <text x="130" y="${yHanger - 2}" font-size="9" font-weight="700" fill="#0369A1">${t('Subsea Wellhead')}</text>
         ` : ''}
       `;
     }
@@ -3572,13 +4138,13 @@
     // 12. Right Height Dimension Arrows (Slurry & Spacer intervals)
     const dimArrows = [];
     if (res.rise_sp > 0 && yTOC > ySP) {
-      dimArrows.push({ y1: ySP, y2: yTOC, label: `Spacer: ${fmtH(res.rise_sp)}`, color: '#F59E0B' });
+      dimArrows.push({ y1: ySP, y2: yTOC, label: `${t('Spacer')}: ${fmtH(res.rise_sp)}`, color: '#F59E0B' });
     }
     if (res.rise_lead > 0 && yTail > yTOC) {
-      dimArrows.push({ y1: yTOC, y2: yTail, label: `Lead Rise: ${fmtH(res.rise_lead)}`, color: '#64748B' });
+      dimArrows.push({ y1: yTOC, y2: yTail, label: `${t('Lead Rise')}: ${fmtH(res.rise_lead)}`, color: '#64748B' });
     }
     if (res.rise_tail > 0 && yShoe > yTail) {
-      dimArrows.push({ y1: yTail, y2: yShoe, label: `Tail Rise: ${fmtH(res.rise_tail)}`, color: '#3F3F46' });
+      dimArrows.push({ y1: yTail, y2: yShoe, label: `${t('Tail Rise')}: ${fmtH(res.rise_tail)}`, color: '#3F3F46' });
     }
 
     dimArrows.forEach((da, i) => {
@@ -3614,35 +4180,303 @@
 
         tooltip.style.display = 'block';
         tooltip.innerHTML = `
-          <strong>${name}</strong><br>
-          <span>Interval: ${depth}</span> · 
-          <span>Vol: ${vol}</span> · 
-          <span>Density: ${mw}</span>
+          <strong>${t(name)}</strong><br>
+          <span>${t('Interval')}: ${depth}</span> · 
+          <span>${t('Vol')}: ${vol}</span> · 
+          <span>${t('Density')}: ${mw}</span>
         `;
       });
     });
   }
 
   /**
+   * Localization & String helpers
+   */
+  function t(key) {
+    if (window.I18n && typeof window.I18n.translate === 'function') {
+      return window.I18n.translate(key);
+    }
+    return key;
+  }
+
+  function formatMiddleEllipsis(str, maxLen = 28) {
+    if (!str || typeof str !== 'string' || str.length <= maxLen) return str;
+    const charsToShow = maxLen - 3;
+    const frontChars = Math.ceil(charsToShow / 2);
+    const backChars = Math.floor(charsToShow / 2);
+    return str.slice(0, frontChars) + '...' + str.slice(str.length - backChars);
+  }
+
+  /**
+   * "Report ready" Modal Dialog
+   */
+  function showReportReadyDialog(fileInfo) {
+    if (!fileInfo) return;
+    const existing = document.getElementById('cement-report-ready-modal');
+    if (existing) existing.remove();
+
+    const isSvg = fileInfo.fileName && fileInfo.fileName.endsWith('.svg');
+    const displayFileName = formatMiddleEllipsis(fileInfo.fileName, 28);
+    const formattedSize = window.CementingPDF && typeof window.CementingPDF.formatFileSize === 'function'
+      ? window.CementingPDF.formatFileSize(fileInfo.size)
+      : (fileInfo.size ? `${(fileInfo.size / 1024).toFixed(1)} KB` : '');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'cement-report-ready-modal';
+    overlay.className = 'cement-modal-overlay report-ready-overlay';
+
+    overlay.innerHTML = `
+      <div class="cement-modal-card report-ready-card" role="dialog" aria-modal="true" aria-labelledby="report-ready-title">
+        <div class="report-ready-header">
+          <div class="report-ready-icon-wrap ${isSvg ? 'svg-icon' : 'pdf-icon'}">
+            ${isSvg ? `
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            ` : `
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            `}
+          </div>
+          <div>
+            <h3 class="cement-modal-title report-ready-title" id="report-ready-title">${t('Report ready')}</h3>
+            <span class="report-ready-status">${isSvg ? t('Vector schematic generated') : t('Engineering report generated')}</span>
+          </div>
+        </div>
+
+        <div class="report-ready-filebox">
+          <div class="report-ready-fileinfo">
+            <span class="report-ready-filename" title="${fileInfo.fileName}">${displayFileName}</span>
+            ${formattedSize ? `<span class="report-ready-size-badge">${formattedSize}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="report-ready-notice" id="report-ready-notice" style="display:none;"></div>
+
+        <div class="report-ready-actions">
+          <button type="button" class="btn report-btn-action report-btn-open" id="btn-report-open">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>${t('Open')}</span>
+          </button>
+          
+          <button type="button" class="btn report-btn-action report-btn-share" id="btn-report-share">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+            <span>${t('Share / Save')}</span>
+          </button>
+
+          <button type="button" class="btn report-btn-action report-btn-done" id="btn-report-done">
+            <span>${t('Done')}</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const noticeEl = overlay.querySelector('#report-ready-notice');
+    const openBtn = overlay.querySelector('#btn-report-open');
+    const shareBtn = overlay.querySelector('#btn-report-share');
+    const doneBtn = overlay.querySelector('#btn-report-done');
+
+    const closeModal = () => {
+      overlay.classList.add('closing');
+      setTimeout(() => overlay.remove(), 200);
+    };
+
+    doneBtn.onclick = closeModal;
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeModal();
+    };
+
+    openBtn.onclick = async () => {
+      noticeEl.style.display = 'none';
+      openBtn.disabled = true;
+      try {
+        if (window.CementingPDF && typeof window.CementingPDF.openReportFile === 'function') {
+          await window.CementingPDF.openReportFile(fileInfo);
+        } else {
+          throw new Error('File opener is not available');
+        }
+      } catch (err) {
+        console.warn('Open report error:', err);
+        noticeEl.style.display = 'block';
+        if (err && err.isActivityNotFound) {
+          const noViewerMsg = isSvg ? t('No SVG viewer installed.') : t('No PDF viewer installed. Would you like to share or save the file instead?');
+          noticeEl.innerHTML = `
+            <div class="report-notice-warning" style="display:flex; flex-direction:column; gap:8px;">
+              <span>${noViewerMsg}</span>
+              <button type="button" class="btn report-btn-share" id="btn-report-share-suggest" style="padding:7px 12px; font-size:0.78rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                <span>${t('Share / Save')}</span>
+              </button>
+            </div>
+          `;
+          const suggestShareBtn = noticeEl.querySelector('#btn-report-share-suggest');
+          if (suggestShareBtn) {
+            suggestShareBtn.onclick = () => shareBtn.click();
+          }
+        } else {
+          noticeEl.innerHTML = `
+            <div class="report-notice-error">
+              <span>${err.message || t('File not found after save.')}</span>
+            </div>
+          `;
+        }
+      } finally {
+        openBtn.disabled = false;
+      }
+    };
+
+    shareBtn.onclick = async () => {
+      shareBtn.disabled = true;
+      try {
+        if (window.CementingPDF && typeof window.CementingPDF.shareReportFile === 'function') {
+          await window.CementingPDF.shareReportFile(fileInfo);
+        } else {
+          throw new Error('Share is not available');
+        }
+      } catch (err) {
+        console.warn('Share report error:', err);
+        noticeEl.style.display = 'block';
+        noticeEl.innerHTML = `
+          <div class="report-notice-error">
+            <span>${err.message || t('An unexpected error occurred while saving the report.')}</span>
+          </div>
+        `;
+      } finally {
+        shareBtn.disabled = false;
+      }
+    };
+  }
+
+  function showReportErrorDialog(title, message, onRetry) {
+    const existing = document.getElementById('cement-report-ready-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'cement-report-ready-modal';
+    overlay.className = 'cement-modal-overlay report-ready-overlay';
+
+    overlay.innerHTML = `
+      <div class="cement-modal-card report-ready-card" role="dialog" aria-modal="true">
+        <div class="report-ready-header">
+          <div class="report-ready-icon-wrap error-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div>
+            <h3 class="cement-modal-title report-ready-title">${title || t('Export failed')}</h3>
+          </div>
+        </div>
+
+        <div class="cement-modal-desc" style="margin-top:8px; margin-bottom:18px;">
+          ${message || t('An unexpected error occurred while saving the report.')}
+        </div>
+
+        <div class="cement-modal-actions">
+          <button type="button" class="btn report-btn-done" id="btn-report-err-dismiss">
+            ${t('Done')}
+          </button>
+          ${typeof onRetry === 'function' ? `
+            <button type="button" class="btn report-btn-open" id="btn-report-err-retry" style="background:#0284c7; color:#fff;">
+              ${t('Retry')}
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeModal = () => overlay.remove();
+    const dismissBtn = overlay.querySelector('#btn-report-err-dismiss');
+    if (dismissBtn) dismissBtn.onclick = closeModal;
+    const retryBtn = overlay.querySelector('#btn-report-err-retry');
+    if (retryBtn) {
+      retryBtn.onclick = () => {
+        closeModal();
+        onRetry();
+      };
+    }
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeModal();
+    };
+  }
+
+  /**
    * Export Schematic SVG to File
    */
-  function exportCementingSchematic() {
-    const svgBox = document.getElementById('schematic-svg-container');
-    if (!svgBox) return;
-    const svgEl = svgBox.querySelector('svg');
+  async function exportCementingSchematic() {
+    const fsModal = document.getElementById('schematic-fullscreen-modal');
+    let svgEl = null;
+    if (fsModal && fsModal.classList.contains('active')) {
+      const fsCanvas = document.getElementById('schematic-fs-canvas');
+      if (fsCanvas) svgEl = fsCanvas.querySelector('svg');
+    }
+    if (!svgEl) {
+      const viewport = document.getElementById('schematic-viewport');
+      if (viewport) svgEl = viewport.querySelector('svg');
+    }
+    if (!svgEl) {
+      svgEl = document.querySelector('#schematic-canvas svg, .cement-schematic-canvas svg, #schematic-svg-container svg');
+    }
     if (!svgEl) return;
 
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = `${cementingState.inputs.name || 'cementing_schematic'}.svg`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(url);
-    if (typeof showToast === 'function') showToast('Schematic SVG exported!');
+    try {
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const activeSection = cementingState.section || (cementingState.inputs && cementingState.inputs.name) || 'Subsea';
+      const fileName = window.CementingPDF && typeof window.CementingPDF.buildSanitizedFileName === 'function'
+        ? window.CementingPDF.buildSanitizedFileName(cementingState.inputs.name, activeSection, 'Subsea', 'svg')
+        : `${(cementingState.inputs.name || 'cementing_schematic').replace(/[^a-zA-Z0-9_-]/g, '_')}.svg`;
+
+      if (window.CementingPDF && typeof window.CementingPDF.saveReportToFile === 'function') {
+        const savedFile = await window.CementingPDF.saveReportToFile(svgData, fileName, false, 'image/svg+xml');
+        showReportReadyDialog(savedFile);
+      } else {
+        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = fileName;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Failed to export SVG schematic:', err);
+      showReportErrorDialog(
+        t('Export failed'),
+        err.message || t('An unexpected error occurred while saving the report.'),
+        () => exportCementingSchematic()
+      );
+    }
   }
 
   root.openCementingModule = openCementingModule;
@@ -3651,6 +4485,13 @@
   root.loadSavedCementingJob = loadSavedCementingJob;
   root.deleteSavedCementingJob = deleteSavedCementingJob;
   root.exportCementingSchematic = exportCementingSchematic;
+  root.showReportReadyDialog = showReportReadyDialog;
+  root.showReportErrorDialog = showReportErrorDialog;
+  root.openSchematicFullscreenModal = openSchematicFullscreenModal;
+  root.closeSchematicFullscreenModal = closeSchematicFullscreenModal;
+  root.renderWellCementingSchematic = renderWellCementingSchematic;
+  root.getEngineInputs = getEngineInputs;
+  root.SECTION_PRESETS = SECTION_PRESETS;
   root.cementingState = cementingState;
 
   if (typeof window !== 'undefined') {
@@ -3660,6 +4501,13 @@
     window.loadSavedCementingJob = loadSavedCementingJob;
     window.deleteSavedCementingJob = deleteSavedCementingJob;
     window.exportCementingSchematic = exportCementingSchematic;
+    window.showReportReadyDialog = showReportReadyDialog;
+    window.showReportErrorDialog = showReportErrorDialog;
+    window.openSchematicFullscreenModal = openSchematicFullscreenModal;
+    window.closeSchematicFullscreenModal = closeSchematicFullscreenModal;
+    window.renderWellCementingSchematic = renderWellCementingSchematic;
+    window.getEngineInputs = getEngineInputs;
+    window.SECTION_PRESETS = SECTION_PRESETS;
     window.cementingState = cementingState;
   }
 

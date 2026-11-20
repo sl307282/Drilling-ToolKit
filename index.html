@@ -4,10 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link rel="preload" href="style.css" as="style">
-  <link rel="preload" href="https://fonts.googleapis.com/icon?family=Material+Icons" as="style">
   <link rel="stylesheet" href="style.css">
-  <!-- Material Icons Font -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <!-- Firebase SDK Compat -->
   <script src="firebase-app-compat.js" defer></script>
   <script src="firebase-remote-config-compat.js" defer></script>
@@ -87,13 +84,20 @@
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
       </span>
-      <input type="text" class="search-input" placeholder="Search toolkit tools...">
+      <input type="text" class="search-input" id="home-search-input" placeholder="Search toolkit tools..." autocomplete="off" autocorrect="off" spellcheck="false">
+      <button type="button" class="search-clear-btn" id="home-search-clear" aria-label="Clear search" style="display: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
 
     <!-- ========================================== -->
     <!-- SCREEN: Dashboard Menu                     -->
     <!-- ========================================== -->
     <main id="screen-dashboard" class="screen active">
+      <div id="home-search-recent" class="search-recent-container" style="display: none;"></div>
       <div id="global-search-results" class="search-results-list" style="display: none;"></div>
       <div class="menu-grid">        <!-- 1. Surface Stack Card -->
         <div class="toolkit-card" onclick="state.flowType='surface'; navigateTo('surface-hole-size');">
@@ -240,6 +244,29 @@
           <div class="card-title">Unit Conversion</div>
         </div>
 
+        <!-- 8. Cement Job Planner Card -->
+        <div class="toolkit-card" onclick="navigateTo('/cement-planner');">
+          <div class="card-top-row">
+            <div class="card-icon-container icon-cement">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Wellbore hole wall -->
+                <path d="M4 2v19a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V2"></path>
+                <!-- Casing pipe inside hole -->
+                <path d="M8.5 2v15h7V2"></path>
+                <!-- Casing shoe collar -->
+                <path d="M7 17h10"></path>
+                <!-- Diagonal hatching in annulus (representing cement) -->
+                <line x1="4" y1="6.5" x2="8.5" y2="11"></line>
+                <line x1="4" y1="11.5" x2="8.5" y2="16"></line>
+                <line x1="15.5" y1="6.5" x2="20" y2="11"></line>
+                <line x1="15.5" y1="11.5" x2="20" y2="16"></line>
+              </svg>
+            </div>
+            <span class="card-chevron">&rsaquo;</span>
+          </div>
+          <div class="card-title">Cement Job Planner</div>
+        </div>
+
 
 
       </div>
@@ -259,9 +286,9 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Hole Size Selection</h2>
+          <h2 class="screen-title" data-i18n="Hole Size Selection">Hole Size Selection</h2>
         </div>
-        <span class="screen-subtitle">Select wellbore diameter to initialize state</span>
+        <span class="screen-subtitle" data-i18n="Select wellbore diameter to initialize state">Select wellbore diameter to initialize state</span>
       </div>
       <div id="hole-sizes-container-surface"></div>
     </div>
@@ -276,16 +303,16 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Drillstring Setup</h2>
+          <h2 class="screen-title" data-i18n="Drillstring Setup">Drillstring Setup</h2>
         </div>
-        <span class="screen-subtitle">Select drillstring sequence from bottom to top</span>
+        <span class="screen-subtitle" data-i18n="Select drillstring sequence from bottom to top">Select drillstring sequence from bottom to top</span>
       </div>
       <div class="content-card">
         <div id="drillstring-form-wrapper-surface"></div>
       </div>
       <div class="btn-group">
-        <button class="btn btn-primary" id="drillstring-save-surface">Save</button>
-        <button class="btn btn-primary" id="drillstring-go-surface">GO</button>
+        <button class="btn btn-primary" id="drillstring-save-surface" data-i18n="Save">Save</button>
+        <button class="btn btn-primary" id="drillstring-go-surface" data-i18n="GO">GO</button>
       </div>
     </div>
 
@@ -299,11 +326,11 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Reference Values</h2>
+          <h2 class="screen-title" data-i18n="Reference Values">Reference Values</h2>
         </div>
         <span class="screen-subtitle" style="display:flex; align-items:center; gap:4px; color:var(--accent-color); font-weight:500; font-size:0.75rem; margin-top:0px; margin-left:51px; white-space:nowrap; justify-content:flex-start;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-          All values are editable
+          <span data-i18n="All values are editable">All values are editable</span>
         </span>
       </div>
       <div id="ref-values-container-surface"></div>
@@ -320,7 +347,7 @@
                 <polyline points="12 19 5 12 12 5"></polyline>
               </svg>
             </button>
-            <h2 class="screen-title">Calculations Dashboard</h2>
+            <h2 class="screen-title" data-i18n="Calculations Dashboard">Calculations Dashboard</h2>
           </div>
           <button class="history-btn" onclick="openHistoryScreen();" aria-label="History">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -329,7 +356,7 @@
             </svg>
           </button>
         </div>
-        <span class="screen-subtitle">Enter measured depths and review system strokes</span>
+        <span class="screen-subtitle" data-i18n="Enter measured depths and review system strokes">Enter measured depths and review system strokes</span>
       </div>
       <div id="calculations-container-surface"></div>
     </div>
@@ -348,9 +375,9 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Subsea Hole Selection</h2>
+          <h2 class="screen-title" data-i18n="Subsea Hole Selection">Subsea Hole Selection</h2>
         </div>
-        <span class="screen-subtitle">Select wellbore diameter to initialize state</span>
+        <span class="screen-subtitle" data-i18n="Select wellbore diameter to initialize state">Select wellbore diameter to initialize state</span>
       </div>
       <div id="hole-sizes-container-subsea"></div>
     </div>
@@ -365,16 +392,16 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Subsea Drillstring Setup</h2>
+          <h2 class="screen-title" data-i18n="Subsea Drillstring Setup">Subsea Drillstring Setup</h2>
         </div>
-        <span class="screen-subtitle">Select drillstring sequence from bottom to top</span>
+        <span class="screen-subtitle" data-i18n="Select drillstring sequence from bottom to top">Select drillstring sequence from bottom to top</span>
       </div>
       <div class="content-card">
         <div id="drillstring-form-wrapper-subsea"></div>
       </div>
       <div class="btn-group">
-        <button class="btn btn-primary" id="drillstring-save-subsea">Save</button>
-        <button class="btn btn-primary" id="drillstring-go-subsea">GO</button>
+        <button class="btn btn-primary" id="drillstring-save-subsea" data-i18n="Save">Save</button>
+        <button class="btn btn-primary" id="drillstring-go-subsea" data-i18n="GO">GO</button>
       </div>
     </div>
 
@@ -388,11 +415,11 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Reference Values</h2>
+          <h2 class="screen-title" data-i18n="Reference Values">Reference Values</h2>
         </div>
         <span class="screen-subtitle" style="display:flex; align-items:center; gap:4px; color:var(--accent-color); font-weight:500; font-size:0.75rem; margin-top:0px; margin-left:51px; white-space:nowrap; justify-content:flex-start;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-          All values are editable
+          <span data-i18n="All values are editable">All values are editable</span>
         </span>
       </div>
       <div id="ref-values-container-subsea"></div>
@@ -409,7 +436,7 @@
                 <polyline points="12 19 5 12 12 5"></polyline>
               </svg>
             </button>
-            <h2 class="screen-title">Subsea Calculations Dashboard</h2>
+            <h2 class="screen-title" data-i18n="Subsea Calculations Dashboard">Subsea Calculations Dashboard</h2>
           </div>
           <button class="history-btn" onclick="openHistoryScreen();" aria-label="History">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -418,13 +445,13 @@
             </svg>
           </button>
         </div>
-        <span class="screen-subtitle">Enter marine elevations and calculate system strokes</span>
+        <span class="screen-subtitle" data-i18n="Enter marine elevations and calculate system strokes">Enter marine elevations and calculate system strokes</span>
       </div>
       <div id="calculations-container-subsea"></div>
     </div>
 
-    <!-- Screen: Cementing Module -->
-    <div id="screen-cementing" class="screen">
+    <!-- Screen: Subsea Wellhead Cementing (/cement-planner/subsea) -->
+    <div id="screen-cement-planner-subsea" class="screen">
       <div id="cementing-fixed-header-wrapper" class="cementing-fixed-header-wrapper">
         <div class="screen-header">
           <div class="screen-header-top">
@@ -435,16 +462,118 @@
               </svg>
             </button>
             <div style="display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap;">
-              <h2 class="screen-title" id="cementing-screen-title" style="margin:0;">Casing Cementing</h2>
+              <h2 class="screen-title" id="cementing-screen-title" style="margin:0;" data-i18n="Subsea Wellhead">Subsea Wellhead</h2>
               <span id="cementing-header-badge" class="cement-badge-model" style="display:none;"></span>
             </div>
           </div>
-          <span class="screen-subtitle" id="cementing-screen-subtitle">Subsea & riserless casing cement calculation</span>
+          <span class="screen-subtitle" id="cementing-screen-subtitle" data-i18n="Floater Rig · Subsea & riserless casing cement calculation">Floater Rig · Subsea &amp; riserless casing cement calculation</span>
         </div>
         <div id="cementing-job-header-slot"></div>
       </div>
       <div id="cementing-container" style="padding-bottom: 40px;"></div>
     </div>
+
+    <!-- Screen: Cement Job Planner Landing Screen (/cement-planner) -->
+    <div id="screen-cement-planner" class="screen">
+      <div class="screen-header">
+        <div class="screen-header-top">
+          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <h2 class="screen-title" data-i18n="Cement Job Planner">Cement Job Planner</h2>
+        </div>
+        <span class="screen-subtitle" data-i18n="Select rig type to start your cementing job plan.">Select rig type to start your cementing job plan.</span>
+      </div>
+
+      <div class="selection-card-list">
+        <!-- Card 1: Surface Wellhead -->
+        <div class="toolkit-card selection-card" onclick="navigateTo('/cement-planner/surface');">
+          <div class="card-icon-container icon-subsea">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 20h18"></path>
+              <path d="M5 20v-2h14v2"></path>
+              <path d="M8 18L11 5h2l3 13"></path>
+              <path d="M9.2 13h5.6"></path>
+              <path d="M10.2 8h3.6"></path>
+              <path d="M11 5h2"></path>
+              <path d="M9.2 18l4.4-5"></path>
+              <path d="M13.6 18l-4.4-5"></path>
+              <path d="M10.2 13l2.8-5"></path>
+              <path d="M13 13l-2.8-5"></path>
+            </svg>
+          </div>
+          <div class="selection-card-text">
+            <div class="selection-card-title" data-i18n="Surface Wellhead">Surface Wellhead</div>
+            <div class="selection-card-subtitle" data-i18n="Land Rig & Jack-up Rig">Land Rig &amp; Jack-up Rig</div>
+          </div>
+          <span class="card-chevron">&rsaquo;</span>
+        </div>
+
+        <!-- Card 2: Subsea Wellhead -->
+        <div class="toolkit-card selection-card" onclick="navigateTo('/cement-planner/subsea');">
+          <div class="card-icon-container icon-subsea">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 19c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path>
+              <path d="M2 22c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path>
+              <rect x="10" y="7" width="4" height="9" rx="1"></rect>
+              <rect x="8" y="10" width="8" height="2" rx="0.5"></rect>
+              <rect x="8" y="13" width="8" height="2" rx="0.5"></rect>
+              <path d="M12 4v3"></path>
+              <circle cx="12" cy="4" r="1" fill="currentColor"></circle>
+              <path d="M7 6v10"></path>
+              <path d="M17 6v10"></path>
+              <circle cx="7" cy="11" r="1.5"></circle>
+              <circle cx="17" cy="11" r="1.5"></circle>
+            </svg>
+          </div>
+          <div class="selection-card-text">
+            <div class="selection-card-title" data-i18n="Subsea Wellhead">Subsea Wellhead</div>
+            <div class="selection-card-subtitle" data-i18n="Floater Rig">Floater Rig</div>
+          </div>
+          <span class="card-chevron">&rsaquo;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen: Cement Planner Surface Stub (/cement-planner/surface) -->
+    <div id="screen-cement-planner-surface" class="screen">
+      <div class="screen-header">
+        <div class="screen-header-top">
+          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <h2 class="screen-title" data-i18n="Surface Wellhead">Surface Wellhead</h2>
+        </div>
+        <span class="screen-subtitle" data-i18n="Land Rig & Jack-up Rig cementing job plan">Land Rig &amp; Jack-up Rig cementing job plan</span>
+      </div>
+      <div style="padding: 32px 20px; text-align: center; max-width: 480px; margin: 30px auto;">
+        <div class="card-icon-container icon-subsea" style="width: 72px; height: 72px; margin: 0 auto 20px;">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 20h18"></path>
+            <path d="M5 20v-2h14v2"></path>
+            <path d="M8 18L11 5h2l3 13"></path>
+            <path d="M9.2 13h5.6"></path>
+            <path d="M10.2 8h3.6"></path>
+            <path d="M11 5h2"></path>
+            <path d="M9.2 18l4.4-5"></path>
+            <path d="M13.6 18l-4.4-5"></path>
+            <path d="M10.2 13l2.8-5"></path>
+            <path d="M13 13l-2.8-5"></path>
+          </svg>
+        </div>
+        <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;" data-i18n="Surface Wellhead Planner">Surface Wellhead Planner</h3>
+        <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0 auto;" data-i18n="Surface wellhead casing string setup, slurry volumes, and displacement calculations.">
+          Surface wellhead casing string setup, slurry volumes, and displacement calculations.
+        </p>
+      </div>
+    </div>
+
 
     <!-- ========================================== -->
     <!-- BONUS SCREENS                             -->
@@ -460,9 +589,9 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">API Tubular Reference</h2>
+          <h2 class="screen-title" data-i18n="API Tubular Reference">API Tubular Reference</h2>
         </div>
-        <span class="screen-subtitle">API standards nominal capacity & displacement data</span>
+        <span class="screen-subtitle" data-i18n="API standards nominal capacity & displacement data">API standards nominal capacity &amp; displacement data</span>
       </div>
       <div id="api-tubular-container"></div>
     </div>
@@ -477,12 +606,12 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Stuck Pipe Diagnostics</h2>
-          <button class="top-bar-btn" id="stuck-pipe-fav-btn" onclick="toggleStuckPipeFavorite()" style="margin-left:auto; padding:4px; margin-top:0;">
-            <span class="material-icons" style="color: #EAB308;">star_border</span>
+          <h2 class="screen-title" data-i18n="Stuck Pipe Diagnostics">Stuck Pipe Diagnostics</h2>
+          <button class="top-bar-btn" id="stuck-pipe-fav-btn" onclick="toggleStuckPipeFavorite()" style="margin-left:auto; padding:4px; margin-top:0;" aria-label="Favorite">
+            <svg class="toolkit-icon" viewBox="0 0 24 24" width="20" height="20" fill="#EAB308" aria-hidden="true" focusable="false"><path d="m22 9.24-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
           </button>
         </div>
-        <span class="screen-subtitle">Identify sticking mechanism & determine first action remedies</span>
+        <span class="screen-subtitle" data-i18n="Identify sticking mechanism & determine first action remedies">Identify sticking mechanism &amp; determine first action remedies</span>
       </div>
       <div id="stuck-pipe-container"></div>
     </div>
@@ -497,9 +626,9 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Unit Conversion</h2>
+          <h2 class="screen-title" data-i18n="Unit Conversion">Unit Conversion</h2>
         </div>
-        <span class="screen-subtitle">Quick oilfield volume, pressure & density calculator</span>
+        <span class="screen-subtitle" data-i18n="Quick oilfield volume, pressure & density calculator">Quick oilfield volume, pressure &amp; density calculator</span>
       </div>
       <div id="conversion-container"></div>
     </div>
@@ -514,9 +643,9 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Calculation Hub</h2>
+          <h2 class="screen-title" data-i18n="Calculation Hub">Calculation Hub</h2>
         </div>
-        <span class="screen-subtitle">Applied, basic & well control engineering calculations</span>
+        <span class="screen-subtitle" data-i18n="Applied, basic & well control engineering calculations">Applied, basic &amp; well control engineering calculations</span>
       </div>
       <div id="drilling-calc-container"></div>
     </div>
@@ -531,9 +660,9 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Well Control Operations</h2>
+          <h2 class="screen-title" data-i18n="Well Control Operations">Well Control Operations</h2>
         </div>
-        <span class="screen-subtitle">Surface and subsea stack well control calculators & formulas</span>
+        <span class="screen-subtitle" data-i18n="Surface and subsea stack well control calculators & formulas">Surface and subsea stack well control calculators &amp; formulas</span>
       </div>
       <div id="well-control-container"></div>
     </div>
@@ -548,12 +677,12 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title" id="quick-ref-title">Quick Reference</h2>
-          <button class="top-bar-btn" id="quick-ref-fav-btn" onclick="toggleQuickRefFavorite()" style="margin-left:auto; padding:4px; margin-top:0; display:none;">
-            <span class="material-icons" style="color: #EAB308;">star_border</span>
+          <h2 class="screen-title" id="quick-ref-title" data-i18n="Quick Reference">Quick Reference</h2>
+          <button class="top-bar-btn" id="quick-ref-fav-btn" onclick="toggleQuickRefFavorite()" style="margin-left:auto; padding:4px; margin-top:0; display:none;" aria-label="Favorite">
+            <svg class="toolkit-icon" viewBox="0 0 24 24" width="20" height="20" fill="#EAB308" aria-hidden="true" focusable="false"><path d="m22 9.24-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
           </button>
         </div>
-        <span class="screen-subtitle">Drill Bit Make-Up Torque Reference Table</span>
+        <span class="screen-subtitle" data-i18n="Drill Bit Make-Up Torque Reference Table">Drill Bit Make-Up Torque Reference Table</span>
       </div>
       <div id="quick-ref-container"></div>
     </div>
@@ -569,7 +698,7 @@
                 <polyline points="12 19 5 12 12 5"></polyline>
               </svg>
             </button>
-            <h2 class="screen-title">Kill Data Sheet</h2>
+            <h2 class="screen-title" data-i18n="Kill Data Sheet">Kill Data Sheet</h2>
           </div>
           <button class="history-btn" onclick="openHistoryScreen();" aria-label="History">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -578,7 +707,7 @@
             </svg>
           </button>
         </div>
-        <span class="screen-subtitle">Calculate well control kill parameters and step-down drop</span>
+        <span class="screen-subtitle" data-i18n="Calculate well control kill parameters and step-down drop">Calculate well control kill parameters and step-down drop</span>
       </div>
       <div id="kill-data-sheet-container" class="app-container-inner" style="padding: 16px;"></div>
     </div>
@@ -593,9 +722,9 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Calculation History</h2>
+          <h2 class="screen-title" data-i18n="Calculation History">Calculation History</h2>
         </div>
-        <span class="screen-subtitle">Select a past entry to restore its data</span>
+        <span class="screen-subtitle" data-i18n="Select a past entry to restore its data">Select a past entry to restore its data</span>
       </div>
       <div id="history-container" class="app-container-inner" style="padding: 16px;">
         <!-- History items will be rendered here -->
@@ -612,14 +741,14 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title">Settings</h2>
+          <h2 class="screen-title" data-i18n="Settings">Settings</h2>
         </div>
-        <span class="screen-subtitle">Customize capacity units, themes and language</span>
+        <span class="screen-subtitle" data-i18n="Customize capacity units, themes and language">Customize capacity units, themes and language</span>
       </div>
       <div class="app-container-inner" style="padding: 16px;">
         <div class="content-card">
           <div class="form-group" style="margin-bottom: 0;">
-            <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:block; color:var(--text-primary);">Default Capacity Unit</label>
+            <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:block; color:var(--text-primary);" data-i18n="Default Capacity Unit">Default Capacity Unit</label>
             <div class="segmented-control" id="settings-unit-control" style="margin-bottom:0;">
               <button class="segmented-control-btn" data-unit="L/m">L/m</button>
               <button class="segmented-control-btn" data-unit="bbl/m">bbl/m</button>
@@ -631,29 +760,29 @@
         <div class="content-card">
           <div class="form-group" style="margin-bottom: 0;">
             <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; color:var(--text-primary);">
-              <span>Accent Color Theme</span>
-              <span id="active-color-name" style="font-size:0.8rem; font-weight:600; color:var(--accent-color); transition:color 0.2s;">Milk Tea</span>
+              <span data-i18n="Accent Color Theme">Accent Color Theme</span>
+              <span id="active-color-name" style="font-size:0.8rem; font-weight:600; color:var(--accent-color); transition:color 0.2s;" data-i18n="Milk Tea">Milk Tea</span>
             </label>
             <div class="theme-options-grid" id="settings-color-control">
               <button class="theme-option-btn milktea" data-color="milktea" aria-label="Milk Tea Theme">
                 <span class="color-swatch-preview milktea"></span>
-                <span class="theme-option-label">Milk Tea</span>
+                <span class="theme-option-label" data-i18n="Milk Tea">Milk Tea</span>
               </button>
               <button class="theme-option-btn ocean" data-color="ocean" aria-label="Ocean Blue Theme">
                 <span class="color-swatch-preview ocean"></span>
-                <span class="theme-option-label">Ocean Blue</span>
+                <span class="theme-option-label" data-i18n="Ocean Blue">Ocean Blue</span>
               </button>
               <button class="theme-option-btn indigo" data-color="indigo" aria-label="Deep Indigo Theme">
                 <span class="color-swatch-preview indigo"></span>
-                <span class="theme-option-label">Deep Indigo</span>
+                <span class="theme-option-label" data-i18n="Deep Indigo">Deep Indigo</span>
               </button>
               <button class="theme-option-btn burgundy" data-color="burgundy" aria-label="Burgundy Theme">
                 <span class="color-swatch-preview burgundy"></span>
-                <span class="theme-option-label">Burgundy</span>
+                <span class="theme-option-label" data-i18n="Burgundy">Burgundy</span>
               </button>
               <button class="theme-option-btn forest" data-color="forest" aria-label="Forest Green Theme">
                 <span class="color-swatch-preview forest"></span>
-                <span class="theme-option-label">Forest Green</span>
+                <span class="theme-option-label" data-i18n="Forest Green">Forest Green</span>
               </button>
             </div>
           </div>
@@ -662,33 +791,33 @@
         <div class="content-card">
           <div class="form-group" style="margin-bottom: 0;">
             <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; color:var(--text-primary);">
-              <span>Background Theme</span>
-              <span id="active-bg-name" style="font-size:0.8rem; font-weight:600; color:var(--accent-color); transition:color 0.2s;">Default</span>
+              <span data-i18n="Background Theme">Background Theme</span>
+              <span id="active-bg-name" style="font-size:0.8rem; font-weight:600; color:var(--accent-color); transition:color 0.2s;" data-i18n="Default">Default</span>
             </label>
             <div class="theme-options-grid" id="settings-bg-control">
               <button class="theme-option-btn default" data-bg="default" aria-label="Default Background">
                 <span class="color-swatch-preview default"></span>
-                <span class="theme-option-label">Default</span>
+                <span class="theme-option-label" data-i18n="Default">Default</span>
               </button>
               <button class="theme-option-btn cream" data-bg="cream" aria-label="Cream Background">
                 <span class="color-swatch-preview cream"></span>
-                <span class="theme-option-label">Cream</span>
+                <span class="theme-option-label" data-i18n="Cream">Cream</span>
               </button>
               <button class="theme-option-btn mist" data-bg="mist" aria-label="Mist Background">
                 <span class="color-swatch-preview mist"></span>
-                <span class="theme-option-label">Mist</span>
+                <span class="theme-option-label" data-i18n="Mist">Mist</span>
               </button>
               <button class="theme-option-btn sage" data-bg="sage" aria-label="Sage Background">
                 <span class="color-swatch-preview sage"></span>
-                <span class="theme-option-label">Sage</span>
+                <span class="theme-option-label" data-i18n="Sage">Sage</span>
               </button>
               <button class="theme-option-btn lavender" data-bg="lavender" aria-label="Lavender Background">
                 <span class="color-swatch-preview lavender"></span>
-                <span class="theme-option-label">Lavender</span>
+                <span class="theme-option-label" data-i18n="Lavender">Lavender</span>
               </button>
               <button class="theme-option-btn peach" data-bg="peach" aria-label="Peach Background">
                 <span class="color-swatch-preview peach"></span>
-                <span class="theme-option-label">Peach</span>
+                <span class="theme-option-label" data-i18n="Peach">Peach</span>
               </button>
             </div>
           </div>
@@ -712,7 +841,7 @@
           </button>
           <h2 class="screen-title" data-i18n="Drilling Guide">Drilling Guide</h2>
         </div>
-        <span class="screen-subtitle">Comprehensive operational guides & calculations reference</span>
+        <span class="screen-subtitle" data-i18n="Comprehensive operational guides & calculations reference">Comprehensive operational guides &amp; calculations reference</span>
       </div>
       <div id="drilling-guide-container" class="app-container-inner" style="padding: 16px;">
         <!-- Dynamically rendered -->
@@ -752,19 +881,19 @@
             </svg>
           </button>
           <h2 class="screen-title" data-i18n="Bit Dull Grading">Bit Dull Grading</h2>
-          <button class="history-btn" onclick="navigateTo('iadc-history')" style="margin-left:auto;" aria-label="History">
-            <span class="material-icons" style="font-size: 1.35rem;">history</span>
+          <button class="history-btn" onclick="navigateTo('iadc-history')" style="margin-left:auto; background:none; border:none; color:var(--text-primary); cursor:pointer; display:flex; align-items:center; justify-content:center; padding:4px;" aria-label="History">
+            <svg class="toolkit-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8z"/></svg>
           </button>
         </div>
-        <span class="screen-subtitle">Calculate and log IADC dull bit grades</span>
+        <span class="screen-subtitle" data-i18n="Calculate and log IADC dull bit grades">Calculate and log IADC dull bit grades</span>
       </div>
 
       <!-- Bit Info Card -->
       <div class="content-card">
-        <h3 class="card-section-title">Bit Information</h3>
+        <h3 class="card-section-title" data-i18n="Bit Information">Bit Information</h3>
         <div class="input-grid">
           <div class="input-group">
-            <label class="input-label">Bit Type</label>
+            <label class="input-label" data-i18n="Bit Type">Bit Type</label>
             <select id="bit-info-type" class="toolkit-select" onchange="onBitTypeChanged(); state.isIADCSaved = false;">
               <option value="PDC">PDC</option>
               <option value="Roller Cone">Roller Cone</option>
@@ -800,7 +929,7 @@
       <!-- IADC dull grading select boxes -->
       <div class="content-card">
         <h3 class="card-section-title" style="display:flex; align-items:center; gap:8px;">
-          <span class="material-icons" style="font-size: 20px; color: var(--text-secondary);">grid_on</span>
+          <svg class="toolkit-icon" viewBox="0 0 24 24" width="20" height="20" fill="var(--text-secondary)" aria-hidden="true" focusable="false"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/></svg>
           IADC Dull Grading
         </h3>
         <div class="input-grid">
@@ -808,7 +937,9 @@
           <div class="input-group">
             <label class="input-label" style="display:flex; align-items:center; gap:4px;">
               I - INNER WEAR
-              <span class="material-icons" style="font-size: 15px; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('inner')">info</span>
+              <span style="display:inline-flex; align-items:center; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('inner')" role="button" aria-label="Inner Wear Info">
+                <svg class="toolkit-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              </span>
             </label>
             <select id="bit-grade-i" class="toolkit-select" onchange="generateIADCGrade(true)">
               <option value="0">0 – No Wear</option>
@@ -826,7 +957,9 @@
           <div class="input-group">
             <label class="input-label" style="display:flex; align-items:center; gap:4px;">
               O - OUTER WEAR
-              <span class="material-icons" style="font-size: 15px; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('outer')">info</span>
+              <span style="display:inline-flex; align-items:center; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('outer')" role="button" aria-label="Outer Wear Info">
+                <svg class="toolkit-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              </span>
             </label>
             <select id="bit-grade-o" class="toolkit-select" onchange="generateIADCGrade(true)">
               <option value="0">0 – No Wear</option>
@@ -877,7 +1010,9 @@
           <div class="input-group">
             <label class="input-label" style="display:flex; align-items:center; gap:4px;">
               L - LOCATION
-              <span class="material-icons" style="font-size: 15px; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('location')">info</span>
+              <span style="display:inline-flex; align-items:center; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('location')" role="button" aria-label="Location Info">
+                <svg class="toolkit-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              </span>
             </label>
             <select id="bit-grade-l" class="toolkit-select" onchange="generateIADCGrade(true)">
               <!-- Populated dynamically by onBitTypeChanged() -->
@@ -894,7 +1029,9 @@
           <div class="input-group">
             <label class="input-label" style="display:flex; align-items:center; gap:4px;">
               G - GAUGE CONDITION
-              <span class="material-icons" style="font-size: 15px; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('gauge')">info</span>
+              <span style="display:inline-flex; align-items:center; opacity:0.6; cursor:pointer;" onclick="window.showIADCInfo('gauge')" role="button" aria-label="Gauge Condition Info">
+                <svg class="toolkit-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              </span>
             </label>
             <select id="bit-grade-g" class="toolkit-select" onchange="generateIADCGrade(true)">
               <option value="I">I – Pulled out bit is In Gauge</option>
@@ -983,7 +1120,7 @@
         <div style="text-align: center; margin-bottom: 4px;">
           <button id="iadc-see-more-btn" onclick="toggleIADCDetails()" style="background:none; border:none; color:var(--accent-color); font-weight:600; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
             See More
-            <span class="material-icons" style="font-size:20px;">expand_more</span>
+            <svg class="toolkit-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6-1.41-1.41z"/></svg>
           </button>
         </div>
 
@@ -1022,7 +1159,7 @@
           </button>
           <h2 class="screen-title" data-i18n="Grading History">Grading History</h2>
         </div>
-        <span class="screen-subtitle">Past bit dull grades and records</span>
+        <span class="screen-subtitle" data-i18n="Past bit dull grades and records">Past bit dull grades and records</span>
       </div>
 
       <div id="iadc-history-list-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">
@@ -1038,7 +1175,7 @@
   <!-- Sliding Drawer Menu -->
   <div id="drawer-menu" class="drawer-menu">
     <div class="drawer-header">
-      <h2 class="drawer-title">Menu</h2>
+      <h2 class="drawer-title" data-i18n="Menu">Menu</h2>
       <button class="top-bar-btn" id="close-drawer-btn" aria-label="Close Menu" style="margin-top:0;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1053,7 +1190,7 @@
           <svg id="theme-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drawer-icon">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
-          <span id="theme-toggle-text">Dark Mode</span>
+          <span id="theme-toggle-text" data-i18n="Dark Mode">Dark Mode</span>
         </div>
         <label class="switch">
           <input type="checkbox" id="theme-toggle-checkbox">
@@ -1070,7 +1207,7 @@
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <span>Settings</span>
+          <span data-i18n="Settings">Settings</span>
         </div>
         <span class="drawer-chevron">&rsaquo;</span>
       </div>
@@ -1081,7 +1218,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drawer-icon">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
           </svg>
-          <span>Rate Us</span>
+          <span data-i18n="Rate Us">Rate Us</span>
         </div>
         <span class="drawer-chevron">&rsaquo;</span>
       </div>
@@ -1096,7 +1233,7 @@
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
           </svg>
-          <span>Share Us</span>
+          <span data-i18n="Share Us">Share Us</span>
         </div>
         <span class="drawer-chevron">&rsaquo;</span>
       </div>
@@ -1123,7 +1260,7 @@
       </div>
     </div>
     <div class="drawer-footer">
-      <span>Drilling Toolkit v1.0.0</span>
+      <span id="drawer-version-footer" data-i18n="Drilling Toolkit v1.0.0">Drilling Toolkit v1.0.0</span>
     </div>
   </div>
 
@@ -1168,6 +1305,7 @@
         <button class="lang-picker-option" data-lang="ru"><span class="lang-flag">🇷🇺</span><span class="lang-name">Русский</span></button>
         <button class="lang-picker-option" data-lang="id"><span class="lang-flag">🇮🇩</span><span class="lang-name">Indonesia</span></button>
         <button class="lang-picker-option" data-lang="ko"><span class="lang-flag">🇰🇷</span><span class="lang-name">한국어</span></button>
+        <button class="lang-picker-option" data-lang="uk"><span class="lang-flag">🇺🇦</span><span class="lang-name">Українська</span></button>
       </div>
     </div>
   </div>
@@ -1275,7 +1413,12 @@
 
   <!-- Application Scripts -->
   <script src="translations.js?v=1.1.6" defer></script>
+  <script src="jspdf.umd.min.js" defer></script>
+  <script src="jspdf.plugin.autotable.min.js" defer></script>
+  <script src="roboto_font.js?v=1.1.6" defer></script>
+  <script src="icons.js?v=1.1.6" defer></script>
   <script src="cementing_engine.js?v=1.1.6" defer></script>
+  <script src="cementing_pdf.js?v=1.1.6" defer></script>
   <script src="app.js?v=1.1.6" defer></script>
   <script src="cementing_ui.js?v=1.1.6" defer></script>
   <!-- IADC Info Modal -->
@@ -1292,6 +1435,39 @@
       </div>
       <div id="iadc-info-modal-body" class="modal-body"></div>
     </div>
+  </div>
+
+  <!-- Well Cementing Schematic Full-Screen Modal -->
+  <div id="schematic-fullscreen-modal" class="schematic-fs-overlay" style="display:none;">
+    <div class="schematic-fs-header">
+      <div class="schematic-fs-title-box">
+        <button type="button" class="schematic-fs-close-btn" id="btn-close-schematic-fs" aria-label="Close Fullscreen">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <div style="min-width:0;">
+          <h3 class="schematic-fs-title" id="schematic-fs-title">Cementing Schematic</h3>
+          <span class="schematic-fs-subtitle" id="schematic-fs-subtitle">Subsea &amp; Riserless profile</span>
+        </div>
+      </div>
+      <div class="schematic-toolbar-actions">
+        <button type="button" class="schematic-tb-btn" id="btn-fs-zoom-out" title="Zoom Out (100% min)" aria-label="Zoom Out">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button type="button" class="schematic-tb-btn schematic-zoom-reset" id="btn-fs-zoom-reset" title="Fit / Reset 100%" aria-label="Fit / Reset">100%</button>
+        <button type="button" class="schematic-tb-btn" id="btn-fs-zoom-in" title="Zoom In (300% max)" aria-label="Zoom In">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+      </div>
+    </div>
+    <div class="schematic-fs-body">
+      <div class="cement-schematic-viewport schematic-fs-viewport" id="schematic-fs-viewport">
+        <div class="cement-schematic-canvas" id="schematic-fs-canvas"></div>
+      </div>
+    </div>
+    <div class="cement-layer-tooltip" id="schematic-fs-layer-tooltip" style="display:none; position:fixed; bottom:20px; left:20px; right:20px; z-index:10002;"></div>
   </div>
 
 </body>

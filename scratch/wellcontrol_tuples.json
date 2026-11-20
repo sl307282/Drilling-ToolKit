@@ -1,0 +1,132 @@
+[
+  [
+    "icp",
+    "Initial Circulating Pressure",
+    "Required pressure to initiate circulation during the kill operation (Driller\\"
+  ],
+  [
+    "fcp",
+    "Final Circulating Pressure",
+    "Circulating pressure required when kill mud fills the drillstring."
+  ],
+  [
+    "kmw",
+    "Kill Mud Weight",
+    "Density of mud required to balance reservoir/formation pressure."
+  ],
+  [
+    "kick_tolerance",
+    "Kick Tolerance",
+    "Maximum mud weight increase allowable before casing shoe fracture."
+  ],
+  [
+    "maasp",
+    "MAASP",
+    "Maximum Allowable Annular Surface Pressure to prevent casing shoe fracture."
+  ],
+  [
+    "trip_margin",
+    "Trip Margin",
+    "Required mud weight offset to overcome swab pressures."
+  ],
+  [
+    "safety_margin",
+    "Safety Margin",
+    "Overbalance margin between mud hydrostatic pressure and formation pressure."
+  ],
+  [
+    "volume_to_bleed",
+    "Volume to Bleed to Keep BHP Constant",
+    "Volume of mud to bleed to keep bottomhole pressure constant during closed well gas migration."
+  ],
+  [
+    "adj_masicp",
+    "Adjusted MASICP for New Mud Weight",
+    "Recalculates MASICP after weighting up."
+  ],
+  [
+    "est_influx_type",
+    "Estimate Type of Influx from Influx Height",
+    "Determines kick fluid composition using pressure gradient."
+  ],
+  [
+    "form_pres",
+    "Formation Pressure from Kick Analysis",
+    "Computes reservoir pore pressure from shut-in data."
+  ],
+  [
+    "hydro_loss_gas_cut",
+    "Hydrostatic Pressure Loss Due to Gas Cut Mud",
+    "Loss of hydrostatic column pressure due to gas cutting."
+  ],
+  [
+    "influx_height",
+    "Influx Height",
+    "Height of kick fluid around BHA."
+  ],
+  [
+    "max_fp",
+    "Maximum Formation Pressure to Withstand Shut-in",
+    "Maximum pore pressure tolerable before fracture."
+  ],
+  [
+    "misicp",
+    "Maximum Initial Shut in Casing Pressure (MISICP)",
+    "Maximum SICP allowable at kickoff to prevent casing shoe fracture."
+  ],
+  [
+    "max_pit_gain",
+    "Maximum Pit Gain From Gas Kick (WBM)",
+    "Estimated maximum kick volume expansion at surface."
+  ],
+  [
+    "max_influx_h",
+    "Maximum Possible Influx Height at MASICP Limit",
+    "Calculates maximum height of kick fluid before MASICP is reached."
+  ],
+  [
+    "max_surf_pres_kt",
+    "Maximum Surface Pressure from Kick Tolerance",
+    "Surface pressure corresponding to kick tolerance limit."
+  ],
+  [
+    "riser_margin",
+    "Riser Margin",
+    "Safe mud weight increment for riser removal."
+  ],
+  [
+    "subsea_accumulator",
+    "Subsea Accumulator Capacity",
+    "Usable subsea fluid volume adjusting for water column head pressure."
+  ],
+  [
+    "gas_migration",
+    "Gas Migration Rate",
+    "Gas migration speed based on casing pressure behavior."
+  ],
+  [
+    "max_surface_pressure",
+    "Maximum Surface Pressure",
+    "Approximated surface pressure during gas kick expansion at surface."
+  ],
+  [
+    "kmw",
+    "Kill Mud Weight",
+    "Density of mud required to balance reservoir/formation pressure."
+  ],
+  [
+    "kick_tolerance",
+    "Kick Tolerance",
+    "Maximum mud weight increase allowable before casing shoe fracture."
+  ],
+  [
+    "safety_margin",
+    "Safety Margin",
+    "Safety overbalance margin between mud hydrostatic and formation pressure."
+  ],
+  [
+    "volume_to_bleed",
+    "Volume to Bleed to Keep BHP Constant",
+    "Volume of mud to bleed to keep bottomhole pressure constant during closed well gas migration."
+  ]
+]

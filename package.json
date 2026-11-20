@@ -4,27 +4,32 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "build": "mkdir -p www && cp index.html style.css app.js translations.js tubulars_db.js cementing_engine.js cementing_ui.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/",
-    "test": "vitest run"
+    "build": "mkdir -p www && cp index.html style.css icons.js app.js translations.js tubulars_db.js cementing_engine.js cementing_ui.js cementing_pdf.js roboto_font.js jspdf.umd.min.js jspdf.plugin.autotable.min.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/ && cp -r fonts www/",
+    "test": "python3 scripts/offline_icon_guard.py && python3 scripts/mojibake_guard.py && vitest run",
+    "guard": "python3 scripts/offline_icon_guard.py && python3 scripts/mojibake_guard.py"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@capacitor-community/file-opener": "^8.0.1",
     "@capacitor/android": "^8.4.1",
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.3",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.5",
     "@capacitor/ios": "^8.4.1",
     "@capacitor/live-updates": "^0.5.0",
+    "@capacitor/share": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "canvas": "^3.2.3"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
+    "@material-design-icons/svg": "^0.14.15",
     "typescript": "^7.0.2",
     "vitest": "^4.1.12"
   }

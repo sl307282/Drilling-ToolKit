@@ -1,0 +1,638 @@
+[
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "tensile_cap",
+    "name": "Tensile Capacity of Drill String",
+    "desc": "Maximum axial load before pipe body yield."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "dc_wt_vert",
+    "name": "Drill Collar Weight for Vertical Wells (lb)",
+    "desc": "Required collar weight in vertical well to satisfy weight-on-bit."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "dc_wt_dev",
+    "name": "Drill Collar Weight for Deviated Wells (lb)",
+    "desc": "Required collar weight in deviated well to satisfy weight-on-bit."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "overpull_margin",
+    "name": "Margin of Overpull in Drillstring (lb)",
+    "desc": "Safety load capability before yielding top joint."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "max_rop",
+    "name": "Maximum ROP Before Fracture Formation",
+    "desc": "Maximum drilling speed to prevent ECD exceeding fracture limit."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "eff_mud_dens",
+    "name": "Effective Mud Density",
+    "desc": "Effective mud column density including cuttings load."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "ecd_applied",
+    "name": "Equivalent Circulating Density",
+    "desc": "Total dynamic bottom-hole pressure expressed in density."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "dp_elongation",
+    "name": "Drill Pipe Elongation Due to Temperature (in)",
+    "desc": "Linear thermal expansion of steel drillstring."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "neutral_point",
+    "name": "Neutral Point Calculation",
+    "desc": "Distance from the bit where the string is neither in compression nor tension."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "ds_weight_air",
+    "name": "Drill String Weight in Air",
+    "desc": "Total dry weight of the drill string components."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "ds_weight_mud",
+    "name": "Drill String Weight in Mud",
+    "desc": "Buoyed weight of the drill string."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "buckling_load",
+    "name": "Buckling Load Calculation",
+    "desc": "Estimated critical buckling force in a vertical wellbore."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "burst_pressure",
+    "name": "Burst Pressure Rating",
+    "desc": "Barlows formula for pipe burst resistance."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "collapse_pressure",
+    "name": "Collapse Pressure Rating",
+    "desc": "Simplified empirical estimate for collapse resistance."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "pipe_body_yield",
+    "name": "Pipe Body Yield Strength",
+    "desc": "Maximum tensile load before plastic deformation."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "tool_joint_strength",
+    "name": "Tool Joint Strength",
+    "desc": "Tensile capacity of the connection."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "hook_load_calc",
+    "name": "Hook Load Calculation",
+    "desc": "Estimated static hook load with buoyed string weight."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "max_allowable_pull",
+    "name": "Maximum Allowable Pull",
+    "desc": "Maximum operational pull considering safety margin."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "wob_calc",
+    "name": "Bit Weight on Bottom (WOB)",
+    "desc": "Calculated WOB based on hook load difference."
+  },
+  {
+    "section": "1. Well Planning & Drill String Design",
+    "id": "safety_factor_calc",
+    "name": "Safety Factor Calculation",
+    "desc": "Ratio of component strength to applied load."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_out_duplex",
+    "name": "Pump Out Put Calculation Duplex",
+    "desc": "Liner output for double-acting duplex pump."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_out_triplex",
+    "name": "Pump Out Put Calculation Triplex",
+    "desc": "Liner output for single-acting triplex pump."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_pres_stroke_basic",
+    "name": "Pump Pressure & Pump Stroke Basic",
+    "desc": "Speed adjustment pressure scaling with standard square law."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_pres_stroke_adv",
+    "name": "Pump Pressure & Pump Stroke Advance",
+    "desc": "Speed adjustment pressure scaling with custom exponent."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_pressure_spm_change",
+    "name": "New Pump Pressure \u2013 SPM Change",
+    "desc": "Calculate new pump pressure when pump speed (SPM) changes."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_pressure_mw_change",
+    "name": "New Pump Pressure \u2013 Mud Weight Change",
+    "desc": "Calculate new pump pressure when fluid weight (mud weight) changes."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_pressure_both_change",
+    "name": "New Pump Pressure \u2013 SPM & Mud Weight Change",
+    "desc": "Calculate new pump pressure when both pump speed (SPM) and mud weight change simultaneously."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_rate_req",
+    "name": "Pump Rate Required",
+    "desc": "Flow rate needed to sustain target annular velocity."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "break_gel",
+    "name": "Pressure Required to Break Gel Strength",
+    "desc": "Mud start-up pressure limit."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "break_circ",
+    "name": "Pressure Required to Break Circulation in Annulus",
+    "desc": "Minimum pressure to start mud movement after static gelation."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "standpipe_press",
+    "name": "Standpipe Pressure",
+    "desc": "Sum of all pressure losses in the circulating system."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "p_loss_dp",
+    "name": "Pressure Loss Inside Drill Pipe",
+    "desc": "Estimated pressure drop through the drill pipe."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "p_loss_dc",
+    "name": "Pressure Loss in Drill Collar",
+    "desc": "Estimated pressure drop through the drill collars."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "p_loss_bit",
+    "name": "Pressure Loss Across Bit Nozzles",
+    "desc": "Pressure drop through the bit."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "p_loss_ann",
+    "name": "Pressure Loss in Annulus",
+    "desc": "Estimated pressure drop in the annulus."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "bhhp",
+    "name": "Bit Hydraulic Horsepower (BHHP)",
+    "desc": "Horsepower delivered at the bit."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_hhp",
+    "name": "Hydraulic Horsepower (HHP)",
+    "desc": "Total horsepower delivered by mud pumps."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "jet_impact_force",
+    "name": "Jet Impact Force",
+    "desc": "Force exerted by fluid exiting bit nozzles."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "bit_nozzle_size",
+    "name": "Bit Nozzle Size",
+    "desc": "Equivalent nozzle size based on Total Flow Area."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "bit_tfa",
+    "name": "Bit Nozzle Total Flow Area",
+    "desc": "Calculate TFA for up to three nozzles."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_eff",
+    "name": "Pump Efficiency",
+    "desc": "Actual volumetric efficiency of the pump."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "pump_stroke_req",
+    "name": "Pump Stroke Required",
+    "desc": "Total strokes to pump a given volume."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "flow_regime",
+    "name": "Flow Regime (Laminar/Turbulent)",
+    "desc": "Determines flow regime using Critical Velocity (values >1 turbulent, <1 laminar)."
+  },
+  {
+    "section": "2. Hydraulics & Pump Calculations",
+    "id": "reynolds_number",
+    "name": "Reynolds Number",
+    "desc": "Calculates Reynolds Number (Re) for Newtonian fluid."
+  },
+  {
+    "section": "3. Annular Velocity & Hole Cleaning",
+    "id": "ann_cap",
+    "name": "Annular Capacity",
+    "desc": "Volumetric capacity between casing/hole ID and pipe OD."
+  },
+  {
+    "section": "3. Annular Velocity & Hole Cleaning",
+    "id": "ann_vel_dia",
+    "name": "Annular Velocity Between Two Diameters",
+    "desc": "Velocity of mud moving up the annulus."
+  },
+  {
+    "section": "3. Annular Velocity & Hole Cleaning",
+    "id": "ann_vel_cap",
+    "name": "Annular Velocity Using Annular Capacity",
+    "desc": "Velocity of mud calculated from annular capacity."
+  },
+  {
+    "section": "3. Annular Velocity & Hole Cleaning",
+    "id": "lag_time",
+    "name": "Lag Time Calculation",
+    "desc": "Time for bottoms-up fluid returns to reach surface."
+  },
+  {
+    "section": "3. Annular Velocity & Hole Cleaning",
+    "id": "cuttings_vol_bbl",
+    "name": "Volume of Cutting Generated While Drilling (bbl/hr)",
+    "desc": "Cuttings volume rate generated at bit."
+  },
+  {
+    "section": "3. Annular Velocity & Hole Cleaning",
+    "id": "cuttings_vol_gph",
+    "name": "Volume of Cutting Generated While Drilling (gall/hr)",
+    "desc": "Cuttings volume rate generated at bit in gallons."
+  },
+  {
+    "section": "3. Annular Velocity & Hole Cleaning",
+    "id": "cuttings_vol_gpm",
+    "name": "Volume of Cutting Generated While Drilling (gall/min)",
+    "desc": ""
+  },
+  {
+    "section": "4. Pipe Capacities & Volumes",
+    "id": "int_cap",
+    "name": "Internal Capacity (bbl/ft)",
+    "desc": "Volumetric capacity of pipe inside diameter."
+  },
+  {
+    "section": "4. Pipe Capacities & Volumes",
+    "id": "pipe_disp_applied",
+    "name": "Pipe Displacement Calculation",
+    "desc": "Metal volume displacement per foot."
+  },
+  {
+    "section": "4. Pipe Capacities & Volumes",
+    "id": "pipe_disp",
+    "name": "Pipe Displacement Calculation (bbl/ft)",
+    "desc": "Approximated steel volume displacement from weight."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "rt_ton_mile",
+    "name": "Round Trip Ton Mile",
+    "desc": "Total work done during a drillstring round trip."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "casing_ton_mile",
+    "name": "Ton-Miles for Setting Casing",
+    "desc": "Total work done setting a casing string."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "pipe_pulled_dry",
+    "name": "Feet of Drill Pipe Pulled \u2013 Dry",
+    "desc": "Equivalent volume of fluid displaced when POOH dry pipe."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "pipe_pulled_wet",
+    "name": "Feet of Drill Pipe Pulled \u2013 Wet",
+    "desc": "Equivalent volume of fluid displaced when POOH wet pipe (internal + metal)."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "dp_pulled_lose_dry",
+    "name": "Drill Pipe Pulled to Lose Hydrostatic Pressure (Pull Dry)",
+    "desc": "Length of dry pipe pulled to lose a specific amount of hydrostatic head."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "dp_pulled_lose_wet",
+    "name": "Drill Pipe Pulled to Lose Hydrostatic Pressure (Pull Wet)",
+    "desc": "Length of wet pipe pulled to lose a specific amount of hydrostatic head."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "slug_vol",
+    "name": "Slug Volume",
+    "desc": "Required volume of slug for a desired pipe drop."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "slug_weight",
+    "name": "Slug Calculation Weight of Slug Required",
+    "desc": "Required slug mud weight for a desired pipe drop."
+  },
+  {
+    "section": "5. Tripping Operations",
+    "id": "slug_bbl_req",
+    "name": "Slug Calculation Barrel of Slug Required for Desired Length",
+    "desc": "Volume of slug required to fill a specific length of drill pipe."
+  },
+  {
+    "section": "6. Hydrostatic",
+    "id": "leak_off",
+    "name": "Leak Off Test Calculation",
+    "desc": "Maximum mud weight before formation breakdown at shoe."
+  },
+  {
+    "section": "6. Hydrostatic",
+    "id": "hydro_dec_dry",
+    "name": "Hydrostatic Pressure Decrease When POOH Dry Pipe",
+    "desc": "Pressure drop when pulling a specific length of dry pipe."
+  },
+  {
+    "section": "6. Hydrostatic",
+    "id": "hydro_dec_wet",
+    "name": "Hydrostatic Pressure Decrease When POOH Wet Pipe",
+    "desc": "Pressure drop when pulling a specific length of wet pipe."
+  },
+  {
+    "section": "6. Hydrostatic",
+    "id": "hydro_grad_gas_cut",
+    "name": "Hydrostatic Pressure Using Gradient (Gas Cut)",
+    "desc": "Hydrostatic pressure with gas-cut mud using a gradient."
+  },
+  {
+    "section": "6. Hydrostatic",
+    "id": "hydro_mw_gas_cut",
+    "name": "Hydrostatic Pressure Using Mud Weight (Gas Cut)",
+    "desc": "Hydrostatic pressure with gas-cut mud using density."
+  },
+  {
+    "section": "6. Hydrostatic",
+    "id": "hydro_loss_float_fail",
+    "name": "Hydrostatic Pressure Loss if Casing Float Fails",
+    "desc": "Calculate pressure drop when casing float valve fails and fluid levels equalize."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "fpc_stuck",
+    "name": "Free Point Constant for Stuck Pipe Calculation",
+    "desc": "Factor relating steel expansion to pull force."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "stuck_pipe_calc",
+    "name": "Stuck Pipe Calculation",
+    "desc": "Free length of stuck drillstring using stretch measurements."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "stuck_pipe_not_know_fpc",
+    "name": "Stuck Pipe Calculation Not Know Free Point",
+    "desc": "Approximated free length when pipe dimensions are unknown."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "spot_pill",
+    "name": "Light Weight Spot Pill",
+    "desc": "Calculates height of lightweight fluid spot pill."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "diff_stick_force",
+    "name": "Differential Sticking Force",
+    "desc": "Estimated force required to overcome differential sticking."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "mech_stick_risk",
+    "name": "Mechanical Sticking Analysis",
+    "desc": "Evaluates sticking severity based on drag forces."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "jar_impact_force",
+    "name": "Jar Force Estimate",
+    "desc": "Estimated impact force generated by drilling jars."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "back_off_torque",
+    "name": "Back-Off Torque",
+    "desc": "Recommended left-hand torque for backing off pipe."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "fish_string_load",
+    "name": "Fishing String Load",
+    "desc": "Total surface load when pulling on fish."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "max_overpull",
+    "name": "Maximum Allowable Overpull",
+    "desc": "Safe overpull margin based on weakest string component."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "washover_length",
+    "name": "Washover Pipe Capacity",
+    "desc": "Volume required to fill washover pipe."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "milling_time",
+    "name": "Milling Time Estimate",
+    "desc": "Estimated time required to mill a fish."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "spotting_time",
+    "name": "Spotting Fluid Time",
+    "desc": "Time required to pump and spot a pill at stuck depth."
+  },
+  {
+    "section": "7. Stuck Pipe & Fishing",
+    "id": "pipe_recovery_est",
+    "name": "Pipe Recovery Estimate",
+    "desc": "Percentage of drillstring expected to be recovered free."
+  },
+  {
+    "section": "8. Mud Properties & Conversions",
+    "id": "bf_ppg",
+    "name": "Buoyancy Factor Using Mud Weight (ppg)",
+    "desc": "Steel buoyancy factor using mud weight in ppg."
+  },
+  {
+    "section": "8. Mud Properties & Conversions",
+    "id": "bf_lbs",
+    "name": "Buoyancy Factor Using Mud Weight (lb/ft\u00b3)",
+    "desc": "Steel buoyancy factor using mud density in lb/ft\u00b3."
+  },
+  {
+    "section": "8. Mud Properties & Conversions",
+    "id": "grad_to_mw",
+    "name": "Pressure Gradient to Mud Weight",
+    "desc": "Converts psi/ft gradient to ppg equivalent."
+  },
+  {
+    "section": "8. Mud Properties & Conversions",
+    "id": "sg_to_mw_ppg",
+    "name": "Specific Gravity to Mud Weight (ppg)",
+    "desc": "Converts SG to ppg."
+  },
+  {
+    "section": "8. Mud Properties & Conversions",
+    "id": "sg_to_mw_lbs",
+    "name": "Specific Gravity to Mud Weight (lb/ft\u00b3)",
+    "desc": "Converts SG to lb/ft\u00b3."
+  },
+  {
+    "section": "8. Mud Properties & Conversions",
+    "id": "mw_to_sg",
+    "name": "Specific Gravity Using Mud Weight",
+    "desc": "Converts ppg to SG."
+  },
+  {
+    "section": "8. Mud Properties & Conversions",
+    "id": "sg_to_grad",
+    "name": "Specific Gravity to Pressure Gradient (psi/ft)",
+    "desc": "Converts SG to psi/ft."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "acc_surf",
+    "name": "Accumulator Capacity \u2013 Surface Stack (gal)",
+    "desc": "Usable fluid volume from surface accumulator system."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "acc_subsea",
+    "name": "Accumulator Capacity \u2013 Subsea BOP",
+    "desc": "Usable subsea fluid volume adjusting for water column head."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "acc_bottle_req",
+    "name": "Accumulator Bottle Requirement",
+    "desc": "Calculate number of bottles needed for usable fluid volume."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "acc_precharge",
+    "name": "Accumulator Pre-Charge Pressure",
+    "desc": "Calculate optimum pre-charge pressure."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "acc_recharge_time",
+    "name": "Accumulator Recharge Time",
+    "desc": "Time to recharge accumulator system."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "bop_close_time",
+    "name": "BOP Closing Time",
+    "desc": "Estimated time to close BOP."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "bop_open_time",
+    "name": "BOP Opening Time",
+    "desc": "Estimated time to open BOP."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "ram_close_vol",
+    "name": "Ram Closing Volume",
+    "desc": "Volume required to close ram preventer."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "annular_close_vol",
+    "name": "Annular Closing Volume",
+    "desc": "Volume required to close annular preventer."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "control_fluid_req",
+    "name": "Control Fluid Requirement",
+    "desc": "Total fluid requirement including safety factor."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "choke_line_cap",
+    "name": "Choke Line Capacity",
+    "desc": "Volume capacity of the choke line."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "kill_line_cap",
+    "name": "Kill Line Capacity",
+    "desc": "Volume capacity of the kill line."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "surface_line_vol",
+    "name": "Surface Line Volume",
+    "desc": "Volume of surface piping."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "bop_function_vol",
+    "name": "BOP Function Volume",
+    "desc": "Total volume for BOP functions."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "bop_press_test_vol",
+    "name": "BOP Pressure Test Volume",
+    "desc": "Fluid required for pressure test (compressibility)."
+  },
+  {
+    "section": "9. BOP & Surface Equipment",
+    "id": "press_rating_verif",
+    "name": "Pressure Rating Verification",
+    "desc": "Checks if BOP rating exceeds max pressure."
+  }
+]

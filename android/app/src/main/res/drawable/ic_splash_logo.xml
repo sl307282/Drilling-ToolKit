@@ -2,9 +2,8 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@android:color/transparent" />
     <item
-        android:drawable="@mipmap/ic_launcher_foreground"
-        android:bottom="36dp"
-        android:left="36dp"
-        android:right="36dp"
-        android:top="36dp" />
+        android:width="96dp"
+        android:height="96dp"
+        android:gravity="center"
+        android:drawable="@drawable/splash_logo" />
 </layer-list>

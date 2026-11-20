@@ -6,10 +6,13 @@ window.addEventListener('error', (event) => {
       console.log('ERROR STACK:', event.error.stack);
     }
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => { });
+      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 500 }).catch(() => { });
     }
   } catch (e) { }
 });
+
+// Global translation helper
+const t = (key, fallback) => (typeof window !== 'undefined' && window.I18n ? window.I18n.translate(key) : null) || fallback || key;
 
 // Safe JSON parser to prevent startup crashes from malformed localStorage data
 function safeJSONParse(str, fallback) {
@@ -318,6 +321,26 @@ let _navDirection = 'none';
 
 // UI Navigation Controller
 const navigateTo = (screenId) => {
+  if (typeof screenId === 'string') {
+    if (screenId.startsWith('/')) {
+      screenId = screenId.slice(1).replace(/\//g, '-');
+    }
+    if (screenId === 'cement-job-planner') {
+      screenId = 'cement-planner';
+    }
+    if (screenId === 'cementing') {
+      screenId = 'cement-planner-subsea';
+    }
+  }
+
+  // Ensure cementingState is set to chooser if entering without active section/view
+  if (screenId === 'cement-planner-subsea') {
+    const store = (typeof cementingStore !== 'undefined' ? cementingStore : (typeof cementingState !== 'undefined' ? cementingState : null));
+    if (store && (!store.view || (store.view === 'results' && !store.results))) {
+      store.view = 'chooser';
+    }
+  }
+
   const current = state.currentScreen;
   if (current === screenId) return;
 
@@ -518,6 +541,18 @@ function handleAppBack() {
     return;
   }
 
+  // 5b. Check if cementing schematic full-screen modal is open
+  const schematicModal = document.getElementById('schematic-fullscreen-modal');
+  if (schematicModal && (schematicModal.classList.contains('active') || schematicModal.style.display !== 'none')) {
+    if (typeof closeSchematicFullscreenModal === 'function') {
+      closeSchematicFullscreenModal();
+    } else {
+      schematicModal.style.display = 'none';
+      schematicModal.classList.remove('active');
+    }
+    return;
+  }
+
   // 6. Check if side drawer / navigation menu is open
   const drawer = document.getElementById('drawer-menu');
   if (drawer && drawer.classList.contains('active')) {
@@ -570,6 +605,11 @@ function handleAppBack() {
 
   // --- Tool: Calculation Hub (screen-drilling-calc) ---
   if (state.currentScreen === 'drilling-calc') {
+    // If opened directly from Home Search, return straight to Home with search preserved
+    if (state.openedFromHomeSearch) {
+      popScreenHistory();
+      return;
+    }
     // Level 3: Inside a specific calculator formula view
     if (calcSubState.view === 'formula') {
       calcSubState.view = 'list';
@@ -659,6 +699,10 @@ function handleAppBack() {
 
   // --- Tool: API Tubular Data (screen-api-tubular) ---
   if (state.currentScreen === 'api-tubular') {
+    if (state.openedFromHomeSearch) {
+      popScreenHistory();
+      return;
+    }
     if (tubularSubState.view !== 'menu') {
       tubularSubState.view = 'menu';
       tubularSubState.selections = {
@@ -679,6 +723,10 @@ function handleAppBack() {
 
   // --- Tool: Quick Reference (screen-quick-ref) ---
   if (state.currentScreen === 'quick-ref') {
+    if (state.openedFromHomeSearch) {
+      popScreenHistory();
+      return;
+    }
     if (quickRefSubState.fromGuide) {
       quickRefSubState.fromGuide = false;
       quickRefSubState.view = 'menu';
@@ -696,6 +744,10 @@ function handleAppBack() {
 
   // --- Tool: Drilling Guide (screen-drilling-guide) ---
   if (state.currentScreen === 'drilling-guide') {
+    if (state.openedFromHomeSearch) {
+      popScreenHistory();
+      return;
+    }
     // If search within drilling guide is active, clear it first
     const guideSearch = document.getElementById('guide-search-inp');
     if (guideSearch && guideSearch.value && guideSearch.value.trim() !== '') {
@@ -717,8 +769,8 @@ function handleAppBack() {
     return;
   }
 
-  // --- Tool: Cementing Module (screen-cementing) ---
-  if (state.currentScreen === 'cementing') {
+  // --- Tool: Cementing Module (screen-cement-planner-subsea / screen-cementing) ---
+  if (state.currentScreen === 'cement-planner-subsea' || state.currentScreen === 'cementing') {
     const store = (typeof cementingStore !== 'undefined' ? cementingStore : (typeof cementingState !== 'undefined' ? cementingState : null));
     if (store) {
       if (store.view === 'results') {
@@ -822,7 +874,7 @@ const initThemeToggler = () => {
     const text = document.getElementById('theme-toggle-text');
     if (icon && text) {
       if (theme === 'dark') {
-        text.textContent = 'Light Mode';
+        text.textContent = (window.t ? window.t('Light Mode', 'Light Mode') : 'Light Mode');
         icon.innerHTML = `<circle cx="12" cy="12" r="5"></circle>
                           <line x1="12" y1="1" x2="12" y2="3"></line>
                           <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -833,7 +885,7 @@ const initThemeToggler = () => {
                           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
       } else {
-        text.textContent = 'Dark Mode';
+        text.textContent = (window.t ? window.t('Dark Mode', 'Dark Mode') : 'Dark Mode');
         icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
       }
     }
@@ -953,13 +1005,15 @@ const initSettingsPage = (closeDrawer) => {
           burgundy: 'Burgundy',
           forest: 'Forest Green'
         };
-        const displayName = themeNames[newColor] || newColor;
+        const rawName = themeNames[newColor] || newColor;
+        const displayName = (window.t ? window.t(rawName, rawName) : rawName);
         const colorNameEl = document.getElementById('active-color-name');
         if (colorNameEl) {
           colorNameEl.innerText = displayName;
         }
 
-        showToast(`${displayName} theme activated`);
+        const msgSuffix = (window.t ? window.t('theme activated', 'theme activated') : 'theme activated');
+        showToast(`${displayName} ${msgSuffix}`);
       };
 
       withThemeTransition(applyColorChange);
@@ -995,13 +1049,15 @@ const initSettingsPage = (closeDrawer) => {
           lavender: 'Lavender',
           peach: 'Peach'
         };
-        const displayName = bgNames[newBg] || newBg;
+        const rawBgName = bgNames[newBg] || newBg;
+        const displayName = (window.t ? window.t(rawBgName, rawBgName) : rawBgName);
         const bgNameEl = document.getElementById('active-bg-name');
         if (bgNameEl) {
           bgNameEl.innerText = displayName;
         }
 
-        showToast(`${displayName} background theme activated`);
+        const msgSuffix = (window.t ? window.t('background theme activated', 'background theme activated') : 'background theme activated');
+        showToast(`${displayName} ${msgSuffix}`);
       };
 
       withThemeTransition(applyBgChange, () => {
@@ -1029,7 +1085,22 @@ const initSettingsPage = (closeDrawer) => {
     if (window.I18n) {
       window.I18n.setLanguage(lang);
       const displayName = window.I18n.langNames[lang] || lang;
-      showToast(`Language set to: ${displayName}`);
+      showToast(`${displayName}`);
+    }
+    // Update theme toggle UI text (Light Mode / Dark Mode)
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const themeText = document.getElementById('theme-toggle-text');
+    if (themeText) {
+      themeText.textContent = (currentTheme === 'dark') ? (window.t ? window.t('Light Mode', 'Light Mode') : 'Light Mode') : (window.t ? window.t('Dark Mode', 'Dark Mode') : 'Dark Mode');
+    }
+    // Update drawer footer version
+    const drawerFooter = document.getElementById('drawer-version-footer');
+    if (drawerFooter && window.t) {
+      drawerFooter.textContent = window.t('Drilling Toolkit v1.0.0', 'Drilling Toolkit v1.0.0');
+    }
+    // Update settings screen if open
+    if (typeof renderSettingsScreen === 'function') {
+      renderSettingsScreen();
     }
   };
 
@@ -1120,11 +1191,13 @@ const renderSettingsScreen = () => {
   // Update text labels
   const colorNameEl = document.getElementById('active-color-name');
   if (colorNameEl) {
-    colorNameEl.innerText = themeNames[currentColor] || currentColor;
+    const rawColor = themeNames[currentColor] || currentColor;
+    colorNameEl.innerText = (window.t ? window.t(rawColor, rawColor) : rawColor);
   }
   const bgNameEl = document.getElementById('active-bg-name');
   if (bgNameEl) {
-    bgNameEl.innerText = bgNames[currentBg] || currentBg;
+    const rawBg = bgNames[currentBg] || currentBg;
+    bgNameEl.innerText = (window.t ? window.t(rawBg, rawBg) : rawBg);
   }
 };
 
@@ -1529,10 +1602,7 @@ const initApp = () => {
 
   try {
     // Bind core Global events safely
-    const searchInput = document.querySelector('.search-input');
-    if (searchInput) {
-      searchInput.addEventListener('input', handleSearch);
-    }
+    initHomeSearch();
 
     // Restrict all table inputs to a maximum of 10 digits/characters
     document.addEventListener('input', (e) => {
@@ -1582,23 +1652,12 @@ const initApp = () => {
             // Wait for all CSS and Web Fonts to fully download and parse
             if (document.fonts && document.fonts.ready) {
               document.fonts.ready.then(() => {
-                // Enforce the user's requested minimum 2-second splash screen duration
-                const timeElapsed = Date.now() - appStartTime;
-                const remainingTime = Math.max(0, 2000 - timeElapsed);
-
-                setTimeout(() => {
-                  hideSplash();
-                  checkForUpdates();
-                }, remainingTime); 
-              });
-            } else {
-              // Fallback for older WebViews without document.fonts
-              const timeElapsed = Date.now() - appStartTime;
-              const remainingTime = Math.max(0, 2000 - timeElapsed);
-              setTimeout(() => {
                 hideSplash();
                 checkForUpdates();
-              }, remainingTime);
+              });
+            } else {
+              hideSplash();
+              checkForUpdates();
             }
           });
         });
@@ -1773,8 +1832,35 @@ if (document.readyState === 'loading') {
   initApp();
 }
 
-// Levenshtein distance for fuzzy matching
-function getEditDistance(a, b) {
+// ==========================================================
+// GLOBAL SEARCH SERVICE & INDEX REGISTRY (Pure & Testable)
+// ==========================================================
+
+// Safe HTML escaper for search rendering
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// String normalization: lowercase, strip punctuation/hyphens/accents, consolidate spaces
+function normalizeSearchString(str) {
+  if (!str) return '';
+  return String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(new RegExp('[-_/' + '\\\\' + '.,():;+&]', 'g'), ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Levenshtein distance for typo-tolerant fuzzy matching
+function getLevenshteinDistance(a, b) {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
   const matrix = [];
@@ -1786,11 +1872,8 @@ function getEditDistance(a, b) {
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          Math.min(
-            matrix[i][j - 1] + 1, // insertion
-            matrix[i - 1][j] + 1  // deletion
-          )
+          matrix[i - 1][j - 1] + 1,
+          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
         );
       }
     }
@@ -1798,258 +1881,965 @@ function getEditDistance(a, b) {
   return matrix[b.length][a.length];
 }
 
-// Check if string matches search query
-function fuzzyMatch(str, query) {
-  if (!str || !query) return false;
-  str = String(str).toLowerCase();
-  query = String(query).toLowerCase().trim();
-  if (!query) return false;
-  
-  // Split query into words to ensure all typed words exist somewhere in the string
-  const queryWords = query.split(/\s+/);
-  return queryWords.every(word => str.includes(word));
+// Helper to determine if a query word fuzzy-matches a candidate word
+function isWordFuzzyMatch(word, targetWord) {
+  if (!word || !targetWord) return false;
+  if (targetWord.startsWith(word) || word.startsWith(targetWord)) return true;
+  if (word.length >= 4) {
+    const maxD = word.length > 6 ? 2 : 1;
+    const prefix = targetWord.slice(0, word.length + 1);
+    if (getLevenshteinDistance(word, prefix) <= maxD) return true;
+    if (getLevenshteinDistance(word, targetWord) <= maxD) return true;
+  }
+  return false;
 }
 
-// Flat search index
-function getSearchIndex() {
-  const searchableItems = [
+// Curated synonyms, abbreviations, and acronyms for drilling & well control terminology
+const curatedSynonymsMap = {
+  'leak_off': ['LOT', 'FIT', 'leakoff', 'leak-off', 'formation integrity', 'fracture gradient', 'shoe test', 'breakdown', 'mud weight limit'],
+  'icp': ['ICP', 'initial circulating pressure', 'drillers method', 'kill operation', 'shut in drill pipe'],
+  'fcp': ['FCP', 'final circulating pressure', 'drillers method', 'kill mud', 'circulation'],
+  'kmw': ['KMW', 'kill mud weight', 'kill weight', 'formation pressure', 'reservoir balance'],
+  'maasp': ['MAASP', 'maximum allowable annular surface pressure', 'casing shoe fracture', 'annular limit'],
+  'trip_margin': ['trip margin', 'swab', 'surge', 'safety overbalance'],
+  'safety_margin': ['safety margin', 'overbalance', 'differential pressure'],
+  'volume_to_bleed': ['volume to bleed', 'bleed off', 'gas migration', 'constant bhp'],
+  'adj_masicp': ['MASICP', 'adjusted masicp', 'weight up'],
+  'est_influx_type': ['influx type', 'gas kick', 'oil kick', 'saltwater kick', 'influx gradient'],
+  'form_pres': ['formation pressure', 'pore pressure', 'reservoir pressure', 'kick analysis'],
+  'hydro_loss_gas_cut': ['gas cut mud', 'hydrostatic loss', 'gas cutting'],
+  'influx_height': ['influx height', 'kick height', 'height of kick'],
+  'max_fp': ['max formation pressure', 'withstand shut in'],
+  'misicp': ['MISICP', 'maximum initial shut in casing pressure'],
+  'max_pit_gain': ['pit gain', 'gas kick expansion', 'surface kick volume'],
+  'max_influx_h': ['max influx height', 'masicp limit'],
+  'max_surf_pres_kt': ['kick tolerance surface pressure', 'max surface pressure'],
+  'riser_margin': ['riser margin', 'subsea riser', 'unlatch riser', 'disconnect'],
+  'subsea_accumulator': ['subsea accumulator', 'bottle volume', 'water depth head'],
+  'gas_migration': ['gas migration rate', 'bubble rise', 'gas speed'],
+  'max_surface_pressure': ['max surface pressure', 'subsea gas expansion'],
+  'kick_tolerance': ['kick tolerance', 'maximum kick', 'influx tolerance'],
+  'tensile_cap': ['tensile capacity', 'drill string tensile', 'pipe yield', 'axial load'],
+  'dc_wt_vert': ['drill collar weight', 'vertical well dc', 'wob requirement'],
+  'dc_wt_dev': ['drill collar weight deviated', 'directional collar weight'],
+  'overpull_margin': ['MOP', 'margin of overpull', 'overpull limit'],
+  'max_rop': ['max rop', 'rate of penetration', 'cuttings load'],
+  'eff_mud_dens': ['effective mud density', 'equivalent density'],
+  'ecd_applied': ['ECD', 'equivalent circulating density', 'annular friction loss'],
+  'dp_elongation': ['drill pipe stretch', 'pipe elongation', 'free point'],
+  'neutral_point': ['neutral point', 'tension compression boundary', 'buckling point'],
+  'ds_weight_air': ['drill string weight air', 'string weight'],
+  'ds_weight_mud': ['buoyed weight', 'drill string weight mud', 'hook load in mud'],
+  'buckling_load': ['critical buckling', 'sinusoidal buckling', 'helical buckling'],
+  'burst_pressure': ['burst pressure', 'internal yield', 'pipe burst'],
+  'collapse_pressure': ['collapse pressure', 'external collapse', 'pipe collapse'],
+  'pipe_body_yield': ['pipe body yield', 'tensile yield strength'],
+  'tool_joint_strength': ['tool joint strength', 'torsional strength', 'makeup torque'],
+  'hook_load_calc': ['hook load', 'total hook load', 'derrick load'],
+  'max_allowable_pull': ['max allowable pull', 'pull limit'],
+  'wob_calc': ['WOB', 'weight on bit', 'collar weight available'],
+  'safety_factor_calc': ['safety factor', 'design factor', 'tension sf'],
+  'pump_out_duplex': ['duplex pump', 'pump output', 'liner output', 'double acting'],
+  'pump_out_triplex': ['triplex pump', 'pump output', 'single acting', 'bbl per stroke'],
+  'pump_pres_stroke_basic': ['pump pressure stroke', 'spm pressure rule', 'square law'],
+  'pump_pres_stroke_adv': ['advanced pump pressure', 'stroke pressure'],
+  'pump_pressure_spm_change': ['spm change', 'new pump pressure', 'strokes change'],
+  'pump_pressure_mw_change': ['mud weight change', 'pressure change mw'],
+  'pump_pressure_both_change': ['spm and mw change', 'both change pump pressure'],
+  'pump_rate_req': ['required pump rate', 'gpm for annular velocity'],
+  'break_gel': ['break gel', 'gel strength pressure', 'initial circulation'],
+  'break_circ': ['break circulation', 'standpipe break pressure'],
+  'standpipe_press': ['SPP', 'standpipe pressure', 'system pressure loss'],
+  'p_loss_dp': ['pressure loss drill pipe', 'dp friction loss'],
+  'p_loss_dc': ['pressure loss drill collars', 'dc friction loss'],
+  'p_loss_bit': ['bit pressure drop', 'nozzle pressure loss'],
+  'p_loss_ann': ['annular pressure loss', 'annular friction'],
+  'bhhp': ['BHHP', 'bottom hole horsepower', 'bit hydraulic horsepower', 'hsi'],
+  'pump_hhp': ['HHP', 'pump hydraulic horsepower'],
+  'jet_impact_force': ['HIF', 'hydraulic impact force', 'jet force'],
+  'bit_nozzle_size': ['bit nozzle size', 'jets size', '32nds'],
+  'bit_tfa': ['TFA', 'total flow area', 'nozzle area'],
+  'pump_eff': ['pump efficiency', 'volumetric efficiency'],
+  'pump_stroke_req': ['strokes required', 'pump strokes', 'displacement strokes'],
+  'flow_regime': ['flow regime', 'laminar flow', 'turbulent flow', 'critical velocity'],
+  'reynolds_number': ['reynolds number', 'reynolds', 'flow turbulence'],
+  'ann_cap': ['annular capacity', 'annulus volume', 'bbl per foot'],
+  'ann_vel_dia': ['annular velocity', 'av', 'cutting transport'],
+  'ann_vel_cap': ['annular velocity capacity', 'av from capacity'],
+  'lag_time': ['lag time', 'bottoms up', 'cuttings to surface', 'strokes to surface'],
+  'cuttings_vol_bbl': ['cuttings volume bbl', 'volume generated'],
+  'cuttings_vol_gph': ['cuttings volume gph', 'gallons per hour cuttings'],
+  'cuttings_vol_gpm': ['cuttings volume gpm', 'gallons per minute cuttings'],
+  'int_cap': ['internal capacity', 'pipe capacity', 'bbl/ft'],
+  'pipe_disp_applied': ['pipe displacement', 'metal displacement', 'steel displacement'],
+  'pipe_disp': ['pipe displacement bbl/ft', 'pipe volume'],
+  'rt_ton_mile': ['ton mile', 'round trip ton miles', 'wireline work'],
+  'casing_ton_mile': ['casing ton mile', 'running casing ton miles'],
+  'pipe_pulled_dry': ['pooh dry', 'pipe pulled dry', 'hole fill'],
+  'pipe_pulled_wet': ['pooh wet', 'pipe pulled wet', 'swab volume'],
+  'dp_pulled_lose_dry': ['dp pulled lose dry', 'hydrostatic loss dry'],
+  'dp_pulled_lose_wet': ['dp pulled lose wet', 'hydrostatic loss wet'],
+  'slug_vol': ['slug volume', 'dry pipe slug', 'bbl of slug'],
+  'slug_weight': ['slug weight', 'required slug mw', 'heavy pill'],
+  'slug_bbl_req': ['slug bbl required', 'desired slug length'],
+  'hydro_dec_dry': ['hydrostatic decrease dry', 'pressure drop dry'],
+  'hydro_dec_wet': ['hydrostatic decrease wet', 'pressure drop wet'],
+  'hydro_grad_gas_cut': ['gas cut gradient', 'hydrostatic gradient'],
+  'hydro_mw_gas_cut': ['gas cut mud weight', 'aerated mud'],
+  'hydro_loss_float_fail': ['float failure', 'u tube effect', 'float loss'],
+  'fpc_stuck': ['FPC', 'free point constant', 'stuck pipe modulus'],
+  'stuck_pipe_calc': ['stuck pipe stretch', 'free pipe length'],
+  'stuck_pipe_not_know_fpc': ['stuck pipe unknown fpc', 'approximate free point'],
+  'spot_pill': ['spotting pill', 'soak pill', 'free pipe pill', 'lubricant pill'],
+  'diff_stick_force': ['differential sticking force', 'stick force', 'contact area'],
+  'mech_stick_risk': ['mechanical sticking risk', 'keyseat risk'],
+  'jar_impact_force': ['jar impact force', 'jar blow', 'accelerator'],
+  'back_off_torque': ['back off torque', 'string shot', 'unscrew torque'],
+  'fish_string_load': ['fishing string load', 'overpull limit'],
+  'max_overpull': ['max overpull', 'allowable pull'],
+  'washover_length': ['washover length', 'washpipe requirement'],
+  'milling_time': ['milling time', 'section mill', 'pilot mill'],
+  'spotting_time': ['spotting time', 'pill displacement time'],
+  'pipe_recovery_est': ['pipe recovery', 'recovery percentage'],
+  'bf_ppg': ['buoyancy factor ppg', 'buoyancy factor', 'steel float'],
+  'bf_lbs': ['buoyancy factor lb/ft3', 'density buoyancy'],
+  'grad_to_mw': ['gradient to mud weight', 'psi/ft to ppg'],
+  'sg_to_mw_ppg': ['SG to ppg', 'specific gravity to mud weight'],
+  'sg_to_mw_lbs': ['SG to lb/ft3', 'specific gravity to lbs'],
+  'mw_to_sg': ['ppg to SG', 'mud weight to specific gravity'],
+  'sg_to_grad': ['SG to psi/ft', 'specific gravity to gradient'],
+  'acc_surf': ['surface accumulator', 'usable fluid', 'bop accumulator'],
+  'acc_subsea': ['subsea accumulator', 'subsea bop bottles'],
+  'acc_bottle_req': ['accumulator bottle requirement', 'number of bottles'],
+  'acc_precharge': ['precharge pressure', 'nitrogen precharge'],
+  'acc_recharge_time': ['recharge time', 'accumulator pump time'],
+  'bop_close_time': ['bop closing time', 'api 16d time', 'ram close time'],
+  'bop_open_time': ['bop opening time', 'api 16d open time'],
+  'ram_close_vol': ['ram closing volume', 'pipe ram volume'],
+  'annular_close_vol': ['annular closing volume', 'annular preventer vol'],
+  'control_fluid_req': ['hydraulic control fluid', 'koomey fluid'],
+  'choke_line_cap': ['choke line capacity', 'choke volume'],
+  'kill_line_cap': ['kill line capacity', 'kill volume'],
+  'surface_line_vol': ['surface line volume', 'hp line volume'],
+  'bop_function_vol': ['bop function volume', 'total bop gallons'],
+  'bop_press_test_vol': ['bop pressure test', 'test fluid volume'],
+  'press_rating_verif': ['pressure rating verification', 'working pressure'],
+  'surface_stack': ['surface stack', 'surface bop', 'hole size selection', 'drillstring setup', 'wellbore volume', 'strokes'],
+  'subsea_stack': ['subsea stack', 'subsea bop', 'riser', 'water depth', 'air gap', 'marine elevations'],
+  'calc_hub': ['calculation hub', 'drilling calculations', 'formulas', 'math', 'engineering', 'calculators'],
+  'cementing_module': ['cementing', 'casing cementing', 'cement module', 'slurry volume', 'lead slurry', 'tail slurry', 'displacement', 'toc', 'top of cement', 'spacer', 'hydrostatic pressure', 'schematic', 'riserless', 'shoe'],
+  'bit_dull_grading': ['IADC', 'iadc', 'bit dull', 'dull grading', 'wear', 'pdc bit', 'roller cone', 'bearing', 'seal', 'gauge', 'cutting structure'],
+  'iadc_history': ['IADC', 'iadc history', 'bit history', 'dull records', 'inspection history', 'saved bits'],
+  'api_tubular_overview': ['api tubular', 'casing', 'drill pipe', 'tubing', 'dimensions', 'capacities', 'weights', 'drift', 'od', 'id'],
+  'api_casing_table': ['api casing table', 'btc', 'ltc', 'stc', 'casing burst', 'collapse', 'drift', 'wall thickness', 'body yield'],
+  'api_drillpipe_table': ['api drill pipe', 'dp specs', 'nc50', 'tool joint', 'makeup torque', 'tensile yield strength', 'drill pipe dimensions'],
+  'api_tubing_table': ['api tubing table', 'eue', 'nue', 'production tubing', 'injection tubing', 'tubing burst', 'tubing collapse'],
+  'api_large_casing_table': ['large casing', 'conductor', 'surface casing', '24 inch', '30 inch', '36 inch', 'casing above 22'],
+  'stuck_pipe_analysis': ['stuck pipe', 'differential sticking', 'mechanical sticking', 'free point', 'jarring', 'first actions', 'stuck pipe assistant'],
+  'unit_conversion': ['unit conversion', 'petroleum converter', 'psi', 'bar', 'ppg', 'sg', 'bbl', 'gpm', 'pressure converter', 'volume converter'],
+  'kill_data_sheet': ['kill data sheet', 'kill sheet', 'icp', 'fcp', 'kmw', 'sidpp', 'sicp', 'strokes to bit', 'choke schedule', 'well control calculations'],
+  'drilling_guide_menu': ['drilling guide', 'reference guide', 'handbook', 'bha', 'bits', 'casing', 'well control', 'procedures'],
+  'quick_ref_menu': ['quick reference', 'reference tables', 'torque table', 'ring gaskets', 'surface wellhead', 'edphot', 'subsea equipment'],
+  'clf_guide': ['CLF', 'choke line friction', 'clf guide', 'subsea choke line', 'subsea well control'],
+  'drill_bit_torque': ['drill bit makeup torque', 'bit torque', 'makeup torque table', 'regular threads'],
+  'ring_gaskets_conn': ['ring gaskets', 'api 16a', 'bx gaskets', 'r gaskets', 'rx gaskets', 'flange gaskets'],
+  'surface_wellhead': ['surface wellhead', 'wellhead sections', 'spool', 'hanger', 'stud sizes'],
+  'subsea_equipment': ['subsea equipment', 'edphot', 'hang off tool', 'emergency hang off', 'casing hanger'],
+  'dogleg_severity': ['DLS', 'dogleg', 'dog leg severity', 'build rate', 'curvature'],
+  'directional_surveying': ['directional survey', 'azimuth', 'inclination', 'tvd', 'md', 'dogleg'],
+  'kickoff_build_rate': ['kickoff', 'build rate', 'kop', 'burst rate'],
+  'pdc_bits': ['pdc bits', 'polycrystalline diamond', 'cutters', 'fixed cutter'],
+  'roller_cone_bits': ['roller cone bits', 'milled tooth', 'tci', 'insert bit'],
+  'bit_nozzle_selection': ['nozzle selection', 'jets selection', 'nozzle sizes', 'tfa'],
+  'bit_hydraulics': ['bit hydraulics', 'hsi', 'hydraulic horsepower', 'jet velocity'],
+  'bit_makeup_torque': ['bit makeup torque', 'makeup torque', 'pin connection'],
+  'stabilizers': ['stabilizers', 'blade stabilizer', 'integral blade', 'welded blade'],
+  'reamers': ['reamers', 'roller reamer', 'hole opener'],
+  'jars': ['jars', 'drilling jar', 'hydraulic jar', 'mechanical jar', 'accelerator'],
+  'shock_subs': ['shock sub', 'vibration dampener'],
+  'float_valves': ['float valve', 'plunger valve', 'flapper valve', 'baker float'],
+  'crossovers': ['crossover', 'x over', 'sub', 'connection sub'],
+  'bha_components': ['bha components', 'bottom hole assembly', 'drill collars', 'stabilizers'],
+  'drill_string_components': ['drill string components', 'drill pipe', 'heavy weight', 'tool joints'],
+  'stuck_pipe_guide': ['stuck pipe guide', 'differential stick', 'mechanical stick', 'hole cleaning'],
+  'kick_indicators': ['kick indicators', 'flow increase', 'pit gain', 'drilling break'],
+  'shutin_procedure': ['shut in procedure', 'hard shut in', 'soft shut in', 'space out'],
+  'drillers_method': ['drillers method', 'two circulation kill', 'well kill'],
+  'wait_weight_method': ['wait and weight', 'one circulation kill', 'engineer method'],
+  'slow_circulation_rate': ['slow circulation rate', 'SCR', 'kill rate pressure'],
+  'casing_components': ['casing components', 'conductor', 'surface casing', 'intermediate', 'production casing'],
+  'float_equipment': ['float equipment', 'float collar', 'float shoe', 'guide shoe'],
+  'centralizers': ['centralizers', 'bow spring', 'rigid centralizer', 'standoff'],
+  'cementing_procedure': ['cementing procedure', 'primary cement', 'plug cementing', 'displacement'],
+  'cement_additives': ['cement additives', 'accelerators', 'retarders', 'fluid loss', 'extenders'],
+  'overshot': ['overshot', 'fishing overshot', 'spiral grapple', 'basket grapple'],
+  'spear': ['spear', 'casing spear', 'tubing spear', 'internal catch'],
+  'junk_basket': ['junk basket', 'reverse circulation', 'core basket'],
+  'fishing_magnets': ['fishing magnet', 'magnet', 'junk recovery'],
+  'washover_pipe': ['washover pipe', 'washpipe', 'washover shoe'],
+  'hydrostatic_pressure': ['hydrostatic pressure', 'column pressure', 'mud gradient'],
+  'annular_velocity': ['annular velocity', 'fluid velocity', 'flow velocity'],
+  'pressure_loss': ['pressure loss', 'friction loss', 'system loss'],
+  'mud_weight': ['mud weight', 'mud density', 'ppg', 'specific gravity'],
+  'mud_viscosity': ['mud viscosity', 'gel strength', 'plastic viscosity', 'yield point', 'marsh funnel'],
+  'mud_calculations': ['mud calculations', 'weight up', 'dilution', 'mixing'],
+  'packers': ['packers', 'production packer', 'mechanical packer', 'hydraulic packer'],
+  'production_tubing': ['production tubing', 'tubing string', 'flow string'],
+  'wellhead_xmas_tree': ['xmas tree', 'christmas tree', 'master valve', 'choke manifold']
+};
+
+// Ukrainian and technical search terms
+const ukSynonyms = {
+  'leak_off': ['випробування на гідророзрив', 'тиск поглинання', 'градієнт розриву', 'випробування башмака'],
+  'icp': ['початковий циркуляційний тиск', 'тиск глушіння', 'глушіння свердловини'],
+  'fcp': ['кінцевий циркуляційний тиск', 'тиск циркуляції'],
+  'kmw': ['густина розчину глушіння', 'вага розчину глушіння', 'глушіння'],
+  'maasp': ['МАДТП', 'максимально допустимий тиск', 'тиск на гирлі'],
+  'burst_pressure': ['тиск розриву', 'внутрішній тиск', 'міцність на розрив'],
+  'collapse_pressure': ['тиск зминання', 'зовнішній тиск', 'стійкість до зминання'],
+  'pipe_body_yield': ['границя текучості труби', 'міцність труби на розтяг'],
+  'tool_joint_strength': ['міцність замкового з\'єднання', 'момент згвинчування'],
+  'hook_load_calc': ['навантаження на гак', 'вага колони'],
+  'wob_calc': ['навантаження на долото', 'осьове навантаження'],
+  'pump_out_triplex': ['трипоршневий насос', 'подача насоса', 'продуктивність насоса'],
+};
+for (const k in ukSynonyms) {
+  if (curatedSynonymsMap[k]) {
+    curatedSynonymsMap[k].push(...ukSynonyms[k]);
+  }
+}
+
+// Highlights matched substrings in text
+function highlightMatches(text, rawQuery) {
+  if (!text || !rawQuery) return escapeHTML(text);
+  const query = normalizeSearchString(rawQuery);
+  if (!query) return escapeHTML(text);
+
+  const tokens = query.split(' ').filter(Boolean);
+  tokens.sort((a, b) => b.length - a.length);
+
+  const escapedTokens = tokens.map(t => t.replace(new RegExp('[.*+?^${}()|\\[\\]\\\\]', 'g'), '\\$&'));
+  if (escapedTokens.length === 0) return escapeHTML(text);
+
+  const regex = new RegExp(`(${escapedTokens.join('|')})`, 'gi');
+  const safeText = escapeHTML(text);
+  return safeText.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+// Builds the central unified search index from existing app databases
+function buildSearchRegistry() {
+  const items = [];
+  const tr = (k) => (window.I18n ? window.I18n.translate(k) : k) || k;
+
+  // 1. Core Module / Standalone Tools
+  const coreTools = [
     {
-      name: 'Surface Stack',
-      desc: 'BOP configuration and calculations for surface stack setups.',
-      type: 'tool',
-      badge: 'BOP Tool',
+      id: 'surface_stack',
+      title: tr('Surface Stack'),
+      category: tr('BOP STACK'),
+      desc: tr('BOP configuration, drillstring setup, and volume calculations for surface stack setups.'),
       bgColor: 'var(--circle-subsea)',
       icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2B556C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"></path><path d="M5 20v-2h14v2"></path><path d="M8 18L11 5h2l3 13"></path><path d="M9.2 13h5.6"></path><path d="M10.2 8h3.6"></path><path d="M11 5h2"></path><path d="M9.2 18l4.4-5"></path><path d="M13.6 18l-4.4-5"></path><path d="M10.2 13l2.8-5"></path><path d="M13 13l-2.8-5"></path></svg>`,
+      keywords: ['surface stack', 'surface bop', 'hole size selection', 'drillstring setup', 'wellbore volume', 'strokes', tr('Surface Stack'), tr('BOP STACK')],
       action: () => { state.flowType = 'surface'; navigateTo('surface-hole-size'); }
     },
     {
-      name: 'Subsea Stack',
-      desc: 'BOP configuration and calculations for subsea stack setups.',
-      type: 'tool',
-      badge: 'BOP Tool',
+      id: 'subsea_stack',
+      title: tr('Subsea Stack'),
+      category: tr('BOP STACK'),
+      desc: tr('BOP configuration, marine elevations, and calculations for subsea stack setups.'),
       bgColor: 'var(--circle-subsea)',
       icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2B556C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 19c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path><path d="M2 22c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path><rect x="10" y="7" width="4" height="9" rx="1"></rect><rect x="8" y="10" width="8" height="2" rx="0.5"></rect><rect x="8" y="13" width="8" height="2" rx="0.5"></rect><path d="M12 4v3"></path><circle cx="12" cy="4" r="1" fill="currentColor"></circle><path d="M7 6v10"></path><path d="M17 6v10"></path><circle cx="7" cy="11" r="1.5"></circle><circle cx="17" cy="11" r="1.5"></circle></svg>`,
+      keywords: ['subsea stack', 'subsea bop', 'riser', 'water depth', 'air gap', 'marine elevations', tr('Subsea Stack'), tr('BOP STACK')],
       action: () => { state.flowType = 'subsea'; navigateTo('subsea-hole-size'); }
     },
     {
-      name: 'API Tubular Data',
-      desc: 'Standard API dimensions, capacities, and weights for drillpipe, casing, and tubing.',
-      type: 'tool',
-      badge: 'Tubulars',
-      bgColor: 'var(--circle-tubular)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D6346" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 13.5L19 7.5"></path><path d="M13.5 9L21.5 4.2"></path><path d="M5.5 15.5L15.5 9.5"></path><circle cx="11.5" cy="10.5" r="2.5"></circle><circle cx="11.5" cy="10.5" r="1.3"></circle><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="7.5" cy="17.5" r="1.3"></circle><circle cx="13.5" cy="15.5" r="2.5"></circle><circle cx="13.5" cy="15.5" r="1.3"></circle><path d="M15 13.5L20 10.5"></path></svg>`,
-      action: () => { navigateTo('api-tubular'); }
+      id: 'calc_hub',
+      title: tr('Calculation Hub'),
+      category: tr('CALCULATOR'),
+      desc: tr('Engineering calculation hub featuring 106 drilling formulas and 26 well control calculators.'),
+      bgColor: 'var(--circle-calculator)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A4A28" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2.5 20.2 7.25 20.2 16.75 12 21.5 3.8 16.75 3.8 7.25"></polygon><path d="M15.5 8.5H9l3.5 3.5L9 15.5h6.5"></path></svg>`,
+      keywords: ['calculation hub', 'drilling calculations', 'formulas', 'math', 'engineering', 'calculators', tr('Calculation Hub'), tr('CALCULATOR'), 'калькулятор', 'розрахунки', 'формули'],
+      action: () => { calcSubState.view = 'categories'; navigateTo('drilling-calc'); }
     },
     {
-      name: 'Stuck Pipe Analysis',
-      desc: 'Diagnostic tool for spotting stuck pipe mechanisms and recommended first actions.',
-      type: 'tool',
-      badge: 'Diagnostics',
-      bgColor: 'var(--circle-stuck)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M19 3v18"></path><path d="M12 3v10"></path><path d="M9 13h6l-3 4z"></path><circle cx="7" cy="15" r="1" fill="currentColor"></circle><circle cx="17" cy="14" r="1" fill="currentColor"></circle><circle cx="7.5" cy="12" r="0.75" fill="currentColor"></circle><circle cx="16.5" cy="17" r="0.75" fill="currentColor"></circle><path d="M2 5l3 2M2 11l3 2M2 17l3 2"></path><path d="M19 7l3-2M19 13l3-2M19 19l3-2"></path></svg>`,
-      action: () => { navigateTo('stuck-pipe'); }
-    },
-    {
-      name: 'Drilling Guide',
-      desc: 'Comprehensive reference guide for drilling operations, bits, BHA, well control, cementing, and troubleshooting.',
-      type: 'tool',
-      badge: 'Reference',
-      bgColor: 'var(--circle-stuck)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
-      action: () => { navigateTo('drilling-guide'); }
-    },
-    {
-      name: 'Unit Conversion',
-      desc: 'Petroleum engineering unit converter for length, volume, weight, pressure, and density.',
-      type: 'tool',
-      badge: 'Converter',
-      bgColor: 'var(--circle-conversion)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5F3F7D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 8"></path><polyline points="3 3 3 8 8 8"></polyline><path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6-2.3l3-2.7"></path><polyline points="21 21 21 16 16 16"></polyline><text x="12" y="10" font-family="Outfit, system-ui, sans-serif" font-weight="bold" font-size="4.5" text-anchor="middle" fill="currentColor">psi</text><text x="12" y="14" font-family="Outfit, system-ui, sans-serif" font-weight="bold" font-size="4" text-anchor="middle" fill="currentColor">bar</text><text x="12" y="18" font-family="Outfit, system-ui, sans-serif" font-weight="bold" font-size="3" text-anchor="middle" fill="currentColor">kPa</text></svg>`,
-      action: () => { navigateTo('conversion'); }
-    },
-    {
-      name: 'Well Control Calculators',
-      desc: 'Kill Mud Weight (KMW), Initial Circulating Pressure (ICP), and Final Circulating Pressure (FCP) calculators.',
-      type: 'tool',
-      badge: 'Well Control',
-      bgColor: 'var(--circle-wellcontrol)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>`,
+      id: 'cement_job_planner',
+      title: tr('Cement Job Planner'),
+      category: tr('CEMENTING'),
+      desc: tr('Casing, slurry volume, and wellbore cement planning.'),
+      bgColor: '#D5F0EE',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F766E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v19a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V2"></path><path d="M8.5 2v15h7V2"></path><path d="M7 17h10"></path><line x1="4" y1="6.5" x2="8.5" y2="11"></line><line x1="4" y1="11.5" x2="8.5" y2="16"></line><line x1="15.5" y1="6.5" x2="20" y2="11"></line><line x1="15.5" y1="11.5" x2="20" y2="16"></line></svg>`,
+      keywords: ['cement', 'cementing', 'slurry', 'casing', 'plan', 'job', 'schematic', 'annulus', tr('Cement Job Planner'), tr('CEMENTING'), 'цемент', 'цементування', 'тампонаж', 'обсадна колона'],
       action: () => {
-        calcSubState.section = 'wellcontrol';
-        calcSubState.category = 'surface';
-        calcSubState.formulaId = null;
-        calcSubState.view = 'list';
-        calcSubState.search = '';
-        navigateTo('drilling-calc');
+        navigateTo('/cement-planner');
       }
     },
     {
-      name: 'Drilling Calculator Categories',
-      desc: 'Browse all formulas categorized by Basic, Well Control, and Applied.',
-      type: 'tool',
-      badge: 'Calculator',
-      bgColor: 'var(--circle-calculator)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A4A28" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"></rect><rect x="7" y="5" width="10" height="4" rx="1"></rect><rect x="7" y="11" width="2" height="2" rx="0.5"></rect><rect x="11" y="11" width="2" height="2" rx="0.5"></rect><rect x="15" y="11" width="2" height="2" rx="0.5"></rect><rect x="7" y="15" width="2" height="2" rx="0.5"></rect><rect x="11" y="15" width="2" height="2" rx="0.5"></rect><rect x="15" y="15" width="2" height="2" rx="0.5"></rect></svg>`,
-      action: () => { navigateTo('drilling-calc'); }
-    },
-    {
-      name: 'Drill Bit Make-Up Torque',
-      desc: 'Drill Bit Make-Up Torque Reference Table.',
-      type: 'tool',
-      badge: 'Quick Ref',
+      id: 'subsea_wellhead_cementing',
+      title: tr('Subsea Wellhead Cementing'),
+      category: tr('CEMENTING'),
+      desc: tr('Subsea & riserless casing cement calculation with live interactive schematic.'),
       bgColor: 'var(--circle-subsea)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2B556C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
-      action: () => { handleGuideItemClick('drill_bit_torque', 'Quick Reference'); }
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+      keywords: ['cementing module', 'subsea wellhead', 'casing cementing', 'subsea cement', 'riserless', 'slurry volume', 'schematic', tr('Subsea Wellhead Cementing'), tr('CEMENTING'), 'підводне цементування', 'цемент'],
+      action: () => {
+        openCementingModule();
+      }
     },
     {
-      name: 'Ring Gaskets & Connections',
-      desc: 'API 16A Flange & Hub Ring Gasket Reference Table.',
-      type: 'tool',
-      badge: 'Quick Ref',
-      bgColor: 'var(--circle-quickref)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--stroke-quickref)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="5" r="0.75" fill="currentColor"></circle><circle cx="12" cy="19" r="0.75" fill="currentColor"></circle><circle cx="5" cy="12" r="0.75" fill="currentColor"></circle><circle cx="19" cy="12" r="0.75" fill="currentColor"></circle></svg>`,
-      action: () => { handleGuideItemClick('ring_gaskets_conn', 'Quick Reference'); }
+      id: 'bit_dull_grading',
+      title: tr('Bit Dull Grading'),
+      category: tr('DRILL BITS'),
+      desc: tr('IADC 8-factor bit dull grading calculator and wear code evaluator.'),
+      bgColor: 'rgba(230, 161, 92, 0.1)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2h5l1 5h-7l1-5z"></path><path d="M6 8h12v2c0 2-1.5 4.5-2.5 6l-.5 2h-6l-.5-2C7.5 14.5 6 12 6 10V8z"></path><circle cx="8" cy="18" r="3"></circle><circle cx="16" cy="18" r="3"></circle><circle cx="12" cy="20" r="3"></circle><path d="M12 11v3"></path></svg>`,
+      keywords: ['iadc', 'bit dull', 'dull grading', 'wear', 'pdc bit', 'roller cone', 'bearing', 'seal', 'gauge', 'cutting structure', tr('Bit Dull Grading'), tr('DRILL BITS'), 'долото', 'знос долота', 'бурові долота'],
+      action: () => {
+        if (typeof clearIADCForm === 'function') clearIADCForm();
+        navigateTo('bit-dull-grading');
+      }
     },
     {
-      name: 'Surface Wellhead Information',
-      desc: 'Technical components, stud sizes, and packaging details for A, B, and C Wellhead Sections.',
-      type: 'tool',
-      badge: 'Quick Ref',
+      id: 'iadc_history',
+      title: tr('Bit Dull Grading History'),
+      category: tr('DRILL BITS'),
+      desc: tr('Saved records and inspection history of graded drilling bits.'),
+      bgColor: 'rgba(230, 161, 92, 0.1)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="9"></circle></svg>`,
+      keywords: ['iadc history', 'bit history', 'dull records', 'inspection history', 'saved bits', tr('Bit Dull Grading History'), tr('DRILL BITS'), 'історія зносу', 'долото'],
+      action: () => { navigateTo('iadc-history'); }
+    },
+    {
+      id: 'api_tubular_overview',
+      title: tr('API Tubular Data'),
+      category: tr('TUBULARS'),
+      desc: tr('Standard API dimensions, capacities, and weights for drillpipe, casing, and tubing.'),
+      bgColor: 'var(--circle-tubular)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D6346" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="4" height="4" rx="1"></rect><path d="M6 5h12"></path><path d="M6 7h12"></path><rect x="18" y="4.5" width="4" height="3" rx="0.5"></rect><rect x="2" y="10" width="4" height="4" rx="1"></rect><path d="M6 11h12"></path><path d="M6 13h12"></path><rect x="18" y="10.5" width="4" height="3" rx="0.5"></rect><rect x="2" y="16" width="4" height="4" rx="1"></rect><path d="M6 17h12"></path><path d="M6 19h12"></path><rect x="18" y="16.5" width="4" height="3" rx="0.5"></rect></svg>`,
+      keywords: ['api tubular', 'casing', 'drill pipe', 'tubing', 'dimensions', 'capacities', 'weights', 'drift', 'od', 'id', tr('API Tubular Data'), tr('TUBULARS'), 'труби', 'обсадна колона', 'бурильні труби'],
+      action: () => { tubularSubState.view = 'menu'; navigateTo('api-tubular'); }
+    },
+    {
+      id: 'api_casing_table',
+      title: tr('API Casing Table'),
+      category: tr('TUBULARS'),
+      desc: tr('BTC, LTC, STC & Premium casing specs: ID, drift, wall, burst, collapse, capacity.'),
+      bgColor: 'var(--circle-surface)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#68553F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle></svg>`,
+      keywords: ['api casing table', 'btc', 'ltc', 'stc', 'casing burst', 'collapse', 'drift', 'wall thickness', 'body yield', tr('API Casing Table'), tr('TUBULARS'), 'обсадні труби', 'таблиця обсадних'],
+      action: () => { tubularSubState.view = 'casing'; navigateTo('api-tubular'); }
+    },
+    {
+      id: 'api_drillpipe_table',
+      title: tr('API Drill Pipe Table'),
+      category: tr('TUBULARS'),
+      desc: tr('OD, weight, grade, connection, class, tool joint ID, tensile, and make-up torque.'),
+      bgColor: 'var(--circle-tubular)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D6346" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>`,
+      keywords: ['api drill pipe', 'dp specs', 'nc50', 'tool joint', 'makeup torque', 'tensile yield strength', 'drill pipe dimensions', tr('API Drill Pipe Table'), tr('TUBULARS'), 'бурильні труби'],
+      action: () => { tubularSubState.view = 'drillpipe'; navigateTo('api-tubular'); }
+    },
+    {
+      id: 'api_tubing_table',
+      title: tr('API Tubing Table'),
+      category: tr('TUBULARS'),
+      desc: tr('EUE, NUE & Premium tubing specifications: ID, drift, wall, burst, collapse.'),
+      bgColor: 'var(--circle-subsea)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2B556C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="2" x2="12" y2="22"></line></svg>`,
+      keywords: ['api tubing table', 'eue', 'nue', 'production tubing', 'injection tubing', 'tubing burst', 'tubing collapse', tr('API Tubing Table'), tr('TUBULARS'), 'насосно-компресорні труби', 'нкт'],
+      action: () => { tubularSubState.view = 'tubing'; navigateTo('api-tubular'); }
+    },
+    {
+      id: 'api_large_casing_table',
+      title: tr('API Casing/Tubing >22 in'),
+      category: tr('TUBULARS'),
+      desc: tr('Conductor and large surface casing sizes up to 36 inches.'),
+      bgColor: 'var(--circle-stuck)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle></svg>`,
+      keywords: ['large casing', 'conductor', 'surface casing', '24 inch', '30 inch', '36 inch', 'casing above 22', tr('API Casing/Tubing >22 in'), tr('TUBULARS'), 'кондуктор', 'напрямна колона'],
+      action: () => { tubularSubState.view = 'large_casing'; navigateTo('api-tubular'); }
+    },
+    {
+      id: 'stuck_pipe_analysis',
+      title: tr('Stuck Pipe Analysis'),
+      category: tr('DIAGNOSTICS'),
+      desc: tr('Diagnostic assistant for identifying sticking mechanisms and recommended first actions.'),
+      bgColor: 'var(--circle-stuck)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M19 3v18"></path><path d="M12 3v10"></path><path d="M9 13h6l-3 4z"></path><circle cx="7" cy="15" r="1" fill="currentColor"></circle><circle cx="17" cy="14" r="1" fill="currentColor"></circle></svg>`,
+      keywords: ['stuck pipe', 'differential sticking', 'mechanical sticking', 'free point', 'jarring', 'first actions', 'stuck pipe assistant', tr('Stuck Pipe Analysis'), tr('DIAGNOSTICS'), 'прихоплення', 'прихоплення труб'],
+      action: () => { navigateTo('stuck-pipe'); }
+    },
+    {
+      id: 'unit_conversion',
+      title: tr('Petroleum Unit Conversion'),
+      category: tr('CONVERTER'),
+      desc: tr('Petroleum engineering unit converter for length, volume, weight, pressure, and density across 21 categories.'),
+      bgColor: 'var(--circle-conversion)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5F3F7D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 8"></path><polyline points="3 3 3 8 8 8"></polyline><path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6-2.3l3-2.7"></path><polyline points="21 21 21 16 16 16"></polyline></svg>`,
+      keywords: ['unit conversion', 'petroleum converter', 'psi', 'bar', 'ppg', 'sg', 'bbl', 'gpm', 'pressure converter', 'volume converter', tr('Petroleum Unit Conversion'), tr('CONVERTER'), 'конвертер', 'одиниці'],
+      action: () => { navigateTo('conversion'); }
+    },
+    {
+      id: 'kill_data_sheet',
+      title: tr('Kill Data Sheet'),
+      category: tr('WELL CONTROL'),
+      desc: tr('Comprehensive well control kill sheet with circulating pressures, strokes, and volume tracking.'),
+      bgColor: 'var(--circle-wellcontrol)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>`,
+      keywords: ['kill data sheet', 'kill sheet', 'icp', 'fcp', 'kmw', 'sidpp', 'sicp', 'strokes to bit', 'choke schedule', 'well control calculations', tr('Kill Data Sheet'), tr('WELL CONTROL'), 'глушіння', 'бланк глушіння', 'глушіння свердловини'],
+      action: () => { navigateTo('kill-data-sheet'); }
+    },
+    {
+      id: 'drilling_guide_menu',
+      title: tr('Drilling Guide'),
+      category: tr('REFERENCE'),
+      desc: tr('Comprehensive engineering reference guide covering 11 drilling and operational domains.'),
       bgColor: 'var(--circle-quickref)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--stroke-quickref)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h12"></path><path d="M8 21h8"></path><rect x="9" y="8" width="6" height="10" rx="1"></rect><path d="M9 11H6V9h3"></path><path d="M15 11h3V9h-3"></path><path d="M8 5h8v3H8z"></path></svg>`,
-      action: () => { handleGuideItemClick('surface_wellhead', 'Quick Reference'); }
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
+      keywords: ['drilling guide', 'reference guide', 'handbook', 'bha', 'bits', 'casing', 'well control', 'procedures', tr('Drilling Guide'), tr('REFERENCE'), 'буріння', 'довідник з буріння'],
+      action: () => { navigateTo('drilling-guide'); }
+    },
+    {
+      id: 'quick_ref_menu',
+      title: tr('Quick Reference'),
+      category: tr('REFERENCE'),
+      desc: tr('Quick reference tables for bit make-up torque, ring gaskets, surface wellheads, and subsea equipment.'),
+      bgColor: 'var(--circle-quickref)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--stroke-quickref)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
+      keywords: ['quick reference', 'reference tables', 'torque table', 'ring gaskets', 'surface wellhead', 'edphot', 'subsea equipment', tr('Quick Reference'), tr('REFERENCE'), 'швидкий довідник'],
+      action: () => { quickRefSubState.view = 'menu'; navigateTo('quick-ref'); }
+    },
+    {
+      id: 'clf_guide',
+      title: tr('Choke Line Friction (CLF) Guide'),
+      category: tr('WELL CONTROL'),
+      desc: tr('Understanding Choke Line Friction measurements for subsea wells.'),
+      bgColor: 'var(--circle-wellcontrol)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4l3 3"></path></svg>`,
+      keywords: ['CLF', 'choke line friction', 'clf guide', 'subsea choke line', 'subsea well control', tr('Choke Line Friction (CLF) Guide'), tr('WELL CONTROL'), 'лінія дроселювання'],
+      action: () => {
+        wellControlSubState.view = 'clf-guide';
+        navigateTo('well-control');
+      }
     }
   ];
 
-  // Append all formulas dynamically from formulaDb
-  if (typeof formulaDb !== 'undefined') {
-    for (const category in formulaDb) {
-      const categoryLabel = category === 'calculations' ? 'Drilling Calculation' : 'Drilling Calculation';
-      formulaDb[category].forEach(formula => {
-        searchableItems.push({
-          name: formula.name,
-          desc: formula.desc || 'Drilling calculation formula.',
-          type: 'formula',
-          badge: categoryLabel,
+  items.push(...coreTools);
+
+  // 2. Append all Drilling Calculations from drillingCalcSections & formulaDb
+  if (typeof drillingCalcSections !== 'undefined' && typeof formulaDb !== 'undefined' && formulaDb.calculations) {
+    const formulaMap = new Map();
+    formulaDb.calculations.forEach(f => formulaMap.set(f.id, f));
+
+    drillingCalcSections.forEach(sec => {
+      sec.items.forEach(formulaId => {
+        const formula = formulaMap.get(formulaId);
+        if (!formula) return;
+        const extraKeywords = curatedSynonymsMap[formula.id] || [];
+        const transTitle = tr(formula.name);
+        const transCat = tr(sec.name);
+        const transDesc = tr(formula.desc || sec.desc || 'Drilling engineering formula calculation.');
+        items.push({
+          id: formula.id,
+          title: transTitle,
+          category: transCat,
+          desc: transDesc,
           bgColor: 'var(--circle-tubular)',
-          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
+          icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D6346" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
+          keywords: [sec.name, formula.name, transTitle, transCat, ...extraKeywords],
           action: () => {
             calcSubState.view = 'formula';
             calcSubState.section = 'drilling';
-            calcSubState.category = category;
+            calcSubState.category = 'calculations';
             calcSubState.formulaId = formula.id;
             calcSubState.search = '';
             navigateTo('drilling-calc');
           }
         });
       });
-    }
+    });
   }
 
-  // Append well control formulas from wellControlDb
-  if (typeof wellControlDb !== 'undefined') {
-    for (const category in wellControlDb) {
-      const categoryLabel = category === 'surface' ? 'Well Control (Surface)' : 'Well Control (Subsea)';
-      wellControlDb[category].forEach(formula => {
-        searchableItems.push({
-          name: formula.name,
-          desc: formula.desc || 'Well control operation calculation.',
-          type: 'formula',
-          badge: categoryLabel,
+  // 3. Append all Well Control Calculations from wellControlCalcSections & wellControlDb
+  if (typeof wellControlCalcSections !== 'undefined' && typeof wellControlDb !== 'undefined') {
+    wellControlCalcSections.forEach(sec => {
+      const catList = wellControlDb[sec.category] || [];
+      const wcMap = new Map();
+      catList.forEach(f => wcMap.set(f.id, f));
+
+      sec.items.forEach(formulaId => {
+        const formula = wcMap.get(formulaId);
+        if (!formula) return;
+        const extraKeywords = curatedSynonymsMap[formula.id] || [];
+        const transTitle = tr(formula.name);
+        const transCat = tr(sec.name);
+        const transDesc = tr(formula.desc || sec.desc || 'Well control operation calculation.');
+        items.push({
+          id: `${sec.category}_${formula.id}`,
+          title: `${transTitle}${sec.category === 'subsea' ? ' (Subsea)' : ''}`,
+          category: transCat,
+          desc: transDesc,
           bgColor: 'var(--circle-wellcontrol)',
-          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
+          icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>`,
+          keywords: [sec.name, sec.category, formula.name, transTitle, transCat, ...extraKeywords],
           action: () => {
             calcSubState.view = 'formula';
             calcSubState.section = 'wellcontrol';
-            calcSubState.category = category;
+            calcSubState.category = sec.category;
             calcSubState.formulaId = formula.id;
             calcSubState.search = '';
             navigateTo('drilling-calc');
           }
         });
       });
+    });
+  }
+
+  // 4. Append all Drilling Guide & Reference Topics from drillingGuideData
+  if (typeof drillingGuideData !== 'undefined') {
+    for (const catKey in drillingGuideData) {
+      const cat = drillingGuideData[catKey];
+      (cat.items || []).forEach(item => {
+        const extraKeywords = curatedSynonymsMap[item.id] || [];
+        const transTitle = tr(item.name);
+        const transCat = tr(cat.name);
+        const transDesc = tr(cat.desc || `${cat.name} reference and operational guidelines.`);
+        items.push({
+          id: item.id,
+          title: transTitle,
+          category: transCat,
+          desc: transDesc,
+          bgColor: 'var(--circle-quickref)',
+          icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
+          keywords: [cat.name, item.name, transTitle, transCat, ...extraKeywords],
+          action: () => {
+            handleGuideItemClick(item.id, cat.name);
+          }
+        });
+      });
     }
   }
 
-  return searchableItems;
+  return items;
 }
 
-// Global search handling
-function handleSearch(e) {
-  const query = e.target.value.trim();
-  state.searchQuery = query;
+// Single search index cache
+let _searchRegistryCache = null;
+function getSearchIndex() {
+  if (!_searchRegistryCache) {
+    _searchRegistryCache = buildSearchRegistry();
+  }
+  return _searchRegistryCache;
+}
 
+// Recent searches store (persisted in localStorage)
+const RecentSearchesStore = {
+  KEY: 'recentToolkitSearches',
+  get() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+  add(term) {
+    if (!term || typeof term !== 'string') return;
+    const clean = term.trim();
+    if (!clean) return;
+    let list = this.get().filter(item => item.toLowerCase() !== clean.toLowerCase());
+    list.unshift(clean);
+    list = list.slice(0, 5);
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(list));
+    } catch (e) {}
+  },
+  remove(term) {
+    const clean = String(term).toLowerCase().trim();
+    const list = this.get().filter(item => item.toLowerCase() !== clean);
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(list));
+    } catch (e) {}
+  },
+  clear() {
+    try {
+      localStorage.removeItem(this.KEY);
+    } catch (e) {}
+  }
+};
+
+// Render recent search chips
+function renderRecentSearches() {
+  const container = document.getElementById('home-search-recent');
+  if (!container) return;
+
+  const recents = RecentSearchesStore.get();
+  if (recents.length === 0) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="search-recent-header">
+      <span>Recent Searches</span>
+      <button type="button" class="search-recent-clear-all" id="clear-all-recents-btn">Clear All</button>
+    </div>
+    <div class="search-recent-chips">
+      ${recents.map(r => `
+        <span class="search-recent-chip" data-query="${escapeHTML(r)}">
+          <span>${escapeHTML(r)}</span>
+          <span class="search-recent-chip-remove" data-remove="${escapeHTML(r)}" title="Remove">&times;</span>
+        </span>
+      `).join('')}
+    </div>
+  `;
+  container.style.display = 'flex';
+
+  const clearBtn = container.querySelector('#clear-all-recents-btn');
+  if (clearBtn) {
+    clearBtn.onclick = (e) => {
+      e.stopPropagation();
+      RecentSearchesStore.clear();
+      container.style.display = 'none';
+      container.innerHTML = '';
+    };
+  }
+
+  container.querySelectorAll('.search-recent-chip').forEach(chip => {
+    chip.onclick = (e) => {
+      if (e.target.classList.contains('search-recent-chip-remove')) {
+        e.stopPropagation();
+        const term = e.target.getAttribute('data-remove');
+        RecentSearchesStore.remove(term);
+        renderRecentSearches();
+        return;
+      }
+      const q = chip.getAttribute('data-query');
+      const searchInput = document.getElementById('home-search-input') || document.querySelector('.search-input');
+      if (searchInput) {
+        searchInput.value = q;
+        searchInput.focus();
+        handleSearch({ target: searchInput }, true);
+      }
+    };
+  });
+}
+
+// Pure search function (prefix, multi-word, abbreviation, keyword, typo-tolerant, ranked)
+function searchTools(rawQuery, registry) {
+  if (!rawQuery) return [];
+  const query = normalizeSearchString(rawQuery);
+  if (!query) return [];
+
+  const queryTokens = query.split(' ').filter(Boolean);
+  const queryCondensed = query.replace(/\s+/g, '');
+  const isSingleChar = query.length === 1;
+
+  const scoredItems = [];
+
+  for (let i = 0; i < registry.length; i++) {
+    const item = registry[i];
+    const normTitle = item.normTitle || (item.normTitle = normalizeSearchString(item.title));
+    const normCategory = item.normCategory || (item.normCategory = normalizeSearchString(item.category));
+    const normDesc = item.normDesc || (item.normDesc = normalizeSearchString(item.desc));
+    const normKeywords = item.normKeywords || (item.normKeywords = (item.keywords || []).map(k => normalizeSearchString(k)));
+    const titleTokens = item.titleTokens || (item.titleTokens = normTitle.split(' ').filter(Boolean));
+    const condensedTitle = item.condensedTitle || (item.condensedTitle = normTitle.replace(/\s+/g, ''));
+
+    let score = 0;
+    let matched = false;
+
+    // 1. Single character search: exact prefix on title, title words, keywords, category
+    if (isSingleChar) {
+      if (normTitle.startsWith(query)) {
+        score = 1000;
+        matched = true;
+      } else if (titleTokens.some(t => t.startsWith(query))) {
+        score = 700;
+        matched = true;
+      } else if (normKeywords.some(k => k.startsWith(query))) {
+        score = 500;
+        matched = true;
+      } else if (normCategory.startsWith(query)) {
+        score = 300;
+        matched = true;
+      }
+      if (matched) {
+        scoredItems.push({ item, score });
+      }
+      continue;
+    }
+
+    // 2. Exact matches & Title Acronyms
+    const titleInitials = titleTokens.map(t => t[0]).filter(Boolean).join('');
+    if (normTitle === query || condensedTitle === queryCondensed) {
+      score = 1300;
+      matched = true;
+    } else if (titleInitials === query || (query.length >= 3 && titleInitials.startsWith(query))) {
+      // Direct title acronym match (e.g. ICP -> Initial Circulating Pressure, KMW -> Kill Mud Weight)
+      score = 1250;
+      matched = true;
+    } else if (item.id && item.id.toLowerCase() === query) {
+      // Exact tool ID match
+      score = 1200;
+      matched = true;
+    } else if (normTitle.startsWith(query) || condensedTitle.startsWith(queryCondensed)) {
+      score = 1000;
+      matched = true;
+    } else if (normKeywords.some(k => k === query || k.replace(/\s+/g, '') === queryCondensed)) {
+      score = 900;
+      matched = true;
+    } else if (normKeywords.some(k => k.startsWith(query) || k.replace(/\s+/g, '').startsWith(queryCondensed))) {
+      score = 750;
+      matched = true;
+    } else if (titleTokens.some(t => t.startsWith(query))) {
+      score = 650;
+      matched = true;
+    } else if (normTitle.includes(query)) {
+      score = 500;
+      matched = true;
+    } else if (normCategory.startsWith(query)) {
+      score = 400;
+      matched = true;
+    } else if (normKeywords.some(k => k.includes(query))) {
+      score = 350;
+      matched = true;
+    } else if (normDesc.includes(query)) {
+      score = 250;
+      matched = true;
+    }
+
+    // 3. Multi-word check
+    if (!matched) {
+      const allTokensMatch = queryTokens.every(qToken => {
+        if (titleTokens.some(t => t.startsWith(qToken) || t.includes(qToken))) return true;
+        if (normKeywords.some(k => k.includes(qToken) || k.startsWith(qToken))) return true;
+        if (normCategory.includes(qToken)) return true;
+        if (normDesc.includes(qToken)) return true;
+        if (qToken.length >= 4) {
+          if (titleTokens.some(t => isWordFuzzyMatch(qToken, t))) return true;
+          if (normKeywords.some(k => isWordFuzzyMatch(qToken, k))) return true;
+        }
+        return false;
+      });
+
+      if (allTokensMatch) {
+        matched = true;
+        score = 200;
+        if (normTitle.startsWith(queryTokens[0]) || titleTokens.some(t => t.startsWith(queryTokens[0]))) {
+          score += 150;
+        }
+      }
+    }
+
+    // 4. Fuzzy fallback (e.g. "leek off", "cemen")
+    if (!matched && queryTokens.length <= 3) {
+      let fuzzyScore = 0;
+      let allFuzzy = true;
+      for (const qToken of queryTokens) {
+        let tokenFuzzy = false;
+        if (qToken.length >= 4) {
+          for (const t of titleTokens) {
+            if (t.length >= 3) {
+              const d = getLevenshteinDistance(qToken, t.slice(0, qToken.length + 1));
+              const maxD = qToken.length > 6 ? 2 : 1;
+              if (d <= maxD) {
+                tokenFuzzy = true;
+                fuzzyScore += (80 - d * 20);
+                break;
+              }
+            }
+          }
+          if (!tokenFuzzy) {
+            for (const k of normKeywords) {
+              const d = getLevenshteinDistance(qToken, k.slice(0, qToken.length + 1));
+              const maxD = qToken.length > 6 ? 2 : 1;
+              if (d <= maxD) {
+                tokenFuzzy = true;
+                fuzzyScore += (70 - d * 20);
+                break;
+              }
+            }
+          }
+        }
+        if (!tokenFuzzy) {
+          allFuzzy = false;
+          break;
+        }
+      }
+      if (allFuzzy && fuzzyScore > 0) {
+        matched = true;
+        score = fuzzyScore;
+      }
+    }
+
+    if (matched) {
+      scoredItems.push({ item, score });
+    }
+  }
+
+  scoredItems.sort((a, b) => b.score - a.score);
+  return scoredItems.map(si => si.item);
+}
+
+// Global search handling with debounce and clear button state
+let _searchDebounceTimer = null;
+
+function handleSearch(e, immediate = false) {
+  const rawQuery = (e && e.target) ? e.target.value : (state.searchQuery || '');
+  const trimmed = rawQuery.trim();
+  state.searchQuery = trimmed;
+
+  const searchInput = document.getElementById('home-search-input') || document.querySelector('.search-input');
+  const clearBtn = document.getElementById('home-search-clear');
   const resultsContainer = document.getElementById('global-search-results');
+  const recentContainer = document.getElementById('home-search-recent');
   const menuGrid = document.querySelector('.menu-grid');
 
-  if (!resultsContainer || !menuGrid) return;
+  if (clearBtn) {
+    clearBtn.style.display = trimmed.length > 0 ? 'flex' : 'none';
+  }
 
-  if (query === '') {
+  if (trimmed === '') {
+    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
     state.savedHomeSearchQuery = '';
-    resultsContainer.style.display = 'none';
+    if (resultsContainer) {
+      resultsContainer.style.display = 'none';
+      resultsContainer.innerHTML = '';
+    }
+    if (menuGrid) {
+      menuGrid.style.display = '';
+    }
+    if (document.activeElement === searchInput) {
+      renderRecentSearches();
+    } else if (recentContainer) {
+      recentContainer.style.display = 'none';
+    }
+    return;
+  }
+
+  // Hide recent searches and main menu grid while searching
+  if (recentContainer) recentContainer.style.display = 'none';
+  if (menuGrid) menuGrid.style.display = 'none';
+
+  const doSearch = () => {
+    if (!resultsContainer) return;
+    const registry = getSearchIndex();
+    const matched = searchTools(trimmed, registry);
+
     resultsContainer.innerHTML = '';
-    menuGrid.style.display = '';
-    return;
-  }
+    resultsContainer.style.display = 'flex';
 
-  // Hide main card grid
-  menuGrid.style.display = 'none';
-
-  const index = getSearchIndex();
-  const matched = index.filter(item => {
-    const combinedText = [item.name, item.desc, item.keywords, item.badge].filter(Boolean).join(' ');
-    return fuzzyMatch(combinedText, query);
-  });
-
-  resultsContainer.innerHTML = '';
-  resultsContainer.style.display = 'flex';
-
-  if (matched.length === 0) {
-    resultsContainer.innerHTML = `
-      <div class="no-results">
-        <span class="no-results-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            <line x1="8" y1="11" x2="14" y2="11"></line>
-          </svg>
-        </span>
-        <div class="no-results-text">No tools or formulas match your search.</div>
-      </div>
-    `;
-    return;
-  }
-
-  matched.forEach(item => {
-    const el = document.createElement('div');
-    el.className = 'search-result-item';
-
-    // Determine class for badge
-    const badgeClass = item.type === 'tool' ? 'badge-tool' : 'badge-formula';
-
-    el.innerHTML = `
-      <div class="search-result-left">
-        <div class="search-result-icon" style="background-color: ${item.bgColor}">
-          ${item.icon}
-        </div>
-        <div class="search-result-info">
-          <div class="search-result-meta">
-            <span class="search-result-badge ${badgeClass}">${item.badge}</span>
+    if (matched.length === 0) {
+      resultsContainer.innerHTML = `
+        <div class="no-results">
+          <span class="no-results-icon">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+          </span>
+          <div class="no-results-text" style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">
+            ${(window.I18n ? window.I18n.translate('No tools found for "%s"') : null) ? window.I18n.translate('No tools found for "%s"').replace('%s', escapeHTML(trimmed)) : `No tools found for "${escapeHTML(trimmed)}"`}
           </div>
-          <div class="search-result-title">${item.name}</div>
-          <div class="search-result-desc">${item.desc}</div>
+          <div class="no-results-hint" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: -4px;">
+            ${(window.I18n ? window.I18n.translate('Try another term or search by abbreviation (e.g. LOT, ICP, KMW, ECD).') : null) || 'Try another term or search by abbreviation (e.g. LOT, ICP, KMW, ECD).'}
+          </div>
         </div>
-      </div>
-      <span class="search-result-chevron">&rsaquo;</span>
-    `;
+      `;
+      return;
+    }
 
-    el.addEventListener('click', () => {
-      item.action();
+    matched.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'search-result-item';
+
+      const highlightedTitle = highlightMatches(item.title, trimmed);
+
+      el.innerHTML = `
+        <div class="search-result-left">
+          <div class="search-result-icon" style="background-color: ${item.bgColor}">
+            ${item.icon}
+          </div>
+          <div class="search-result-info">
+            <div class="search-result-meta">
+              <span class="search-result-badge">${escapeHTML(item.category)}</span>
+            </div>
+            <div class="search-result-title">${highlightedTitle}</div>
+            <div class="search-result-desc">${escapeHTML(item.desc)}</div>
+          </div>
+        </div>
+        <span class="search-result-chevron">&rsaquo;</span>
+      `;
+
+      el.addEventListener('click', () => {
+        RecentSearchesStore.add(trimmed);
+        state.openedFromHomeSearch = true;
+        state.savedHomeSearchQuery = trimmed;
+        item.action();
+      });
+
+      resultsContainer.appendChild(el);
+    });
+  };
+
+  if (immediate) {
+    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
+    doSearch();
+  } else {
+    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
+    _searchDebounceTimer = setTimeout(doSearch, 120);
+  }
+}
+
+// Controller to initialize Home search events
+function initHomeSearch() {
+  const searchInput = document.getElementById('home-search-input') || document.querySelector('.search-input');
+  const clearBtn = document.getElementById('home-search-clear');
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => handleSearch(e, false));
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const query = (searchInput.value || '').trim();
+        if (query) {
+          const registry = getSearchIndex();
+          const matched = searchTools(query, registry);
+          if (matched.length > 0) {
+            RecentSearchesStore.add(query);
+            state.openedFromHomeSearch = true;
+            state.savedHomeSearchQuery = query;
+            searchInput.blur();
+            matched[0].action();
+          }
+        }
+      }
     });
 
-    resultsContainer.appendChild(el);
-  });
+    searchInput.addEventListener('focus', () => {
+      if (!searchInput.value || searchInput.value.trim() === '') {
+        renderRecentSearches();
+      }
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.blur();
+        handleSearch({ target: searchInput }, true);
+      }
+    });
+  }
 }
+
 
 // Toast helper
 let toastTimeout;
@@ -2070,36 +2860,25 @@ function showToast(message) {
 // Universal Collapsing Sticky Header Controller
 function initCollapsingHeaderScroll() {
   let ticking = false;
-
   const onScroll = () => {
     if (!ticking) {
       window.requestAnimationFrame(() => {
-        const appContainer = document.querySelector('.app-container');
-        const activeScreen = document.querySelector('.screen.active');
-        const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || (appContainer ? appContainer.scrollTop : 0) || (activeScreen ? activeScreen.scrollTop : 0) || 0;
-
-        if (activeScreen && activeScreen.id !== 'screen-dashboard') {
-          const header = activeScreen.querySelector('.screen-header');
-          if (header && !header.closest('#cementing-fixed-header-wrapper')) {
-            if (scrollY > 20) {
-              header.classList.add('collapsed');
-            } else if (scrollY <= 8) {
-              header.classList.remove('collapsed');
-            }
+        const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        const headers = document.querySelectorAll('.screen.active .screen-header');
+        headers.forEach(header => {
+          if (scrollY > 20) {
+            header.classList.add('collapsed');
+          } else {
+            header.classList.remove('collapsed');
           }
-        }
+        });
         ticking = false;
       });
       ticking = true;
     }
   };
-
   window.addEventListener('scroll', onScroll, { passive: true });
-  document.addEventListener('scroll', onScroll, { passive: true, capture: true });
-  const appContainer = document.querySelector('.app-container');
-  if (appContainer) {
-    appContainer.addEventListener('scroll', onScroll, { passive: true });
-  }
+  document.addEventListener('scroll', onScroll, { passive: true });
 }
 
 function renderScreen() {
@@ -2136,7 +2915,7 @@ function renderScreen() {
       } catch(e) {}
     }, 50);
 
-    if (screenId === 'cementing') {
+    if (screenId === 'cement-planner-subsea' || screenId === 'cementing') {
       // Do not apply slide animations to cementing screen: persistent transform prevents sticky/fixed header from staying pinned to viewport
     } else if (screenId === 'kill-data-sheet') {
       activeScreenEl.classList.add('animate-slide-down');
@@ -2181,7 +2960,7 @@ function renderScreen() {
     }
   }
 
-  if (screenId === 'cementing') {
+  if (screenId === 'cement-planner-subsea' || screenId === 'cementing') {
     if (appContainer) appContainer.classList.add('cementing-active');
   } else {
     if (appContainer) appContainer.classList.remove('cementing-active', 'cementing-job-active');
@@ -2257,6 +3036,7 @@ function renderScreen() {
     case 'iadc-history':
       renderBitDullGradingHistory();
       break;
+    case 'cement-planner-subsea':
     case 'cementing':
       renderCementingScreen();
       break;
@@ -2352,38 +3132,11 @@ function renderHoleSizeSelection() {
     }
   });
 
-  // If subsea stack, add Cementing and Choke Line Friction cards below customGroup
+  // If subsea stack, add Choke Line Friction card below customGroup
   if (state.flowType === 'subsea') {
-    const cementingCard = document.createElement('div');
-    cementingCard.className = 'content-card compact-card';
-    cementingCard.style.marginTop = '20px';
-    cementingCard.style.borderLeft = '4px solid #0369a1';
-    cementingCard.style.cursor = 'pointer';
-    cementingCard.style.padding = '12px 14px';
-
-    cementingCard.innerHTML = `
-      <div style="display:flex; align-items:center; gap:12px;">
-        <div style="background-color: var(--circle-subsea); width: 36px; height: 36px; border-radius: 50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-          </svg>
-        </div>
-        <div style="flex:1;">
-          <h3 style="font-size:0.85rem; font-weight:700; color:var(--text-primary); margin:0;">Cementing Module</h3>
-          <p style="font-size:0.7rem; color:var(--text-secondary); margin:2px 0 0 0; line-height:1.3;">Subsea & riserless casing cement calculation with live schematic</p>
-        </div>
-        <span style="font-size:1.4rem; color:var(--text-secondary);">&rsaquo;</span>
-      </div>
-    `;
-
-    cementingCard.onclick = () => {
-      openCementingModule();
-    };
-    container.appendChild(cementingCard);
-
     const clfGuideCard = document.createElement('div');
     clfGuideCard.className = 'content-card compact-card';
-    clfGuideCard.style.marginTop = '12px';
+    clfGuideCard.style.marginTop = '20px';
     clfGuideCard.style.borderLeft = '4px solid var(--accent-color)';
     clfGuideCard.style.cursor = 'pointer';
     clfGuideCard.style.padding = '12px 14px';
@@ -3041,8 +3794,10 @@ function renderReferenceValues() {
   const handleSaveState = () => {
     const getVal = (id, fallback) => {
       const el = container.querySelector('#' + id);
-      if (!el || el.value === '' || isNaN(parseFloat(el.value))) return fallback;
-      return parseFloat(el.value);
+      if (!el || el.value === '') return fallback;
+      const num = parseFloat(String(el.value).replace(',', '.'));
+      if (isNaN(num)) return fallback;
+      return num;
     };
 
     // Save tubular capacities back (convert back to L/m first)
@@ -3511,15 +4266,16 @@ function renderCalculations() {
         if (dpEl) dpEl.value = '';
         return;
       }
-      const hMD = parseFloat(holeMEl.value) || 0;
-      const dcL = parseFloat(dcEl.value) || 0;
-      const dcL2 = container.querySelector('#' + 'dc-len-calc-2') ? (parseFloat(container.querySelector('#' + 'dc-len-calc-2').value) || 0) : 0;
-      const dcL3 = container.querySelector('#' + 'dc-len-calc-3') ? (parseFloat(container.querySelector('#' + 'dc-len-calc-3').value) || 0) : 0;
+      const parseVal = (el) => el ? (parseFloat(String(el.value).replace(',', '.')) || 0) : 0;
+      const hMD = parseVal(holeMEl);
+      const dcL = parseVal(dcEl);
+      const dcL2 = parseVal(container.querySelector('#' + 'dc-len-calc-2'));
+      const dcL3 = parseVal(container.querySelector('#' + 'dc-len-calc-3'));
 
-      const hwL = parseFloat(hwdpEl.value) || 0;
+      const hwL = parseVal(hwdpEl);
 
-      const dpL2 = container.querySelector('#' + 'dp-len-calc-2') ? (parseFloat(container.querySelector('#' + 'dp-len-calc-2').value) || 0) : 0;
-      const dpL3 = container.querySelector('#' + 'dp-len-calc-3') ? (parseFloat(container.querySelector('#' + 'dp-len-calc-3').value) || 0) : 0;
+      const dpL2 = parseVal(container.querySelector('#' + 'dp-len-calc-2'));
+      const dpL3 = parseVal(container.querySelector('#' + 'dp-len-calc-3'));
 
       const dpL = Math.max(0, hMD - dcL - dcL2 - dcL3 - hwL - dpL2 - dpL3);
       state.calcInputs.dpLength = dpL;
@@ -3528,7 +4284,7 @@ function renderCalculations() {
   };
 
   const syncStateFromInputs = () => {
-    const getVal = (el) => el && el.value !== '' ? parseFloat(el.value) : '';
+    const getVal = (el) => el && el.value !== '' ? (parseFloat(String(el.value).replace(',', '.')) || 0) : '';
 
     state.calcInputs.holeMD = getVal(holeMEl);
     state.calcInputs.holeTVD = holeTEl ? getVal(holeTEl) : state.calcInputs.holeMD;
@@ -4121,9 +4877,9 @@ function renderKillDataSheet() {
   // Render cards
   const clfInputHtml = state.flowType === 'subsea' ? `
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">CLF (${pressUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('CLF', 'CLF')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="number" step="any" class="form-input" id="kd-clf" value="${fmt(initialCLF, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-clf" value="${fmt(initialCLF, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
@@ -4131,114 +4887,114 @@ function renderKillDataSheet() {
 
   const subseaResultCards = state.flowType === 'subsea' ? `
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">Dynamic MAASP</span>
+          <span class="result-label">${t('Dynamic MAASP', 'Dynamic MAASP')}</span>
           <span class="result-value" id="kd-out-dyn-maasp">-</span>
         </div>
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">Initial Dynamic SICP</span>
+          <span class="result-label">${t('Initial Dynamic SICP', 'Initial Dynamic SICP')}</span>
           <span class="result-value" id="kd-out-dyn-sicp">-</span>
         </div>
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">Riser Displacement</span>
+          <span class="result-label">${t('Riser Displacement', 'Riser Displacement')}</span>
           <span class="result-value" id="kd-out-riser-disp">-</span>
         </div>
   ` : '';
 
   container.innerHTML = `
     <div class="content-card compact-card" style="border-top: 4px solid var(--accent-color); margin-bottom:12px; padding: 12px 14px;">
-      <h3 style="font-size:0.85rem; margin-bottom:10px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">Reference Parameters</h3>
+      <h3 style="font-size:0.85rem; margin-bottom:10px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">${t('Reference Parameters', 'Reference Parameters')}</h3>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;">
-          <span style="font-weight:600; color:var(--text-secondary);">Hole TVD</span>
+          <span style="font-weight:600; color:var(--text-secondary);">${t('Hole TVD', 'Hole TVD')}</span>
           <span style="font-weight:700; color:var(--text-primary);">${holeTVD.toFixed(1)} ${dUnit}</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; border-top: 1px solid #efeae6; padding-top: 6px;">
-          <span style="font-weight:600; color:var(--text-secondary);">Shoe TVD</span>
+          <span style="font-weight:600; color:var(--text-secondary);">${t('Shoe TVD', 'Shoe TVD')}</span>
           <span style="font-weight:700; color:var(--text-primary);">${shoeTVD.toFixed(1)} ${dUnit}</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; border-top: 1px solid #efeae6; padding-top: 6px;">
-          <span style="font-weight:600; color:var(--text-secondary);">String Volume Strokes</span>
+          <span style="font-weight:600; color:var(--text-secondary);">${t('String Volume Strokes', 'String Volume Strokes')}</span>
           <span style="font-weight:700; color:var(--text-primary);">${Math.round(strokes).toLocaleString()} stks</span>
         </div>
       </div>
     </div>
 
     <div class="content-card compact-card" style="margin-bottom:12px; padding: 12px 14px;">
-      <h3 style="font-size:0.85rem; margin-bottom:12px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">Input Well Control Data</h3>
+      <h3 style="font-size:0.85rem; margin-bottom:12px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">${t('Input Well Control Data', 'Input Well Control Data')}</h3>
       
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">Current Mud Wt (${mwUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Current Mud Wt', 'Current Mud Wt')} (${mwUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="number" step="any" class="form-input" id="kd-current-mw" value="${fmt(initialOMW, false)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-current-mw" value="${fmt(initialOMW, false)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">LOT in Max MW (${mwUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('LOT in Max MW', 'LOT in Max MW')} (${mwUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="number" step="any" class="form-input" id="kd-lot-mw" value="${fmt(initialLotMw, false)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-lot-mw" value="${fmt(initialLotMw, false)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">KRP (${pressUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('KRP', 'KRP')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="number" step="any" class="form-input" id="kd-krp" value="${fmt(initialSCR, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-krp" value="${fmt(initialSCR, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
         ${clfInputHtml}
 
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">SIDP (${pressUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('SIDP', 'SIDP')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="number" step="any" class="form-input" id="kd-sidp" value="${fmt(initialSIDPP, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-sidp" value="${fmt(initialSIDPP, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">SICP (${pressUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('SICP', 'SICP')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="number" step="any" class="form-input" id="kd-sicp" value="${fmt(initialSICP, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-sicp" value="${fmt(initialSICP, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
       </div>
 
-      <button class="btn btn-primary" id="kd-go-btn" style="width:100%; margin-top:15px; margin-bottom:0;">GO</button>
+      <button class="btn btn-primary" id="kd-go-btn" style="width:100%; margin-top:15px; margin-bottom:0;">${t('GO', 'GO')}</button>
     </div>
 
     <!-- Output Section (Initially hidden, populated after GO click) -->
     <div class="content-card compact-card" id="kd-results-card" style="display:none; border-left: 4px solid var(--accent-color); margin-bottom:12px;">
-      <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600; color:var(--text-primary);">Calculated Results</h3>
+      <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600; color:var(--text-primary);">${t('Calculated Results', 'Calculated Results')}</h3>
       <div class="results-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">Current MAASP</span>
+          <span class="result-label">${t('Current MAASP', 'Current MAASP')}</span>
           <span class="result-value" id="kd-out-maasp">-</span>
         </div>
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">Kill Mud Weight</span>
+          <span class="result-label">${t('Kill Mud Weight', 'Kill Mud Weight')}</span>
           <span class="result-value" id="kd-out-kmw">-</span>
         </div>
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">ICP</span>
+          <span class="result-label">${t('ICP', 'ICP')}</span>
           <span class="result-value" id="kd-out-icp">-</span>
         </div>
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">FCP</span>
+          <span class="result-label">${t('FCP', 'FCP')}</span>
           <span class="result-value" id="kd-out-fcp">-</span>
         </div>
         ${subseaResultCards}
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">MAASP After Kill</span>
+          <span class="result-label">${t('MAASP After Kill', 'MAASP After Kill')}</span>
           <span class="result-value" id="kd-out-maasp-after">-</span>
         </div>
         <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px; grid-column: span 2;">
-          <span class="result-label">Pressure Drop / 100 Stks</span>
+          <span class="result-label">${t('Pressure Drop / 100 Stks', 'Pressure Drop / 100 Stks')}</span>
           <span class="result-value" id="kd-out-pres-drop">-</span>
         </div>
       </div>
@@ -4246,7 +5002,7 @@ function renderKillDataSheet() {
 
     <!-- Step Down Chart and Schedule Table -->
     <div class="content-card compact-card" id="kd-chart-card" style="display:none; margin-bottom:20px; padding: 12px 14px;">
-      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600; color:var(--text-primary);">Drill Pipe Pressure Step-Down Schedule</h3>
+      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600; color:var(--text-primary);">${t('Drill Pipe Pressure Step-Down Schedule', 'Drill Pipe Pressure Step-Down Schedule')}</h3>
       
       <!-- SVG Chart Wrapper -->
       <div id="kd-chart-svg-wrapper" style="width:100%; display:flex; justify-content:center; margin-bottom:15px; background:var(--card-bg); border-radius:12px; padding:10px 5px; border: 1px solid var(--border-subtle);"></div>
@@ -4256,8 +5012,8 @@ function renderKillDataSheet() {
         <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
           <thead>
             <tr style="background-color:var(--bg-subtle); border-bottom: 1px solid var(--border-subtle);">
-              <th style="padding: 8px 12px; font-weight:600; color:var(--text-secondary);">Cumulative Strokes</th>
-              <th style="padding: 8px 12px; font-weight:600; color:var(--text-secondary); text-align: right;">Drill Pipe Pressure</th>
+              <th style="padding: 8px 12px; font-weight:600; color:var(--text-secondary);">${t('Cumulative Strokes', 'Cumulative Strokes')}</th>
+              <th style="padding: 8px 12px; font-weight:600; color:var(--text-secondary); text-align: right;">${t('Drill Pipe Pressure', 'Drill Pipe Pressure')}</th>
             </tr>
           </thead>
           <tbody id="kd-schedule-table-body"></tbody>
@@ -4284,17 +5040,21 @@ function renderKillDataSheet() {
     });
 
     if (hasError) {
-      showToast("Required input missing");
+      showToast(t("Required input missing", "Required input missing"));
       return;
     }
 
     // Read input values
-    const currentMw = parseFloat(document.getElementById('kd-current-mw').value) || 0;
-    const lotMw = parseFloat(document.getElementById('kd-lot-mw').value) || 0;
-    const krp = parseFloat(document.getElementById('kd-krp').value) || 0;
-    const sidp = parseFloat(document.getElementById('kd-sidp').value) || 0;
-    const sicp = parseFloat(document.getElementById('kd-sicp').value) || 0;
-    const clf = state.flowType === 'subsea' ? (parseFloat(document.getElementById('kd-clf').value) || 0) : 0;
+    const parseNum = (id) => {
+      const el = document.getElementById(id);
+      return el ? (parseFloat(String(el.value).replace(',', '.')) || 0) : 0;
+    };
+    const currentMw = parseNum('kd-current-mw');
+    const lotMw = parseNum('kd-lot-mw');
+    const krp = parseNum('kd-krp');
+    const sidp = parseNum('kd-sidp');
+    const sicp = parseNum('kd-sicp');
+    const clf = state.flowType === 'subsea' ? parseNum('kd-clf') : 0;
 
     // Save to state in US units
     state.calcInputs.killOMW_ppg = currentMw;
@@ -4409,7 +5169,7 @@ function renderKillDataSheet() {
       // Final point
       tableRows += `
         <tr style="background-color: var(--bg-subtle);">
-          <td style="padding: 8px 12px; font-weight: 700; color: var(--text-primary); border-bottom-left-radius: 8px;">${totalStrokes} (Bit)</td>
+          <td style="padding: 8px 12px; font-weight: 700; color: var(--text-primary); border-bottom-left-radius: 8px;">${totalStrokes} (${t('Bit', 'Bit')})</td>
           <td style="padding: 8px 12px; font-weight: 700; text-align: right; color: #10B981; border-bottom-right-radius: 8px;">${Math.round(fcp)} psi</td>
         </tr>
       `;
@@ -4490,10 +5250,10 @@ function renderKillDataSheet() {
           ${pointCircles}
           
           <!-- Y-Axis Title -->
-          <text x="10" y="${padTop + chartH / 2}" font-size="8" fill="var(--text-primary)" transform="rotate(-90 10 ${padTop + chartH / 2})" text-anchor="middle" font-weight="600">Pressure (psi)</text>
+          <text x="10" y="${padTop + chartH / 2}" font-size="8" fill="var(--text-primary)" transform="rotate(-90 10 ${padTop + chartH / 2})" text-anchor="middle" font-weight="600">${t('Pressure (psi)', 'Pressure (psi)')}</text>
           
           <!-- X-Axis Title -->
-          <text x="${padLeft + chartW / 2}" y="${height - 2}" font-size="8" fill="var(--text-primary)" text-anchor="middle" font-weight="600">Strokes</text>
+          <text x="${padLeft + chartW / 2}" y="${height - 2}" font-size="8" fill="var(--text-primary)" text-anchor="middle" font-weight="600">${t('Strokes', 'Strokes')}</text>
         </svg>
       `;
 
@@ -4504,7 +5264,7 @@ function renderKillDataSheet() {
     }
 
     // Show a toast message
-    showToast("Kill sheet calculations completed!");
+    showToast(t("Kill sheet calculations completed!", "Kill sheet calculations completed!"));
   };
 
   // Enforce manual click on GO button to show results, do not auto-run calculations on screen load
@@ -5298,7 +6058,7 @@ function renderConversionScreen() {
   };
 
   const doConversion = () => {
-    const val = parseFloat(fromVal.value);
+    const val = parseFloat(String(fromVal.value).replace(',', '.'));
     if (isNaN(val)) {
       toVal.value = '';
       return;
@@ -7514,7 +8274,7 @@ function renderDrillingCalcScreen() {
       html += `
         <div class="guide-quick-access">
           <div class="guide-section-title">
-            <span class="material-icons" style="font-size:1.15rem; color:#EAB308;">star</span>
+            ${renderIcon('star', { size: '1.15rem', style: 'color:#EAB308;' })}
             <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
           </div>
           <div class="guide-quick-grid">
@@ -7522,13 +8282,13 @@ function renderDrillingCalcScreen() {
       quickAccessItems.forEach(qa => {
         html += `
           <div class="guide-quick-btn" onclick="openFormulaDirectly('${qa.itemId}', '${qa.category || ''}')">
-            <span class="material-icons guide-quick-icon">${qa.icon}</span>
+            ${renderIcon(qa.icon, { size: '1.1rem', className: 'guide-quick-icon' })}
             <div class="guide-quick-info">
               <span class="guide-quick-name">${qa.name}</span>
               <span class="guide-quick-cat">${qa.catName}</span>
             </div>
-            <button class="guide-fav-btn active" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${qa.itemId}', event)">
-              <span class="material-icons" style="font-size: 1.15rem; color: #EAB308;">star</span>
+            <button class="guide-fav-btn active" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${qa.itemId}', event)" aria-label="Favorite">
+              ${renderIcon('star', { size: '1.15rem', style: 'color: #EAB308;' })}
             </button>
           </div>
         `;
@@ -7541,11 +8301,11 @@ function renderDrillingCalcScreen() {
       html += `
         <div class="guide-quick-access">
           <div class="guide-section-title" style="margin-bottom: 6px;">
-            <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
+            ${renderIcon('star', { size: '1.05rem', style: 'color:#EAB308;' })}
             <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
           </div>
           <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1; margin-bottom: 20px;">
-            <span class="material-icons" style="font-size: 0.95rem; color: #EAB308;">star_border</span>
+            ${renderIcon('star_border', { size: '0.95rem', style: 'color: #EAB308;' })}
             <span>Tap the star on any calculator to add it here.</span>
           </div>
         </div>
@@ -7559,14 +8319,14 @@ function renderDrillingCalcScreen() {
           <div class="guide-category-header" onclick="toggleGuideCategory('calc-cat-${idx}')">
             <div class="guide-category-title-section">
               <div class="guide-category-icon-wrapper">
-                <span class="material-icons guide-category-icon">${sec.icon}</span>
+                ${renderIcon(sec.icon, { size: '1.25rem', className: 'guide-category-icon' })}
               </div>
               <div class="guide-category-info">
                 <span class="guide-category-name">${sec.name}</span>
                 <span class="guide-category-desc">${sec.desc}</span>
               </div>
             </div>
-            <span class="material-icons guide-category-chevron">chevron_right</span>
+            ${renderIcon('chevron_right', { size: '1.2rem', className: 'guide-category-chevron' })}
           </div>
           <div class="guide-subcategory-list">
       `;
@@ -7577,8 +8337,8 @@ function renderDrillingCalcScreen() {
         html += `
           <div class="guide-item-row" onclick="openFormulaDirectly('${item.id}', '${sec.category || ''}')">
             <div class="guide-item-row-left">
-              <button class="guide-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFormulaFavorite('${item.id}', event)">
-                <span class="material-icons">${isFav ? 'star' : 'star_border'}</span>
+              <button class="guide-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFormulaFavorite('${item.id}', event)" aria-label="Favorite">
+                ${renderIcon(isFav ? 'star' : 'star_border', { size: '1.15rem', style: isFav ? 'color:#EAB308;' : '' })}
               </button>
               <span class="guide-item-title">${item.name}</span>
             </div>
@@ -7627,8 +8387,8 @@ function renderDrillingCalcScreen() {
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
           <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="form-back-btn">Back to List</button>
           <h3 style="font-size:0.95rem; font-weight:600; margin:0; flex:1;">Calculator</h3>
-          <button class="guide-fav-btn ${isFav ? 'active' : ''}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${f.id}', event)">
-            <span class="material-icons" style="font-size: 1.5rem; color: ${isFav ? '#EAB308' : 'var(--text-secondary)'};">${isFav ? 'star' : 'star_border'}</span>
+          <button class="guide-fav-btn ${isFav ? 'active' : ''}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${f.id}', event)" aria-label="Favorite">
+            ${renderIcon(isFav ? 'star' : 'star_border', { size: '1.5rem', style: `color: ${isFav ? '#EAB308' : 'var(--text-secondary)'};` })}
           </button>
         </div>
         
@@ -7654,7 +8414,7 @@ function renderDrillingCalcScreen() {
       group.className = 'form-group';
       group.innerHTML = `
         <label>${inp.label}</label>
-        <input type="number" step="any" class="form-input table-input" id="inp-${inp.key}" value="${inp.val}" style="text-align:left; width:100%; border-radius:var(--border-radius-pill); padding:14px 20px;">
+        <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input table-input" id="inp-${inp.key}" value="${inp.val}" style="text-align:left; width:100%; border-radius:var(--border-radius-pill); padding:14px 20px;">
       `;
       inputsCont.appendChild(group);
     });
@@ -7665,7 +8425,7 @@ function renderDrillingCalcScreen() {
         const el = document.getElementById(`inp-${inp.key}`);
         if (el) {
           inp.val = el.value;
-          arg[inp.key] = parseFloat(el.value) || 0;
+          arg[inp.key] = parseFloat(String(el.value).replace(',', '.')) || 0;
         } else {
           arg[inp.key] = 0;
         }
@@ -8067,11 +8827,7 @@ window.updateQuickRefFavoriteIcon = () => {
   
   favBtn.style.display = 'flex';
   const isFav = typeof GuideFavoritesStore !== 'undefined' && GuideFavoritesStore.isFavorited(itemId);
-  const iconEl = favBtn.querySelector('.material-icons');
-  if (iconEl) {
-    iconEl.textContent = isFav ? 'star' : 'star_border';
-    iconEl.style.color = isFav ? '#EAB308' : 'var(--text-secondary)';
-  }
+  favBtn.innerHTML = renderIcon(isFav ? 'star' : 'star_border', { size: '20px', style: isFav ? 'color:#EAB308;' : 'color:var(--text-secondary);' });
 };
 
 window.toggleQuickRefFavorite = () => {
@@ -9026,13 +9782,13 @@ function renderGuideQuickAccessHTML() {
     quickAccessItems.forEach(qa => {
       itemsHtml += `
         <div class="guide-quick-btn" onclick="handleGuideItemClick('${qa.itemId}', '${qa.catName}')">
-          <span class="material-icons guide-quick-icon">${qa.icon}</span>
+          ${renderIcon(qa.icon, { size: '1.1rem', className: 'guide-quick-icon' })}
           <div class="guide-quick-info">
             <span class="guide-quick-name">${qa.name}</span>
             <span class="guide-quick-cat">${qa.catName}</span>
           </div>
-          <button class="guide-fav-btn active" data-guide-id="${qa.itemId}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleGuideFavorite('${qa.itemId}', event)">
-            <span class="material-icons" style="font-size: 1.15rem; color: #EAB308;">star</span>
+          <button class="guide-fav-btn active" data-guide-id="${qa.itemId}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleGuideFavorite('${qa.itemId}', event)" aria-label="Favorite">
+            ${renderIcon('star', { size: '1.15rem', style: 'color: #EAB308;' })}
           </button>
         </div>
       `;
@@ -9040,7 +9796,7 @@ function renderGuideQuickAccessHTML() {
     return `
       <div class="guide-quick-access">
         <div class="guide-section-title">
-          <span class="material-icons" style="font-size:1.15rem; color:#EAB308;">star</span>
+          ${renderIcon('star', { size: '1.15rem', style: 'color:#EAB308;' })}
           <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
         </div>
         <div class="guide-quick-grid" style="grid-template-columns: repeat(2, 1fr);">
@@ -9052,11 +9808,11 @@ function renderGuideQuickAccessHTML() {
     return `
       <div class="guide-quick-access">
         <div class="guide-section-title" style="margin-bottom: 6px;">
-          <span class="material-icons" style="font-size:1.05rem; color:#EAB308;">star</span>
+          ${renderIcon('star', { size: '1.05rem', style: 'color:#EAB308;' })}
           <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1;">
-          <span class="material-icons" style="font-size: 0.95rem; color: #EAB308;">star_border</span>
+          ${renderIcon('star_border', { size: '0.95rem', style: 'color: #EAB308;' })}
           <span>Tap the star on any guide to add it here.</span>
         </div>
       </div>
@@ -9080,10 +9836,10 @@ function syncGuideFavoriteButtonsInDOM(itemId, isFav) {
   document.querySelectorAll(`.guide-fav-btn[data-guide-id="${itemId}"]`).forEach(btn => {
     if (isFav) {
       btn.classList.add('active');
-      btn.innerHTML = `<span class="material-icons" style="font-size: 1.15rem; color: #EAB308;">star</span>`;
+      btn.innerHTML = renderIcon('star', { size: '1.15rem', style: 'color: #EAB308;' });
     } else {
       btn.classList.remove('active');
-      btn.innerHTML = `<span class="material-icons" style="font-size: 1.15rem;">star_border</span>`;
+      btn.innerHTML = renderIcon('star_border', { size: '1.15rem' });
     }
   });
 
@@ -9092,10 +9848,10 @@ function syncGuideFavoriteButtonsInDOM(itemId, isFav) {
     if (detailBtn) {
       if (isFav) {
         detailBtn.classList.add('active');
-        detailBtn.innerHTML = `<span class="material-icons">star</span>`;
+        detailBtn.innerHTML = renderIcon('star', { size: '26px' });
       } else {
         detailBtn.classList.remove('active');
-        detailBtn.innerHTML = `<span class="material-icons">star_border</span>`;
+        detailBtn.innerHTML = renderIcon('star_border', { size: '26px' });
       }
     }
   }
@@ -9142,14 +9898,14 @@ function renderDrillingGuideScreen() {
         <div class="guide-category-header" onclick="toggleGuideCategory('guide-cat-${catKey}')">
           <div class="guide-category-title-section">
             <div class="guide-category-icon-wrapper">
-              <span class="material-icons guide-category-icon">${cat.icon}</span>
+              ${renderIcon(cat.icon, { size: '1.25rem', className: 'guide-category-icon' })}
             </div>
             <div class="guide-category-info">
               <span class="guide-category-name">${cat.name}</span>
               <span class="guide-category-desc">${cat.desc}</span>
             </div>
           </div>
-          <span class="material-icons guide-category-chevron">chevron_right</span>
+          ${renderIcon('chevron_right', { size: '1.2rem', className: 'guide-category-chevron' })}
         </div>
         <div class="guide-subcategory-list">
     `;
@@ -9159,8 +9915,8 @@ function renderDrillingGuideScreen() {
       html += `
         <div class="guide-item-row" onclick="handleGuideItemClick('${item.id}', '${cat.name}')">
           <div class="guide-item-row-left">
-            <button class="guide-fav-btn ${isFav ? 'active' : ''}" data-guide-id="${item.id}" onclick="toggleGuideFavorite('${item.id}', event)">
-              <span class="material-icons">${isFav ? 'star' : 'star_border'}</span>
+            <button class="guide-fav-btn ${isFav ? 'active' : ''}" data-guide-id="${item.id}" onclick="toggleGuideFavorite('${item.id}', event)" aria-label="Favorite">
+              ${renderIcon(isFav ? 'star' : 'star_border', { size: '1.15rem', style: isFav ? 'color:#EAB308;' : '' })}
             </button>
             <span class="guide-item-title">${item.name}</span>
           </div>
@@ -9242,8 +9998,8 @@ window.filterGuideTopics = () => {
       html += `
         <div class="guide-item-row" onclick="handleGuideItemClick('${item.id}', '${catName}')">
           <div class="guide-item-row-left">
-            <button class="guide-fav-btn ${isFav ? 'active' : ''}" data-guide-id="${item.id}" onclick="toggleGuideFavorite('${item.id}', event)">
-              <span class="material-icons">${isFav ? 'star' : 'star_border'}</span>
+            <button class="guide-fav-btn ${isFav ? 'active' : ''}" data-guide-id="${item.id}" onclick="toggleGuideFavorite('${item.id}', event)" aria-label="Favorite">
+              ${renderIcon(isFav ? 'star' : 'star_border', { size: '1.15rem', style: isFav ? 'color:#EAB308;' : '' })}
             </button>
             <span class="guide-item-title">${item.name}</span>
           </div>
@@ -9448,7 +10204,7 @@ window.renderDrillingGuideDetailScreen = () => {
           ${topicTitle}
         </div>
         <button class="guide-detail-fav-btn ${isFav ? 'active' : ''}" id="guide-detail-fav-btn" onclick="toggleDetailGuideFavorite(event)" aria-label="Favorite">
-          <span class="material-icons">${isFav ? 'star' : 'star_border'}</span>
+          ${renderIcon(isFav ? 'star' : 'star_border', { size: '26px' })}
         </button>
       </div>
       <div class="guide-detail-body">
@@ -9497,11 +10253,7 @@ window.updateStuckPipeFavoriteIcon = () => {
   const favBtn = document.getElementById('stuck-pipe-fav-btn');
   if (favBtn) {
     const isFav = GuideFavoritesStore.isFavorited('stuck_pipe_guide');
-    const iconEl = favBtn.querySelector('.material-icons');
-    if (iconEl) {
-      iconEl.textContent = isFav ? 'star' : 'star_border';
-      iconEl.style.color = isFav ? '#EAB308' : 'var(--text-secondary)';
-    }
+    favBtn.innerHTML = renderIcon(isFav ? 'star' : 'star_border', { size: '20px', style: isFav ? 'color:#EAB308;' : 'color:var(--text-secondary);' });
   }
 };
 
@@ -9547,7 +10299,7 @@ window.calculateGuideTFA = () => {
   const inputs = document.querySelectorAll('.nozzle-size-input');
   let tfa = 0;
   inputs.forEach(input => {
-    const size = parseFloat(input.value) || 0;
+    const size = parseFloat(String(input.value).replace(',', '.')) || 0;
     if (size > 0) {
       tfa += (size / 32) * (size / 32) * (Math.PI / 4);
     }
@@ -9558,8 +10310,9 @@ window.calculateGuideTFA = () => {
 
 // Hydraulics calculations
 window.calculateGuideHydraulics = () => {
-  const flow = parseFloat(document.getElementById('hyd-flow').value) || 0;
-  const mw = parseFloat(document.getElementById('hyd-mw').value) || 0;
+  const parseV = (id) => { const el = document.getElementById(id); return el ? (parseFloat(String(el.value).replace(',', '.')) || 0) : 0; };
+  const flow = parseV('hyd-flow');
+  const mw = parseV('hyd-mw');
   const tfa = parseFloat(document.getElementById('hyd-tfa').value) || 0;
   const size = parseFloat(document.getElementById('hyd-size').value) || 0;
 
@@ -9625,7 +10378,7 @@ window.calculateGuideKillParameters = () => {
   const scrp = parseFloat(document.getElementById('ww-scrp').value) || 0;
   const tvd = parseFloat(document.getElementById('ww-tvd').value) || 0;
   const stksEl = document.getElementById('ww-stks');
-  const stks = stksEl ? (parseFloat(stksEl.value) || 1000) : 1000;
+  const stks = stksEl ? (parseFloat(String(stksEl.value).replace(',', '.')) || 1000) : 1000;
 
   const kmwEl = document.getElementById('ww-val-kmw');
   const icpEl = document.getElementById('ww-val-icp');
@@ -9714,8 +10467,9 @@ window.selectGuideMakeupTorque = () => {
 
 // Hydrostatic Pressure Calculator Actions
 window.calculateGuideHydrostatic = () => {
-  const mw = parseFloat(document.getElementById('hp-mw').value) || 0;
-  const tvd = parseFloat(document.getElementById('hp-tvd').value) || 0;
+  const parseV = (id) => { const el = document.getElementById(id); return el ? (parseFloat(String(el.value).replace(',', '.')) || 0) : 0; };
+  const mw = parseV('hp-mw');
+  const tvd = parseV('hp-tvd');
   const resEl = document.getElementById('hp-result');
   if (resEl) {
     if (mw > 0 && tvd > 0) {
@@ -9729,9 +10483,10 @@ window.calculateGuideHydrostatic = () => {
 
 // Annular Velocity Calculator Actions
 window.calculateGuideAnnularVelocity = () => {
-  const flow = parseFloat(document.getElementById('av-flow').value) || 0;
-  const hole = parseFloat(document.getElementById('av-hole').value) || 0;
-  const pipe = parseFloat(document.getElementById('av-pipe').value) || 0;
+  const parseV = (id) => { const el = document.getElementById(id); return el ? (parseFloat(String(el.value).replace(',', '.')) || 0) : 0; };
+  const flow = parseV('av-flow');
+  const hole = parseV('av-hole');
+  const pipe = parseV('av-pipe');
   const resEl = document.getElementById('av-result');
   if (resEl) {
     if (flow > 0 && hole > pipe) {
@@ -9745,11 +10500,12 @@ window.calculateGuideAnnularVelocity = () => {
 
 // Dogleg Severity Calculator Actions
 window.calculateGuideDLS = () => {
-  const md = parseFloat(document.getElementById('dls-md').value) || 100;
-  const inc1 = parseFloat(document.getElementById('dls-inc1').value) || 0;
-  const azi1 = parseFloat(document.getElementById('dls-azi1').value) || 0;
-  const inc2 = parseFloat(document.getElementById('dls-inc2').value) || 0;
-  const azi2 = parseFloat(document.getElementById('dls-azi2').value) || 0;
+  const parseV = (id, fb=0) => { const el = document.getElementById(id); return el && el.value !== '' ? (parseFloat(String(el.value).replace(',', '.')) || 0) : fb; };
+  const md = parseV('dls-md', 100);
+  const inc1 = parseV('dls-inc1', 0);
+  const azi1 = parseV('dls-azi1', 0);
+  const inc2 = parseV('dls-inc2', 0);
+  const azi2 = parseV('dls-azi2', 0);
   const resEl = document.getElementById('dls-result');
   
   if (resEl) {
@@ -9774,9 +10530,10 @@ window.calculateGuideDLS = () => {
 
 // Mud Weight Up Calculator Actions
 window.calculateGuideMudWeightUp = () => {
-  const vol = parseFloat(document.getElementById('mudup-vol').value) || 0;
-  const initialMW = parseFloat(document.getElementById('mudup-imw').value) || 0;
-  const targetMW = parseFloat(document.getElementById('mudup-tmw').value) || 0;
+  const parseV = (id) => { const el = document.getElementById(id); return el ? (parseFloat(String(el.value).replace(',', '.')) || 0) : 0; };
+  const vol = parseV('mudup-vol');
+  const initialMW = parseV('mudup-imw');
+  const targetMW = parseV('mudup-tmw');
   const resEl = document.getElementById('mudup-result');
   if (resEl) {
     if (vol > 0 && targetMW > initialMW && targetMW < 35.8) {
@@ -10895,7 +11652,7 @@ function getGuideItemContent(itemId) {
           </ul>
           <span class="guide-section-title">Interactive Diagnostic Assistant</span>
           <button class="toolkit-btn primary" onclick="navigateTo('stuck-pipe')" style="width:100%; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border-radius:12px; font-weight:600; cursor:pointer;">
-            <span class="material-icons" style="font-size:20px;">troubleshoot</span>
+            ${renderIcon('troubleshoot', { size: '20px' })}
             Launch Stuck Pipe Diagnostic Tool
           </button>
         `
@@ -11444,10 +12201,10 @@ window.toggleIADCDetails = () => {
   const btn = document.getElementById('iadc-see-more-btn');
   if (container.style.display === 'none') {
     container.style.display = 'block';
-    btn.innerHTML = 'See Less <span class="material-icons" style="font-size:20px;">expand_less</span>';
+    btn.innerHTML = 'See Less ' + renderIcon('expand_less', { size: '20px' });
   } else {
     container.style.display = 'none';
-    btn.innerHTML = 'See More <span class="material-icons" style="font-size:20px;">expand_more</span>';
+    btn.innerHTML = 'See More ' + renderIcon('expand_more', { size: '20px' });
   }
 };
 

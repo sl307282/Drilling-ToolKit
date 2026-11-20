@@ -1,0 +1,527 @@
+[
+  [
+    "leak_off",
+    "Leak Off Test Calculation",
+    "Maximum mud weight before formation breakdown at shoe."
+  ],
+  [
+    "slug_weight",
+    "Slug Calculation Weight of Slug Required",
+    "Required slug mud weight for a desired pipe drop."
+  ],
+  [
+    "slug_vol",
+    "Slug Volume",
+    "Required volume of slug for a desired pipe drop."
+  ],
+  [
+    "slug_bbl_req",
+    "Slug Calculation Barrel of Slug Required for Desired Length",
+    "Volume of slug required to fill a specific length of drill pipe."
+  ],
+  [
+    "pipe_pulled_dry",
+    "Feet of Drill Pipe Pulled \u2013 Dry",
+    "Equivalent volume of fluid displaced when POOH dry pipe."
+  ],
+  [
+    "pipe_pulled_wet",
+    "Feet of Drill Pipe Pulled \u2013 Wet",
+    "Equivalent volume of fluid displaced when POOH wet pipe (internal + metal)."
+  ],
+  [
+    "dp_pulled_lose_dry",
+    "Drill Pipe Pulled to Lose Hydrostatic Pressure (Pull Dry)",
+    "Length of dry pipe pulled to lose a specific amount of hydrostatic head."
+  ],
+  [
+    "dp_pulled_lose_wet",
+    "Drill Pipe Pulled to Lose Hydrostatic Pressure (Pull Wet)",
+    "Length of wet pipe pulled to lose a specific amount of hydrostatic head."
+  ],
+  [
+    "hydro_dec_dry",
+    "Hydrostatic Pressure Decrease When POOH Dry Pipe",
+    "Pressure drop when pulling a specific length of dry pipe."
+  ],
+  [
+    "hydro_dec_wet",
+    "Hydrostatic Pressure Decrease When POOH Wet Pipe",
+    "Pressure drop when pulling a specific length of wet pipe."
+  ],
+  [
+    "hydro_grad_gas_cut",
+    "Hydrostatic Pressure Using Gradient (Gas Cut)",
+    "Hydrostatic pressure with gas-cut mud using a gradient."
+  ],
+  [
+    "hydro_mw_gas_cut",
+    "Hydrostatic Pressure Using Mud Weight (Gas Cut)",
+    "Hydrostatic pressure with gas-cut mud using density."
+  ],
+  [
+    "acc_surf",
+    "Accumulator Capacity \u2013 Surface Stack (gal)",
+    "Usable fluid volume from surface accumulator system."
+  ],
+  [
+    "acc_subsea",
+    "Accumulator Capacity \u2013 Subsea BOP",
+    "Usable subsea fluid volume adjusting for water column head."
+  ],
+  [
+    "acc_bottle_req",
+    "Accumulator Bottle Requirement",
+    "Calculate number of bottles needed for usable fluid volume."
+  ],
+  [
+    "acc_precharge",
+    "Accumulator Pre-Charge Pressure",
+    "Calculate optimum pre-charge pressure."
+  ],
+  [
+    "acc_recharge_time",
+    "Accumulator Recharge Time",
+    "Time to recharge accumulator system."
+  ],
+  [
+    "bop_close_time",
+    "BOP Closing Time",
+    "Estimated time to close BOP."
+  ],
+  [
+    "bop_open_time",
+    "BOP Opening Time",
+    "Estimated time to open BOP."
+  ],
+  [
+    "ram_close_vol",
+    "Ram Closing Volume",
+    "Volume required to close ram preventer."
+  ],
+  [
+    "annular_close_vol",
+    "Annular Closing Volume",
+    "Volume required to close annular preventer."
+  ],
+  [
+    "control_fluid_req",
+    "Control Fluid Requirement",
+    "Total fluid requirement including safety factor."
+  ],
+  [
+    "choke_line_cap",
+    "Choke Line Capacity",
+    "Volume capacity of the choke line."
+  ],
+  [
+    "kill_line_cap",
+    "Kill Line Capacity",
+    "Volume capacity of the kill line."
+  ],
+  [
+    "surface_line_vol",
+    "Surface Line Volume",
+    "Volume of surface piping."
+  ],
+  [
+    "bop_function_vol",
+    "BOP Function Volume",
+    "Total volume for BOP functions."
+  ],
+  [
+    "bop_press_test_vol",
+    "BOP Pressure Test Volume",
+    "Fluid required for pressure test (compressibility)."
+  ],
+  [
+    "press_rating_verif",
+    "Pressure Rating Verification",
+    "Checks if BOP rating exceeds max pressure."
+  ],
+  [
+    "standpipe_press",
+    "Standpipe Pressure",
+    "Sum of all pressure losses in the circulating system."
+  ],
+  [
+    "p_loss_dp",
+    "Pressure Loss Inside Drill Pipe",
+    "Estimated pressure drop through the drill pipe."
+  ],
+  [
+    "p_loss_dc",
+    "Pressure Loss in Drill Collar",
+    "Estimated pressure drop through the drill collars."
+  ],
+  [
+    "p_loss_bit",
+    "Pressure Loss Across Bit Nozzles",
+    "Pressure drop through the bit."
+  ],
+  [
+    "p_loss_ann",
+    "Pressure Loss in Annulus",
+    "Estimated pressure drop in the annulus."
+  ],
+  [
+    "bhhp",
+    "Bit Hydraulic Horsepower (BHHP)",
+    "Horsepower delivered at the bit."
+  ],
+  [
+    "pump_hhp",
+    "Hydraulic Horsepower (HHP)",
+    "Total horsepower delivered by mud pumps."
+  ],
+  [
+    "jet_impact_force",
+    "Jet Impact Force",
+    "Force exerted by fluid exiting bit nozzles."
+  ],
+  [
+    "bit_nozzle_size",
+    "Bit Nozzle Size",
+    "Equivalent nozzle size based on Total Flow Area."
+  ],
+  [
+    "bit_tfa",
+    "Bit Nozzle Total Flow Area",
+    "Calculate TFA for up to three nozzles."
+  ],
+  [
+    "pump_eff",
+    "Pump Efficiency",
+    "Actual volumetric efficiency of the pump."
+  ],
+  [
+    "pump_stroke_req",
+    "Pump Stroke Required",
+    "Total strokes to pump a given volume."
+  ],
+  [
+    "flow_regime",
+    "Flow Regime (Laminar/Turbulent)",
+    "Determines flow regime using Critical Velocity (values >1 turbulent, <1 laminar)."
+  ],
+  [
+    "reynolds_number",
+    "Reynolds Number",
+    "Calculates Reynolds Number (Re) for Newtonian fluid."
+  ],
+  [
+    "ann_cap",
+    "Annular Capacity",
+    "Volumetric capacity between casing/hole ID and pipe OD."
+  ],
+  [
+    "ann_vel_dia",
+    "Annular Velocity Between Two Diameters",
+    "Velocity of mud moving up the annulus."
+  ],
+  [
+    "ann_vel_cap",
+    "Annular Velocity Using Annular Capacity",
+    "Velocity of mud calculated from annular capacity."
+  ],
+  [
+    "bf_lbs",
+    "Buoyancy Factor Using Mud Weight (lb/ft\u00b3)",
+    "Steel buoyancy factor using mud density in lb/ft\u00b3."
+  ],
+  [
+    "bf_ppg",
+    "Buoyancy Factor Using Mud Weight (ppg)",
+    "Steel buoyancy factor using mud weight in ppg."
+  ],
+  [
+    "pipe_disp",
+    "Pipe Displacement Calculation (bbl/ft)",
+    "Approximated steel volume displacement from weight."
+  ],
+  [
+    "grad_to_mw",
+    "Pressure Gradient to Mud Weight",
+    "Converts psi/ft gradient to ppg equivalent."
+  ],
+  [
+    "sg_to_mw_lbs",
+    "Specific Gravity to Mud Weight (lb/ft\u00b3)",
+    "Converts SG to lb/ft\u00b3."
+  ],
+  [
+    "sg_to_mw_ppg",
+    "Specific Gravity to Mud Weight (ppg)",
+    "Converts SG to ppg."
+  ],
+  [
+    "sg_to_grad",
+    "Specific Gravity to Pressure Gradient (psi/ft)",
+    "Converts SG to psi/ft."
+  ],
+  [
+    "mw_to_sg",
+    "Specific Gravity Using Mud Weight",
+    "Converts ppg to SG."
+  ],
+  [
+    "pump_pressure_spm_change",
+    "New Pump Pressure \u2013 SPM Change",
+    "Calculate new pump pressure when pump speed (SPM) changes."
+  ],
+  [
+    "pump_pressure_mw_change",
+    "New Pump Pressure \u2013 Mud Weight Change",
+    "Calculate new pump pressure when fluid weight (mud weight) changes."
+  ],
+  [
+    "pump_pressure_both_change",
+    "New Pump Pressure \u2013 SPM & Mud Weight Change",
+    "Calculate new pump pressure when both pump speed (SPM) and mud weight change simultaneously."
+  ],
+  [
+    "hydro_loss_float_fail",
+    "Hydrostatic Pressure Loss if Casing Float Fails",
+    "Calculate pressure drop when casing float valve fails and fluid levels equalize."
+  ],
+  [
+    "tensile_cap",
+    "Tensile Capacity of Drill String",
+    "Maximum axial load before pipe body yield."
+  ],
+  [
+    "dc_wt_vert",
+    "Drill Collar Weight for Vertical Wells (lb)",
+    "Required collar weight in vertical well to satisfy weight-on-bit."
+  ],
+  [
+    "dc_wt_dev",
+    "Drill Collar Weight for Deviated Wells (lb)",
+    "Required collar weight in deviated well to satisfy weight-on-bit."
+  ],
+  [
+    "dp_elongation",
+    "Drill Pipe Elongation Due to Temperature (in)",
+    "Linear thermal expansion of steel drillstring."
+  ],
+  [
+    "neutral_point",
+    "Neutral Point Calculation",
+    "Distance from the bit where the string is neither in compression nor tension."
+  ],
+  [
+    "ds_weight_air",
+    "Drill String Weight in Air",
+    "Total dry weight of the drill string components."
+  ],
+  [
+    "ds_weight_mud",
+    "Drill String Weight in Mud",
+    "Buoyed weight of the drill string."
+  ],
+  [
+    "buckling_load",
+    "Buckling Load Calculation",
+    "Estimated critical buckling force in a vertical wellbore."
+  ],
+  [
+    "burst_pressure",
+    "Burst Pressure Rating",
+    "Barlows formula for pipe burst resistance."
+  ],
+  [
+    "collapse_pressure",
+    "Collapse Pressure Rating",
+    "Simplified empirical estimate for collapse resistance."
+  ],
+  [
+    "pipe_body_yield",
+    "Pipe Body Yield Strength",
+    "Maximum tensile load before plastic deformation."
+  ],
+  [
+    "tool_joint_strength",
+    "Tool Joint Strength",
+    "Tensile capacity of the connection."
+  ],
+  [
+    "hook_load_calc",
+    "Hook Load Calculation",
+    "Estimated static hook load with buoyed string weight."
+  ],
+  [
+    "max_allowable_pull",
+    "Maximum Allowable Pull",
+    "Maximum operational pull considering safety margin."
+  ],
+  [
+    "wob_calc",
+    "Bit Weight on Bottom (WOB)",
+    "Calculated WOB based on hook load difference."
+  ],
+  [
+    "safety_factor_calc",
+    "Safety Factor Calculation",
+    "Ratio of component strength to applied load."
+  ],
+  [
+    "ecd_applied",
+    "Equivalent Circulating Density",
+    "Total dynamic bottom-hole pressure expressed in density."
+  ],
+  [
+    "eff_mud_dens",
+    "Effective Mud Density",
+    "Effective mud column density including cuttings load."
+  ],
+  [
+    "fpc_stuck",
+    "Free Point Constant for Stuck Pipe Calculation",
+    "Factor relating steel expansion to pull force."
+  ],
+  [
+    "int_cap",
+    "Internal Capacity (bbl/ft)",
+    "Volumetric capacity of pipe inside diameter."
+  ],
+  [
+    "lag_time",
+    "Lag Time Calculation",
+    "Time for bottoms-up fluid returns to reach surface."
+  ],
+  [
+    "spot_pill",
+    "Light Weight Spot Pill",
+    "Calculates height of lightweight fluid spot pill."
+  ],
+  [
+    "overpull_margin",
+    "Margin of Overpull in Drillstring (lb)",
+    "Safety load capability before yielding top joint."
+  ],
+  [
+    "max_rop",
+    "Maximum ROP Before Fracture Formation",
+    "Maximum drilling speed to prevent ECD exceeding fracture limit."
+  ],
+  [
+    "pipe_disp_applied",
+    "Pipe Displacement Calculation",
+    "Metal volume displacement per foot."
+  ],
+  [
+    "break_circ",
+    "Pressure Required to Break Circulation in Annulus",
+    "Minimum pressure to start mud movement after static gelation."
+  ],
+  [
+    "break_gel",
+    "Pressure Required to Break Gel Strength",
+    "Mud start-up pressure limit."
+  ],
+  [
+    "pump_out_duplex",
+    "Pump Out Put Calculation Duplex",
+    "Liner output for double-acting duplex pump."
+  ],
+  [
+    "pump_out_triplex",
+    "Pump Out Put Calculation Triplex",
+    "Liner output for single-acting triplex pump."
+  ],
+  [
+    "pump_pres_stroke_adv",
+    "Pump Pressure & Pump Stroke Advance",
+    "Speed adjustment pressure scaling with custom exponent."
+  ],
+  [
+    "pump_pres_stroke_basic",
+    "Pump Pressure & Pump Stroke Basic",
+    "Speed adjustment pressure scaling with standard square law."
+  ],
+  [
+    "pump_rate_req",
+    "Pump Rate Required",
+    "Flow rate needed to sustain target annular velocity."
+  ],
+  [
+    "rt_ton_mile",
+    "Round Trip Ton Mile",
+    "Total work done during a drillstring round trip."
+  ],
+  [
+    "stuck_pipe_calc",
+    "Stuck Pipe Calculation",
+    "Free length of stuck drillstring using stretch measurements."
+  ],
+  [
+    "stuck_pipe_not_know_fpc",
+    "Stuck Pipe Calculation Not Know Free Point",
+    "Approximated free length when pipe dimensions are unknown."
+  ],
+  [
+    "diff_stick_force",
+    "Differential Sticking Force",
+    "Estimated force required to overcome differential sticking."
+  ],
+  [
+    "mech_stick_risk",
+    "Mechanical Sticking Analysis",
+    "Evaluates sticking severity based on drag forces."
+  ],
+  [
+    "jar_impact_force",
+    "Jar Force Estimate",
+    "Estimated impact force generated by drilling jars."
+  ],
+  [
+    "back_off_torque",
+    "Back-Off Torque",
+    "Recommended left-hand torque for backing off pipe."
+  ],
+  [
+    "fish_string_load",
+    "Fishing String Load",
+    "Total surface load when pulling on fish."
+  ],
+  [
+    "max_overpull",
+    "Maximum Allowable Overpull",
+    "Safe overpull margin based on weakest string component."
+  ],
+  [
+    "washover_length",
+    "Washover Pipe Capacity",
+    "Volume required to fill washover pipe."
+  ],
+  [
+    "milling_time",
+    "Milling Time Estimate",
+    "Estimated time required to mill a fish."
+  ],
+  [
+    "spotting_time",
+    "Spotting Fluid Time",
+    "Time required to pump and spot a pill at stuck depth."
+  ],
+  [
+    "pipe_recovery_est",
+    "Pipe Recovery Estimate",
+    "Percentage of drillstring expected to be recovered free."
+  ],
+  [
+    "casing_ton_mile",
+    "Ton-Miles for Setting Casing",
+    "Total work done setting a casing string."
+  ],
+  [
+    "cuttings_vol_bbl",
+    "Volume of Cutting Generated While Drilling (bbl/hr)",
+    "Cuttings volume rate generated at bit."
+  ],
+  [
+    "cuttings_vol_gph",
+    "Volume of Cutting Generated While Drilling (gall/hr)",
+    "Cuttings volume rate generated at bit in gallons."
+  ]
+]

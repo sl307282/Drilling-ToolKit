@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="splash_background">#12100E</color>
     <color name="splashBackground">#12100E</color>
+    <color name="splash_card_bg">#1E1C1A</color>
+    <color name="splash_title_color">#F1F5F9</color>
+    <color name="splash_tagline_color">#10B981</color>
 </resources>
