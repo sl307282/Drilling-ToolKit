@@ -63,6 +63,7 @@ public class MainActivity extends BridgeActivity {
             this.bridge.registerPlugin(CustomSplashScreenPlugin.class);
             if (this.bridge.getWebView() != null) {
                 this.bridge.getWebView().setBackgroundColor(Color.TRANSPARENT);
+                this.bridge.getWebView().setOverScrollMode(android.view.View.OVER_SCROLL_NEVER);
             }
         }
 
