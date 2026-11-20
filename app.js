@@ -5773,7 +5773,6 @@ function renderAPITubularScreen() {
 let _stuckPipeInstance = null;
 
 function renderStuckPipeScreen() {
-  window.updateStuckPipeFavoriteIcon();
   const container = document.getElementById('stuck-pipe-container');
   if (!container) return;
 
@@ -9787,9 +9786,6 @@ function syncGuideFavoriteButtonsInDOM(itemId, isFav) {
     }
   }
 
-  if (itemId === 'stuck_pipe_guide') {
-    window.updateStuckPipeFavoriteIcon();
-  }
   window.updateQuickRefFavoriteIcon();
 }
 
@@ -10178,20 +10174,6 @@ window.renderDrillingGuideDetailScreen = () => {
   } else if (itemId === 'mud_calculations') {
     calculateGuideMudWeightUp();
   }
-};
-
-window.updateStuckPipeFavoriteIcon = () => {
-  const favBtn = document.getElementById('stuck-pipe-fav-btn');
-  if (favBtn) {
-    const isFav = GuideFavoritesStore.isFavorited('stuck_pipe_guide');
-    favBtn.innerHTML = renderIcon(isFav ? 'star' : 'star_border', { size: '20px', style: isFav ? 'color:#EAB308;' : 'color:var(--text-secondary);' });
-  }
-};
-
-window.toggleStuckPipeFavorite = () => {
-  const isFav = GuideFavoritesStore.toggleFavorite('stuck_pipe_guide');
-  syncGuideFavoriteButtonsInDOM('stuck_pipe_guide', isFav);
-  updateGuideQuickAccessUI();
 };
 
 window.toggleDetailGuideFavorite = (event) => {
