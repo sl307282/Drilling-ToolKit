@@ -212,42 +212,58 @@ export function mountStuckPipe(root, options = {}) {
     toastTimer = setTimeout(() => t.remove(), 2500);
   }
 
+  // Tab leading icons
+  const TAB_ICONS = {
+    search_check: '<path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm-1.88-4.29L6.5 8.59 5.09 10l2.53 2.53 5.3-5.3-1.41-1.41-3.89 3.89z"/>',
+    calculator: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6 2h5v2h-5V5zm-7 0h5v2H6V5zm0 4h5v2H6V9zm7 0h5v2h-5V9zm-7 4h5v2H6v-2zm7 0h5v2h-5v-2zm-7 4h5v2H6v-2zm7 0h5v2h-5v-2z"/>',
+  };
+
+  function tabIcon(svgPath) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'toolkit-icon sp-tab-icon');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.innerHTML = svgPath;
+    return svg;
+  }
+
   function renderHead() {
     head.replaceChildren();
 
-    // Row with Tabs & Unit toggle
-    const controlRow = h('div', { class: 'sp-control-row' });
-    
-    // Tabs: Diagnose & Calculate (and optionally Log)
+    // Row 1: Slim dedicated utility row with cleanly right-aligned Unit Toggle (Oilfield | Metric)
+    const unitToggle = h('div', { class: 'sp-units', role: 'group', 'aria-label': 'Units' },
+      h('button', {
+        type: 'button', class: 'sp-unit-btn' + (s.sys === 'field' ? ' on' : ''),
+        onclick: () => { s.sys = 'field'; store.set(key + '.sys', 'field'); redraw(); },
+      }, tr('stuckpipe.unit_field')),
+      h('button', {
+        type: 'button', class: 'sp-unit-btn' + (s.sys === 'metric' ? ' on' : ''),
+        onclick: () => { s.sys = 'metric'; store.set(key + '.sys', 'metric'); redraw(); },
+      }, tr('stuckpipe.unit_metric'))
+    );
+    const utilRow = h('div', { class: 'sp-utility-row' }, unitToggle);
+
+    // Row 2: High-contrast 2-column Primary Mode Segmented Control (Diagnose | Calculate)
     const tabs = h('div', { class: 'sp-tabs', role: 'tablist' },
       h('button', {
         type: 'button', class: 'sp-tab' + (s.tab === 'diagnose' ? ' on' : ''),
         onclick: () => { s.tab = 'diagnose'; redraw(); },
-      }, tr('stuckpipe.tab_diagnose')),
+      }, tabIcon(TAB_ICONS.search_check), h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_diagnose'))),
       h('button', {
         type: 'button', class: 'sp-tab' + (s.tab === 'calculate' ? ' on' : ''),
         onclick: () => { s.tab = 'calculate'; redraw(); },
-      }, tr('stuckpipe.tab_calculate')),
+      }, tabIcon(TAB_ICONS.calculator), h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_calculate'))),
       showLog ? h('button', {
         type: 'button', class: 'sp-tab' + (s.tab === 'log' ? ' on' : ''),
         onclick: () => { s.tab = 'log'; redraw(); },
-      }, tr('stuckpipe.tab_log')) : null
+      }, h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_log'))) : null
     );
 
-    // Unit toggle (Oilfield / Metric)
-    const unitToggle = h('div', { class: 'sp-units', role: 'group', 'aria-label': 'Units' },
-      h('button', {
-        type: 'button', class: s.sys === 'field' ? 'on' : '',
-        onclick: () => { s.sys = 'field'; store.set(key + '.sys', 'field'); redraw(); },
-      }, tr('stuckpipe.unit_field')),
-      h('button', {
-        type: 'button', class: s.sys === 'metric' ? 'on' : '',
-        onclick: () => { s.sys = 'metric'; store.set(key + '.sys', 'metric'); redraw(); },
-      }, tr('stuckpipe.unit_metric'))
-    );
-
-    controlRow.append(tabs, unitToggle);
-    head.append(controlRow);
+    head.append(utilRow, tabs);
 
     foot.textContent = tr('stuckpipe.disclaimer');
   }
