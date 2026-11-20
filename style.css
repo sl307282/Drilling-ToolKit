@@ -28,7 +28,8 @@
   --back: 44px;
   --pad: 16px;
   --gap: 12px;
-  --title-expanded: 26px;
+  --title-expanded: 23px;
+  --title-collapsed: 17px;
   --bg-color: #FDFBF8;
   --body-bg: #FDFBF8;
   --card-bg: #FFFFFF;
@@ -762,8 +763,8 @@ header.top-bar {
 
 .bar-title {
   position: relative;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--title-collapsed, 17px);
+  font-weight: 600;
   color: var(--text-primary);
   margin: 0;
   opacity: 0;
@@ -807,13 +808,14 @@ header.top-bar {
   box-sizing: border-box;
 }
 .large h1 {
-  font-size: var(--title-expanded, 26px);
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+  font-size: var(--title-expanded, 23px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
   color: var(--text-primary);
   overflow-wrap: anywhere;
   margin: 0 0 4px;
-  margin-block-start: 13px;
+  margin-block-start: 14px;
   margin-block-start: max(0px, calc((var(--bar-h) - 1lh) / 2));
 }
 .large p {
