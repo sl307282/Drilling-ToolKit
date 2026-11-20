@@ -396,6 +396,207 @@
 .sp details[open] > summary::after { content: "\2212"; }
 .sp details.danger > summary { color: var(--sp-danger); }
 
+/* ==========================================================================
+   First 5 Minutes Emergency Action Accordion Banner
+   ========================================================================== */
+.sp details.sp-first5-card {
+  border: 1.5px solid #F59E0B;
+  border-radius: 16px;
+  background-color: #FFFBEB;
+  padding: 0;
+  margin-bottom: 0;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.08);
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .sp details.sp-first5-card {
+  background-color: #1E293B;
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sp summary.sp-first5-summary {
+  min-height: 52px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  list-style: none;
+  transition: transform 0.1s ease;
+}
+
+.sp summary.sp-first5-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sp summary.sp-first5-summary::after,
+.sp details[open] > summary.sp-first5-summary::after {
+  display: none !important;
+  content: none !important;
+}
+
+.sp summary.sp-first5-summary:active {
+  transform: scale(0.99);
+}
+
+.sp-first5-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sp-first5-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+[data-theme="dark"] .sp-first5-badge {
+  background-color: rgba(245, 158, 11, 0.18);
+  color: #FBBF24;
+}
+
+.sp-first5-alert {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.sp-first5-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.sp-first5-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0F172A;
+}
+
+[data-theme="dark"] .sp-first5-title {
+  color: #F8FAFC;
+}
+
+.sp-first5-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #92400E;
+}
+
+[data-theme="dark"] .sp-first5-subtitle {
+  color: #FCD34D;
+}
+
+.sp-first5-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background-color: #FEF3C7;
+  color: #B45309;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .sp-first5-pill {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+}
+
+.sp-first5-chevron {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  display: inline-block;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sp-first5-card[open] .sp-first5-chevron {
+  transform: rotate(180deg);
+}
+
+.sp-first5-body {
+  border-top: 1px solid rgba(217, 119, 6, 0.18);
+  padding: 12px 14px 14px;
+  background-color: #FFFFFF;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .sp-first5-body {
+  border-top: 1px solid rgba(245, 158, 11, 0.2);
+  background-color: #0F172A;
+}
+
+.sp-first5-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sp-first5-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.sp-first5-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background-color: #FEF3C7;
+  color: #B45309;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+[data-theme="dark"] .sp-first5-num {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+}
+
+.sp-first5-text {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--sp-text, #1E1A17);
+  flex: 1;
+}
+
+[data-theme="dark"] .sp-first5-text {
+  color: #F1F5F9;
+}
+
 /* Results */
 .sp-lead {
   border-width: 2px;

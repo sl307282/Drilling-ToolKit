@@ -209,18 +209,20 @@ export function mountStuckPipe(root, options = {}) {
     toastTimer = setTimeout(() => t.remove(), 2500);
   }
 
-  // Tab leading icons
+  // Tab & banner leading icons
   const TAB_ICONS = {
     search_check: '<path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm-1.88-4.29L6.5 8.59 5.09 10l2.53 2.53 5.3-5.3-1.41-1.41-3.89 3.89z"/>',
     calculator: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6 2h5v2h-5V5zm-7 0h5v2H6V5zm0 4h5v2H6V9zm7 0h5v2h-5V9zm-7 4h5v2H6v-2zm7 0h5v2h-5v-2zm-7 4h5v2H6v-2zm7 0h5v2h-5v-2z"/>',
+    alert_triangle: '<path d="M12 2L1 21h22L12 2zm0 3.5L20.5 19H3.5L12 5.5zM11 10h2v4h-2v-4zm0 6h2v2h-2v-2z"/>',
+    chevron_down: '<path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>',
   };
 
-  function tabIcon(svgPath) {
+  function tabIcon(svgPath, cls = 'sp-tab-icon', size = 16) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('class', 'toolkit-icon sp-tab-icon');
+    svg.setAttribute('class', 'toolkit-icon ' + cls);
     svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('width', '16');
-    svg.setAttribute('height', '16');
+    svg.setAttribute('width', String(size));
+    svg.setAttribute('height', String(size));
     svg.setAttribute('fill', 'currentColor');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('focusable', 'false');
@@ -264,11 +266,47 @@ export function mountStuckPipe(root, options = {}) {
   function renderDiagnose() {
     const inp = s.input;
 
-    // "First 5 minutes" banner
-    const first5 = h('details', { class: 'sp-card', style: 'margin-bottom:0;' },
-      h('summary', null, tr('stuckpipe.res_first_5_minutes')),
-      h('ol', null, UNIVERSAL_FIRST.map((step) => h('li', null, tr(step.key, {}, step.text))))
+    // "First 5 minutes" Emergency Action Accordion Banner
+    const pillText = h('span', { class: 'sp-first5-pill-text' }, 'View');
+    const subtitle = h('span', { class: 'sp-first5-subtitle' }, '6 immediate rig actions • Tap to view');
+
+    const first5Summary = h('summary', { class: 'sp-first5-summary' },
+      h('div', { class: 'sp-first5-left' },
+        h('div', { class: 'sp-first5-badge' },
+          tabIcon(TAB_ICONS.alert_triangle, 'sp-first5-alert', 16)
+        ),
+        h('div', { class: 'sp-first5-titles' },
+          h('span', { class: 'sp-first5-title' }, tr('stuckpipe.res_first_5_minutes')),
+          subtitle
+        )
+      ),
+      h('div', { class: 'sp-first5-pill' },
+        pillText,
+        tabIcon(TAB_ICONS.chevron_down, 'sp-first5-chevron', 15)
+      )
     );
+
+    const first5Body = h('div', { class: 'sp-first5-body' },
+      h('ol', { class: 'sp-first5-list' },
+        UNIVERSAL_FIRST.map((step, idx) =>
+          h('li', { class: 'sp-first5-item' },
+            h('span', { class: 'sp-first5-num' }, String(idx + 1)),
+            h('span', { class: 'sp-first5-text' }, tr(step.key, {}, step.text))
+          )
+        )
+      )
+    );
+
+    const first5 = h('details', { class: 'sp-first5-card' },
+      first5Summary,
+      first5Body
+    );
+
+    first5.addEventListener('toggle', () => {
+      const isOpen = first5.open;
+      pillText.textContent = isOpen ? 'Hide' : 'View';
+      subtitle.textContent = isOpen ? '6 immediate rig actions • Tap to hide' : '6 immediate rig actions • Tap to view';
+    });
 
     const formCard = h('section', { class: 'sp-card' });
     const resultsContainer = h('div', { id: 'sp-results' });
