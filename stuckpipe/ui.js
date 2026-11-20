@@ -179,13 +179,10 @@ const DIR_LABEL = {
 // Main Mount Function
 export function mountStuckPipe(root, options = {}) {
   const key = options.storageKey || 'drillingtoolkit_stuckpipe';
-  
-  // App global unit preference default
-  const defaultUnit = (typeof state !== 'undefined' && state.globalUnit === 'L/m') ? 'metric' : 'field';
 
   const s = {
     tab: 'diagnose',
-    sys: store.get(key + '.sys', defaultUnit),
+    sys: 'field', // Permanently locked to standard Oilfield units
     input: { ...DEFAULT_INPUT() },
     planId: null,
     calcTab: 'diff',
@@ -234,20 +231,7 @@ export function mountStuckPipe(root, options = {}) {
   function renderHead() {
     head.replaceChildren();
 
-    // Row 1: Slim dedicated utility row with cleanly right-aligned Unit Toggle (Oilfield | Metric)
-    const unitToggle = h('div', { class: 'sp-units', role: 'group', 'aria-label': 'Units' },
-      h('button', {
-        type: 'button', class: 'sp-unit-btn' + (s.sys === 'field' ? ' on' : ''),
-        onclick: () => { s.sys = 'field'; store.set(key + '.sys', 'field'); redraw(); },
-      }, tr('stuckpipe.unit_field')),
-      h('button', {
-        type: 'button', class: 'sp-unit-btn' + (s.sys === 'metric' ? ' on' : ''),
-        onclick: () => { s.sys = 'metric'; store.set(key + '.sys', 'metric'); redraw(); },
-      }, tr('stuckpipe.unit_metric'))
-    );
-    const utilRow = h('div', { class: 'sp-utility-row' }, unitToggle);
-
-    // Row 2: High-contrast 2-column Primary Mode Segmented Control (Diagnose | Calculate)
+    // High-contrast 2-column Primary Mode Segmented Control (Diagnose | Calculate)
     const tabs = h('div', { class: 'sp-tabs', role: 'tablist' },
       h('button', {
         type: 'button', class: 'sp-tab' + (s.tab === 'diagnose' ? ' on' : ''),
@@ -263,7 +247,7 @@ export function mountStuckPipe(root, options = {}) {
       }, h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_log'))) : null
     );
 
-    head.append(utilRow, tabs);
+    head.append(tabs);
 
     foot.textContent = tr('stuckpipe.disclaimer');
   }
