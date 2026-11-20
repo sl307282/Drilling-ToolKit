@@ -558,6 +558,7 @@ export function mountStuckPipe(root, options = {}) {
 
   // ---------------------------------------------------------------- Calculate Section
   function renderCalculate() {
+    panel.replaceChildren();
     const c = s.calc;
     const card = h('section', { class: 'sp-card' });
 
