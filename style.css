@@ -220,39 +220,54 @@ header.top-bar {
   z-index: 1000;
   box-sizing: border-box;
   border-bottom: 1px solid rgba(141,119,101,0.08);
+  pointer-events: none;
+}
+
+header.top-bar button,
+header.top-bar a,
+header.top-bar input,
+header.top-bar .top-bar-btn {
+  pointer-events: auto;
 }
 
 .top-bar-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
+  width: 40px;
+  height: 40px;
+  margin-inline-start: -8px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--transition-speed);
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
   color: var(--text-primary);
-  margin-top: 4px;
+  margin-top: 0;
+  transition: transform 0.1s ease, opacity 0.1s ease, background-color var(--transition-speed);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .top-bar-btn:hover {
   background-color: rgba(46, 26, 17, 0.05);
 }
 
+.top-bar-btn:active {
+  opacity: 0.6;
+  transform: scale(0.95);
+}
+
 /* Branding Logo & Header Left */
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .logo-container {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  margin-bottom: 0;
+  align-items: center;
+  margin: 0;
 }
 
 .logo-title {
@@ -264,7 +279,7 @@ header.top-bar {
   gap: 2px;
   letter-spacing: -0.5px;
   margin: 0;
-  line-height: 1.1;
+  line-height: 1.25;
 }
 
 .logo-text-drilling {
@@ -706,7 +721,12 @@ header.top-bar {
   contain: layout paint style;
   pointer-events: none;
 }
-.bar > * {
+
+/* Only visible interactive buttons receive pointer events; empty areas pass through */
+.bar button,
+.bar .back,
+.bar .hdr-action-btn,
+.bar .back-btn {
   pointer-events: auto;
 }
 

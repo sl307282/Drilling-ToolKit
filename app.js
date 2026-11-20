@@ -934,11 +934,13 @@ const initDrawer = () => {
     drawer.classList.add('active');
     backdrop.classList.add('active');
   };
+  window.openDrawer = openDrawer;
 
   const closeDrawer = () => {
     drawer.classList.remove('active');
     backdrop.classList.remove('active');
   };
+  window.closeDrawer = closeDrawer;
 
   if (menuBtn) menuBtn.addEventListener('click', openDrawer);
   if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
