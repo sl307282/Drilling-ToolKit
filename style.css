@@ -28,6 +28,7 @@
   --back: 44px;
   --pad: 16px;
   --gap: 12px;
+  --title-expanded: 26px;
   --bg-color: #FDFBF8;
   --body-bg: #FDFBF8;
   --card-bg: #FFFFFF;
@@ -806,13 +807,13 @@ header.top-bar {
   box-sizing: border-box;
 }
 .large h1 {
-  font-size: 30px;
+  font-size: var(--title-expanded, 26px);
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--text-primary);
   overflow-wrap: anywhere;
   margin: 0 0 4px;
-  margin-block-start: 11px;
+  margin-block-start: 13px;
   margin-block-start: max(0px, calc((var(--bar-h) - 1lh) / 2));
 }
 .large p {
