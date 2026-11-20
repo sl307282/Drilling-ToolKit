@@ -45,6 +45,7 @@ for l in LANGS:
     for k, v in ldict.items():
         if not k.startswith('stuckpipe.'):
             extra[f'stuckpipe.{k}'] = v
+    extra['Stuck Pipe Assistant'] = ldict['stuckpipe.title']
     ldict.update(extra)
 
 print(f"Total keys per locale with aliases: {len(all_locales['en'])}")

@@ -778,7 +778,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "A recent cement job, dropped object or known casing wear.",
     "stuckpipe.playbook.foreign.escalate.1": "Decide early on fishing or a sidetrack. Delay rarely helps.",
     "stuckpipe.playbook.foreign.prevent.1": "Control the cement drill-out, junk baskets and casing wear.",
-    "stuckpipe.playbook.foreign.jar.text": "Jar opposite to the direction of travel at sticking, inside limits."
+    "stuckpipe.playbook.foreign.jar.text": "Jar opposite to the direction of travel at sticking, inside limits.",
+    "Stuck Pipe Assistant": "Stuck Pipe Assistant"
   },
   "es": {
     "stuckpipe.title": "Tubería atascada - Asistente",
@@ -1556,7 +1557,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.1": "Los retornos contienen fragmentos metálicos, trozos de caucho o pedazos de cemento o revestidor.",
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
-    "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores."
+    "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
+    "Stuck Pipe Assistant": "Tubería atascada - Asistente"
   },
   "hi": {
     "stuckpipe.title": "फँसा हुआ पाइप (स्टक पाइप) - सहायक",
@@ -2334,7 +2336,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "फँसा हुआ पाइप (स्टक पाइप) - सहायक"
   },
   "ar": {
     "stuckpipe.title": "مساعد انحشار أنبوب الحفر",
@@ -3112,7 +3115,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "مساعد انحشار أنبوب الحفر"
   },
   "zh": {
     "stuckpipe.title": "卡钻诊断助手",
@@ -3890,7 +3894,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "卡钻诊断助手"
   },
   "fr": {
     "stuckpipe.title": "Coincement de la garniture - Assistant",
@@ -4668,7 +4673,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al puits o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "Coincement de la garniture - Assistant"
   },
   "pt": {
     "stuckpipe.title": "Prisão de coluna - Assistente",
@@ -5446,7 +5452,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al poço o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "Prisão de coluna - Assistente"
   },
   "de": {
     "stuckpipe.title": "Festsitzendes Gestänge - Assistent",
@@ -6224,7 +6231,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "Festsitzendes Gestänge - Assistent"
   },
   "ja": {
     "stuckpipe.title": "パイプ固着（スタックパイプ）アシスタント",
@@ -7002,7 +7010,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "パイプ固着（スタックパイプ）アシスタント"
   },
   "ru": {
     "stuckpipe.title": "Прихват бурильной колонны - Помощник",
@@ -7780,7 +7789,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "Прихват бурильной колонны - Помощник"
   },
   "id": {
     "stuckpipe.title": "Pipa terjepit (stuck pipe) - Asisten",
@@ -8558,7 +8568,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "Pipa terjepit (stuck pipe) - Asisten"
   },
   "ko": {
     "stuckpipe.title": "파이프 고착(스턱 파이프) 어시스턴트",
@@ -9336,7 +9347,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "파이프 고착(스턱 파이프) 어시스턴트"
   },
   "uk": {
     "stuckpipe.title": "Прихват бурильної колони - Помічник",
@@ -10114,7 +10126,8 @@ export const STUCKPIPE_LOCALES = {
     "stuckpipe.playbook.foreign.confirm.2": "Cementación reciente, objeto caído al pozo o desgaste severo conocido en el revestimiento.",
     "stuckpipe.playbook.foreign.escalate.1": "Decida tempranamente sobre operaciones de pesca o un sidetrack. Las demoras rara vez ayudan.",
     "stuckpipe.playbook.foreign.prevent.1": "Controle rigurosamente la molienda de cemento, use cestas recolectoras de chatarra y monitoree desgaste de revestidores.",
-    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos."
+    "stuckpipe.playbook.foreign.jar.text": "Martille opuesto a la dirección del viaje al momento de atascarse, dentro de límites mecánicos.",
+    "Stuck Pipe Assistant": "Прихват бурильної колони - Помічник"
   }
 };
 

@@ -889,3 +889,8 @@ export function mountStuckPipe(root, options = {}) {
     getState: () => ({ ...s }),
   };
 }
+
+if (typeof window !== 'undefined') {
+  window.mountStuckPipe = mountStuckPipe;
+}
+

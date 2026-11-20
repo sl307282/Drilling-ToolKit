@@ -331,6 +331,9 @@ const navigateTo = (screenId) => {
     if (screenId === 'cementing') {
       screenId = 'cement-planner-subsea';
     }
+    if (screenId === 'stuck-pipe-assistant') {
+      screenId = 'stuck-pipe';
+    }
   }
 
   // Ensure cementingState is set to chooser if entering without active section/view
@@ -1086,6 +1089,9 @@ const initSettingsPage = (closeDrawer) => {
       window.I18n.setLanguage(lang);
       const displayName = window.I18n.langNames[lang] || lang;
       showToast(`${displayName}`);
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang } }));
     }
     // Update theme toggle UI text (Light Mode / Dark Mode)
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
@@ -2261,13 +2267,13 @@ function buildSearchRegistry() {
       action: () => { tubularSubState.view = 'large_casing'; navigateTo('api-tubular'); }
     },
     {
-      id: 'stuck_pipe_analysis',
-      title: tr('Stuck Pipe Analysis'),
+      id: 'stuck_pipe_assistant',
+      title: tr('Stuck Pipe Assistant'),
       category: tr('DIAGNOSTICS'),
       desc: tr('Diagnostic assistant for identifying sticking mechanisms and recommended first actions.'),
       bgColor: 'var(--circle-stuck)',
-      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M19 3v18"></path><path d="M12 3v10"></path><path d="M9 13h6l-3 4z"></path><circle cx="7" cy="15" r="1" fill="currentColor"></circle><circle cx="17" cy="14" r="1" fill="currentColor"></circle></svg>`,
-      keywords: ['stuck pipe', 'differential sticking', 'mechanical sticking', 'free point', 'jarring', 'first actions', 'stuck pipe assistant', tr('Stuck Pipe Analysis'), tr('DIAGNOSTICS'), 'прихоплення', 'прихоплення труб'],
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E5F2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M19 3v18"></path><path d="M12 3v10"></path><rect x="9.5" y="11" width="5" height="5" rx="1"></rect><line x1="12" y1="16" x2="12" y2="20"></line></svg>`,
+      keywords: ['stuck pipe', 'differential sticking', 'mechanical sticking', 'free point', 'jarring', 'first actions', 'stuck pipe assistant', 'free point calculator', 'differential pressure', 'spotting fluid', 'jar placement', 'pack-off', 'key seat', 'ledge', 'undergauge', 'salt creep', tr('Stuck Pipe Assistant'), tr('DIAGNOSTICS'), 'прихоплення', 'прихоплення труб'],
       action: () => { navigateTo('stuck-pipe'); }
     },
     {
@@ -5762,105 +5768,30 @@ function renderAPITubularScreen() {
 }
 
 // ==========================================
-// BONUS FEATURE 2: Stuck Pipe Analysis
+// Stuck Pipe Assistant (100% Offline, Native UI, 13 Locales)
 // ==========================================
+let _stuckPipeInstance = null;
+
 function renderStuckPipeScreen() {
   window.updateStuckPipeFavoriteIcon();
   const container = document.getElementById('stuck-pipe-container');
-  container.innerHTML = `
-    <div class="content-card">
-      <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600;">Diagnostic Stuck Pipe Assistant</h3>
-      <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:20px;">Answer the questions below to diagnose the sticking mechanism and find operational remedies.</p>
-      
-      <div class="form-group">
-        <label>Primary Activity when Sticking Occurred</label>
-        <div class="select-wrapper">
-          <select class="form-select" id="stuck-activity">
-            <option value="static">Static (Connection, Survey, or Pipe Rack)</option>
-            <option value="tripping">Tripping (Pulling out / Running in Hole)</option>
-            <option value="drilling">Drilling (Making Hole / Reaming)</option>
-          </select>
-        </div>
-      </div>
+  if (!container) return;
 
-      <div class="form-group">
-        <label>Circulation Capacity</label>
-        <div class="select-wrapper">
-          <select class="form-select" id="stuck-circ">
-            <option value="normal">Normal (Unrestricted flow & pressure)</option>
-            <option value="restricted">Restricted (High pump pressure required)</option>
-            <option value="blocked">Blocked (No circulation possible)</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Pipe Rotation status</label>
-        <div class="select-wrapper">
-          <select class="form-select" id="stuck-rot">
-            <option value="free">Free (Full torque & rotation possible)</option>
-            <option value="restricted">Restricted (High torque / partial rotation)</option>
-            <option value="none">Locked (Cannot rotate pipe)</option>
-          </select>
-        </div>
-      </div>
-
-      <button class="btn btn-primary" id="stuck-diagnose-btn" style="width:100%">Diagnose Sticking Mechanism</button>
-    </div>
-
-    <div class="content-card" id="stuck-results-card" style="display:none; border-left: 4px solid var(--accent-color);">
-      <h3 id="stuck-diag-title" style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">Sticking Mechanism</h3>
-      <p id="stuck-diag-desc" style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:15px;"></p>
-      
-      <h4 style="font-size:0.85rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); margin-bottom:6px;">Recommended First Actions:</h4>
-      <ul id="stuck-diag-actions" style="font-size:0.85rem; padding-left:20px; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px;">
-      </ul>
-    </div>
-  `;
-
-  document.getElementById('stuck-diagnose-btn').onclick = () => {
-    const act = document.getElementById('stuck-activity').value;
-    const circ = document.getElementById('stuck-circ').value;
-    const rot = document.getElementById('stuck-rot').value;
-
-    const resultsCard = document.getElementById('stuck-results-card');
-    const diagTitle = document.getElementById('stuck-diag-title');
-    const diagDesc = document.getElementById('stuck-diag-desc');
-    const diagActions = document.getElementById('stuck-diag-actions');
-
-    resultsCard.style.display = 'block';
-
-    if (act === 'static' && circ === 'normal' && rot === 'none') {
-      diagTitle.textContent = "Differential Sticking";
-      diagDesc.textContent = "Occurs when high mud hydrostatic pressure holds the drillstring against a permeable low-pressure zone. Pipe became stuck during a static period, circulation remains completely normal, but rotation is impossible.";
-      diagActions.innerHTML = `
-        <li>Apply maximum safe torque and jar downward with full weight.</li>
-        <li>Reduce mud weight safely (if well control permits) to decrease differential pressure.</li>
-        <li>Spot a chemical pipe-release agent (e.g. oil-based wash) across the sticking zone.</li>
-        <li>If unsuccessful, prepare to wash-over or back-off the string.</li>
-      `;
-    } else if (circ === 'blocked' || circ === 'restricted') {
-      diagTitle.textContent = "Hole Packoff / Cuttings Settling";
-      diagDesc.textContent = "Annulus became packed off with cuttings or sloughing shale, blocking fluid flow and binding the drillstring. Common during drilling/connections.";
-      diagActions.innerHTML = `
-        <li>IMMEDIATELY bleed off pump pressure and do NOT jar upwards (doing so packs it tighter).</li>
-        <li>Apply low torque and jar downward repeatedly to break the packoff.</li>
-        <li>Attempt to establish circulation at very low pump rates once movement is restored.</li>
-        <li>Circulate out debris with high viscous sweeps before resuming.</li>
-      `;
-    } else {
-      diagTitle.textContent = "Mechanical Sticking / Keyseating";
-      diagDesc.textContent = "The string is physically wedged in a dogleg, ledges, or keyseats. Common while tripping up or down in doglegs. Circulation remains normal, but upward or downward movement is restricted.";
-      diagActions.innerHTML = `
-        <li>If stuck pulling UP: Jar DOWNWARD. Do not pull harder as it forces the pipe deeper into the keyseat.</li>
-        <li>If stuck running DOWN: Jar UPWARD.</li>
-        <li>Apply gentle torque while jarring if rotation is not locked.</li>
-        <li>In future runs, utilize a keyseat wiper or ream the dogleg section.</li>
-      `;
+  if (typeof window.mountStuckPipe === 'function') {
+    if (_stuckPipeInstance && typeof _stuckPipeInstance.destroy === 'function') {
+      _stuckPipeInstance.destroy();
     }
-
-    resultsCard.scrollIntoView({ behavior: 'smooth' });
-  };
+    _stuckPipeInstance = window.mountStuckPipe(container);
+  } else {
+    import('./stuckpipe/ui.js').then((mod) => {
+      if (_stuckPipeInstance && typeof _stuckPipeInstance.destroy === 'function') {
+        _stuckPipeInstance.destroy();
+      }
+      _stuckPipeInstance = mod.mountStuckPipe(container);
+    }).catch((err) => {
+      console.error('Failed to mount Stuck Pipe Assistant module:', err);
+    });
+  }
 }
 
 // ==========================================

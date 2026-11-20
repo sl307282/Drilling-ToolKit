@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link rel="preload" href="style.css" as="style">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="stuckpipe/stuckpipe.css">
   <!-- Firebase SDK Compat -->
   <script src="firebase-app-compat.js" defer></script>
   <script src="firebase-remote-config-compat.js" defer></script>
@@ -267,7 +268,24 @@
           <div class="card-title">Cement Job Planner</div>
         </div>
 
-
+        <!-- 9. Stuck Pipe Assistant Card -->
+        <div class="toolkit-card" id="card-stuck-pipe-assistant" onclick="navigateTo('stuck-pipe');">
+          <div class="card-top-row">
+            <div class="card-icon-container icon-stuck">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 3v18"></path>
+                <path d="M19 3v18"></path>
+                <path d="M12 3v11"></path>
+                <rect x="9.5" y="11" width="5" height="5" rx="1"></rect>
+                <path d="M6 13.5h3.5"></path>
+                <path d="M14.5 13.5H18"></path>
+                <line x1="12" y1="16" x2="12" y2="20"></line>
+              </svg>
+            </div>
+            <span class="card-chevron">&rsaquo;</span>
+          </div>
+          <div class="card-title" data-i18n="Stuck Pipe Assistant">Stuck Pipe Assistant</div>
+        </div>
 
       </div>
     </main>
@@ -606,7 +624,7 @@
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
-          <h2 class="screen-title" data-i18n="Stuck Pipe Diagnostics">Stuck Pipe Diagnostics</h2>
+          <h2 class="screen-title" data-i18n="Stuck Pipe Assistant">Stuck Pipe Assistant</h2>
           <button class="top-bar-btn" id="stuck-pipe-fav-btn" onclick="toggleStuckPipeFavorite()" style="margin-left:auto; padding:4px; margin-top:0;" aria-label="Favorite">
             <svg class="toolkit-icon" viewBox="0 0 24 24" width="20" height="20" fill="#EAB308" aria-hidden="true" focusable="false"><path d="m22 9.24-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
           </button>
@@ -1421,6 +1439,7 @@
   <script src="cementing_pdf.js?v=1.1.6" defer></script>
   <script src="app.js?v=1.1.6" defer></script>
   <script src="cementing_ui.js?v=1.1.6" defer></script>
+  <script type="module" src="stuckpipe/ui.js"></script>
   <!-- IADC Info Modal -->
   <div id="iadc-info-modal" class="modal-overlay" onclick="closeIADCInfoModal(event)">
     <div class="modal-content" style="max-width:420px;">
