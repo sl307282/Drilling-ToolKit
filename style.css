@@ -24,6 +24,10 @@
 }
 
 :root {
+  --bar-h: 56px;
+  --back: 44px;
+  --pad: 16px;
+  --gap: 12px;
   --bg-color: #FDFBF8;
   --body-bg: #FDFBF8;
   --card-bg: #FFFFFF;
@@ -149,6 +153,14 @@ input[type=number] {
 }
 
 /* Layout & Containment for Mobile App Column */
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--body-outer-bg);
@@ -158,32 +170,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* App Container */
+/* App Container (100dvh viewport container) */
 .app-container {
   max-width: 480px;
   width: 100%;
+  height: 100dvh;
   margin: 0 auto;
-  min-height: 100vh;
   background-color: var(--bg-color);
   box-shadow: 0 0 40px rgba(46, 26, 17, 0.06);
-  padding: 0 16px 60px 16px;
+  padding: 0;
   position: relative;
+  overflow: hidden;
   box-sizing: border-box;
-}
-
-/* Dashboard: clears the fixed Drilling Toolkit header */
-.app-container.has-top-bar {
-  padding-top: 120px;
-}
-
-.app-container.cementing-active,
-.app-container.cementing-job-active {
-  padding-top: 0 !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  overflow: visible !important;
-  transform: none !important;
-  contain: none !important;
 }
 
 @media (max-width: 480px) {
@@ -193,16 +191,6 @@ body {
   .app-container {
     max-width: 100%;
     box-shadow: none;
-    padding: 0 14px 60px 14px;
-  }
-  .app-container.has-top-bar {
-    padding-top: 120px;
-  }
-  .app-container.cementing-active,
-  .app-container.cementing-job-active {
-    padding-top: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
   }
   header.top-bar {
     max-width: 100%;
@@ -660,205 +648,224 @@ header.top-bar {
 /* App Screens Navigation Flow */
 .screen {
   display: none;
-  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .screen.active {
   display: block;
-  opacity: 1;
 }
 
-/* Screen Headers (sub-pages) */
-/* Screen Headers (Universal Collapsing Sticky Toolbar) */
-.screen-header {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  width: calc(100% + 32px);
-  margin-left: -16px;
-  margin-right: -16px;
-  margin-bottom: 16px;
+/* Dashboard screen scroller */
+#screen-dashboard {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  overflow-anchor: none;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 120px 16px 60px 16px;
   box-sizing: border-box;
-  background-color: color-mix(in srgb, var(--bg-color, #FDFBF8) 96%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  padding: max(env(safe-area-inset-top, 0px), 52px) 16px 12px 16px;
-  border-bottom: 1px solid transparent;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: padding 0.22s cubic-bezier(0.2, 0, 0, 1),
-              background-color 0.22s ease,
-              border-color 0.22s ease,
-              box-shadow 0.22s ease;
 }
-
+#screen-dashboard::-webkit-scrollbar {
+  display: none;
+}
 @media (max-width: 480px) {
-  .screen-header {
-    width: calc(100% + 28px);
-    margin-left: -14px;
-    margin-right: -14px;
-    padding-left: 14px;
-    padding-right: 14px;
+  #screen-dashboard {
+    padding: 120px 14px 60px 14px;
   }
 }
 
-.screen-header.collapsed {
-  padding-top: max(env(safe-area-inset-top, 0px), 42px);
-  padding-bottom: 8px;
-  background-color: color-mix(in srgb, var(--bg-color, #FDFBF8) 98%, transparent);
-  border-bottom-color: var(--border-subtle, rgba(141, 119, 101, 0.12));
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
-}
+/* ==========================================================================
+   Universal Collapsing Header (v2) Contract Architecture
+   - Fixed compact bar (56dp + safe-area-inset-top)
+   - Large title & subtitle in-flow at top of scroller
+   - Same row expanded layout (inline-start: 72dp)
+   - Icon shrinking from 44dp down to 35.2dp (80%) with static 44x44dp hit area
+   - Passive scroll driving opacity and scale only (zero layout shifts)
+   ========================================================================== */
 
-.screen-header-top {
+/* Fixed compact bar: constant layout box. Only opacity changes with scroll. */
+.bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 100;
+  height: calc(var(--bar-h) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 15px;
-  min-height: 36px;
-  width: 100%;
+  gap: var(--gap);
+  padding-inline: var(--pad);
+  contain: layout paint style;
+  pointer-events: none;
+}
+.bar > * {
+  pointer-events: auto;
 }
 
-.back-btn {
+.bar-bg {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-color, #FDFBF8);
+  border-bottom: 1px solid var(--border-subtle, #efeae6);
+  opacity: 0;
+  will-change: opacity;
+  pointer-events: none;
+}
+
+/* Outer button maintains constant 44x44 dp hit area. Only inner .ico scales. */
+.back, .hdr-action-btn, .back-btn {
   position: relative;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  flex: none;
+  width: var(--back);
+  height: var(--back);
   padding: 0;
-  border-radius: 50%;
-  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
   -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
   outline: none;
   box-sizing: border-box;
 }
 
-.back-btn::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 34px;
-  height: 34px;
+/* Inner visible circle + glyph that scales smoothly */
+.ico {
+  display: grid;
+  place-items: center;
+  width: var(--back);
+  height: var(--back);
   border-radius: 50%;
-  background-color: rgba(44, 26, 17, 0.07);
-  pointer-events: none;
-  z-index: 0;
-  transition: background-color var(--transition-speed), transform 0.15s ease;
+  background: var(--card-bg, #ffffff);
+  box-shadow: 0 0 0 1px var(--border-subtle, #efeae6);
+  color: var(--text-primary);
+  transform-origin: center;
+  will-change: transform;
 }
-
-.back-btn svg {
-  position: relative;
-  z-index: 1;
+.ico svg, .ico .toolkit-icon {
   display: block;
-  flex-shrink: 0;
   stroke: currentColor;
   pointer-events: none;
 }
 
-.back-btn:hover::before {
-  background-color: rgba(44, 26, 17, 0.12);
+.back:active .ico, .hdr-action-btn:active .ico, .back-btn:active .ico {
+  background-color: var(--bg-subtle, rgba(44, 26, 17, 0.08));
 }
 
-.back-btn:active::before {
-  background-color: rgba(44, 26, 17, 0.16);
-  transform: translate(-50%, -50%) scale(0.94);
-}
-
-.history-btn:hover {
-  background-color: rgba(46, 26, 17, 0.05);
-}
-
-.history-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background-color var(--transition-speed);
-  margin-left: auto;
-}
-
-.screen-title {
-  font-size: 1.75rem; /* ~28px expanded state */
+.bar-title {
+  position: relative;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.2;
   margin: 0;
-  transition: font-size 0.22s cubic-bezier(0.2, 0, 0, 1),
-              transform 0.22s ease;
-}
-
-.screen-header.collapsed .screen-title {
-  font-size: 1.125rem; /* ~18px compact state */
+  opacity: 0;
+  will-change: opacity;
+  pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
 }
 
-.screen-subtitle {
-  font-size: 0.82rem;
+.hdr-action-btn {
+  margin-inline-start: auto;
+}
+
+/* Single Scroller per page */
+.scroller {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  overflow-anchor: none;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  box-sizing: border-box;
+}
+.scroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* Expanded Header: normal content in-flow at top of scroller.
+   Same-row layout: padding-inline-start = 16 + 44 + 12 = 72dp.
+   Title top margin vertically centers first line on back button. */
+.large {
+  padding: env(safe-area-inset-top, 0px) var(--pad) 16px;
+  padding-inline-start: calc(var(--pad) + var(--back) + var(--gap));
+  padding-inline-end: var(--pad);
+  will-change: opacity;
+  box-sizing: border-box;
+}
+.large h1 {
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  margin: 0 0 4px;
+  margin-block-start: 11px;
+  margin-block-start: max(0px, calc((var(--bar-h) - 1lh) / 2));
+}
+.large p {
+  margin: 0;
   color: var(--text-secondary);
-  font-weight: 400;
-  margin-left: 51px; /* aligns under title next to 36px back btn + 15px gap */
-  line-height: 1.35;
-  max-height: 48px;
-  opacity: 1;
-  overflow: hidden;
-  transition: max-height 0.22s cubic-bezier(0.2, 0, 0, 1),
-              opacity 0.18s ease,
-              margin 0.22s ease;
+  font-size: 14px;
+  line-height: 1.3;
 }
 
-.screen-header.collapsed .screen-subtitle {
-  max-height: 0 !important;
-  opacity: 0 !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  pointer-events: none;
+.screen-body {
+  padding: 0 16px 60px 16px;
+  box-sizing: border-box;
+}
+@media (max-width: 480px) {
+  .screen-body {
+    padding: 0 14px 60px 14px;
+  }
 }
 
-/* Dark Theme overrides for collapsing header */
-[data-theme="dark"] .screen-header {
-  background-color: color-mix(in srgb, var(--bg-color, #12100E) 96%, transparent);
+/* RTL Arrow Mirroring */
+[dir="rtl"] .back .ico svg,
+[dir="rtl"] .back-btn .ico svg,
+html[lang="ar"] .back .ico svg,
+html[lang="ar"] .back-btn .ico svg {
+  transform: scaleX(-1);
 }
-[data-theme="dark"] .screen-header.collapsed {
-  background-color: color-mix(in srgb, var(--bg-color, #12100E) 98%, transparent);
+
+/* Dark Theme Overrides for Collapsing Header */
+[data-theme="dark"] .bar-bg {
+  background-color: var(--bg-color, #12100E);
   border-bottom-color: var(--border-subtle, rgba(255, 255, 255, 0.08));
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .ico {
+  background: var(--card-bg, #1C1815);
+  box-shadow: 0 0 0 1px var(--border-subtle, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+}
+[data-theme="dark"] .back:active .ico,
+[data-theme="dark"] .hdr-action-btn:active .ico,
+[data-theme="dark"] .back-btn:active .ico {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Cementing Screen overrides: keeps its specialized wrapper intact */
-#screen-cement-planner-subsea .screen-header,
-#screen-cementing .screen-header {
-  position: static !important;
-  margin-top: 0 !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  width: 100% !important;
-  padding: 0 !important;
-  background-color: transparent !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
-}
-#screen-cement-planner-subsea .screen-title,
-#screen-cementing .screen-title {
-  font-size: 1.15rem !important;
+/* Universal overscroll-behavior-y: none on all scrollable components */
+.modal-overlay,
+.modal-content,
+.drawer-menu,
+.drawer-content,
+.lang-picker-overlay,
+.lang-picker-card,
+.selection-card-list,
+.scroller {
+  overscroll-behavior-y: none;
 }
 
 /* Cards & Layouts inside Screens */

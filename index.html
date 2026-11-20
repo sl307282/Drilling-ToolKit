@@ -296,87 +296,117 @@
 
     <!-- Screen 1: Hole Size Selection -->
     <div id="screen-surface-hole-size" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Hole Size Selection">Hole Size Selection</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Hole Size Selection">Hole Size Selection</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Hole Size Selection">Hole Size Selection</h1>
+          <p class="screen-subtitle" data-i18n="Select wellbore diameter to initialize state">Select wellbore diameter to initialize state</p>
+        </section>
+        <div class="screen-body">
+          <div id="hole-sizes-container-surface"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Select wellbore diameter to initialize state">Select wellbore diameter to initialize state</span>
-      </div>
-      <div id="hole-sizes-container-surface"></div>
+      </main>
     </div>
 
     <!-- Screen 2: Drillstring Setup -->
     <div id="screen-surface-drillstring" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Drillstring Setup">Drillstring Setup</h2>
-        </div>
-        <span class="screen-subtitle" data-i18n="Select drillstring sequence from bottom to top">Select drillstring sequence from bottom to top</span>
-      </div>
-      <div class="content-card">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Drillstring Setup">Drillstring Setup</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Drillstring Setup">Drillstring Setup</h1>
+          <p class="screen-subtitle" data-i18n="Select drillstring sequence from bottom to top">Select drillstring sequence from bottom to top</p>
+        </section>
+        <div class="screen-body">
+          <div class="content-card">
         <div id="drillstring-form-wrapper-surface"></div>
       </div>
       <div class="btn-group">
         <button class="btn btn-primary" id="drillstring-save-surface" data-i18n="Save">Save</button>
         <button class="btn btn-primary" id="drillstring-go-surface" data-i18n="GO">GO</button>
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- Screen 3: Reference Values -->
     <div id="screen-surface-ref-values" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Reference Values">Reference Values</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Reference Values">Reference Values</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Reference Values">Reference Values</h1>
+          <p class="screen-subtitle" style="display:flex; align-items:center; gap:4px; color:var(--accent-color); font-weight:500; font-size:0.75rem; margin-top:0px; margin-left:51px; white-space:nowrap; justify-content:flex-start;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          <span data-i18n="All values are editable">All values are editable</p>
+        </section>
+        <div class="screen-body">
+          <div id="ref-values-container-surface"></div>
         </div>
-        <span class="screen-subtitle" style="display:flex; align-items:center; gap:4px; color:var(--accent-color); font-weight:500; font-size:0.75rem; margin-top:0px; margin-left:51px; white-space:nowrap; justify-content:flex-start;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-          <span data-i18n="All values are editable">All values are editable</span>
-        </span>
-      </div>
-      <div id="ref-values-container-surface"></div>
+      </main>
     </div>
 
     <!-- Screen 4: Calculations Dashboard -->
     <div id="screen-surface-calculations" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <div style="display:flex; align-items:center; gap:15px;">
-            <button class="back-btn" onclick="navigateBack();" aria-label="Back">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
-            </button>
-            <h2 class="screen-title" data-i18n="Calculations Dashboard">Calculations Dashboard</h2>
-          </div>
-          <button class="history-btn" onclick="openHistoryScreen();" aria-label="History">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Calculations Dashboard">Calculations Dashboard</div>
+        <button class="hdr-action-btn history-btn" onclick="openHistoryScreen();" aria-label="History">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-          </button>
+          </span>
+        </button>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Calculations Dashboard">Calculations Dashboard</h1>
+          <p class="screen-subtitle" data-i18n="Enter measured depths and review system strokes">Enter measured depths and review system strokes</p>
+        </section>
+        <div class="screen-body">
+          <div id="calculations-container-surface"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Enter measured depths and review system strokes">Enter measured depths and review system strokes</span>
-      </div>
-      <div id="calculations-container-surface"></div>
+      </main>
     </div>
 
     <!-- ========================================== -->
@@ -385,128 +415,169 @@
 
     <!-- Screen 1: Hole Size Selection -->
     <div id="screen-subsea-hole-size" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Subsea Hole Selection">Subsea Hole Selection</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Subsea Hole Selection">Subsea Hole Selection</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Subsea Hole Selection">Subsea Hole Selection</h1>
+          <p class="screen-subtitle" data-i18n="Select wellbore diameter to initialize state">Select wellbore diameter to initialize state</p>
+        </section>
+        <div class="screen-body">
+          <div id="hole-sizes-container-subsea"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Select wellbore diameter to initialize state">Select wellbore diameter to initialize state</span>
-      </div>
-      <div id="hole-sizes-container-subsea"></div>
+      </main>
     </div>
 
     <!-- Screen 2: Drillstring Setup -->
     <div id="screen-subsea-drillstring" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Subsea Drillstring Setup">Subsea Drillstring Setup</h2>
-        </div>
-        <span class="screen-subtitle" data-i18n="Select drillstring sequence from bottom to top">Select drillstring sequence from bottom to top</span>
-      </div>
-      <div class="content-card">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Subsea Drillstring Setup">Subsea Drillstring Setup</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Subsea Drillstring Setup">Subsea Drillstring Setup</h1>
+          <p class="screen-subtitle" data-i18n="Select drillstring sequence from bottom to top">Select drillstring sequence from bottom to top</p>
+        </section>
+        <div class="screen-body">
+          <div class="content-card">
         <div id="drillstring-form-wrapper-subsea"></div>
       </div>
       <div class="btn-group">
         <button class="btn btn-primary" id="drillstring-save-subsea" data-i18n="Save">Save</button>
         <button class="btn btn-primary" id="drillstring-go-subsea" data-i18n="GO">GO</button>
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- Screen 3: Reference Values -->
     <div id="screen-subsea-ref-values" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Reference Values">Reference Values</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Reference Values">Reference Values</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Reference Values">Reference Values</h1>
+          <p class="screen-subtitle" style="display:flex; align-items:center; gap:4px; color:var(--accent-color); font-weight:500; font-size:0.75rem; margin-top:0px; margin-left:51px; white-space:nowrap; justify-content:flex-start;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          <span data-i18n="All values are editable">All values are editable</p>
+        </section>
+        <div class="screen-body">
+          <div id="ref-values-container-subsea"></div>
         </div>
-        <span class="screen-subtitle" style="display:flex; align-items:center; gap:4px; color:var(--accent-color); font-weight:500; font-size:0.75rem; margin-top:0px; margin-left:51px; white-space:nowrap; justify-content:flex-start;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-          <span data-i18n="All values are editable">All values are editable</span>
-        </span>
-      </div>
-      <div id="ref-values-container-subsea"></div>
+      </main>
     </div>
 
     <!-- Screen 4: Calculations Dashboard -->
     <div id="screen-subsea-calculations" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <div style="display:flex; align-items:center; gap:15px;">
-            <button class="back-btn" onclick="navigateBack();" aria-label="Back">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
-            </button>
-            <h2 class="screen-title" data-i18n="Subsea Calculations Dashboard">Subsea Calculations Dashboard</h2>
-          </div>
-          <button class="history-btn" onclick="openHistoryScreen();" aria-label="History">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </button>
-        </div>
-        <span class="screen-subtitle" data-i18n="Enter marine elevations and calculate system strokes">Enter marine elevations and calculate system strokes</span>
-      </div>
-      <div id="calculations-container-subsea"></div>
-    </div>
-
-    <!-- Screen: Subsea Wellhead Cementing (/cement-planner/subsea) -->
-    <div id="screen-cement-planner-subsea" class="screen">
-      <div id="cementing-fixed-header-wrapper" class="cementing-fixed-header-wrapper">
-        <div class="screen-header">
-          <div class="screen-header-top">
-            <button class="back-btn" onclick="navigateBack();" aria-label="Back">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
-            </button>
-            <div style="display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap;">
-              <h2 class="screen-title" id="cementing-screen-title" style="margin:0;" data-i18n="Subsea Wellhead">Subsea Wellhead</h2>
-              <span id="cementing-header-badge" class="cement-badge-model" style="display:none;"></span>
-            </div>
-          </div>
-          <span class="screen-subtitle" id="cementing-screen-subtitle" data-i18n="Floater Rig · Subsea & riserless casing cement calculation">Floater Rig · Subsea &amp; riserless casing cement calculation</span>
-        </div>
-        <div id="cementing-job-header-slot"></div>
-      </div>
-      <div id="cementing-container" style="padding-bottom: 40px;"></div>
-    </div>
-
-    <!-- Screen: Cement Job Planner Landing Screen (/cement-planner) -->
-    <div id="screen-cement-planner" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Cement Job Planner">Cement Job Planner</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Subsea Calculations Dashboard">Subsea Calculations Dashboard</div>
+        <button class="hdr-action-btn history-btn" onclick="openHistoryScreen();" aria-label="History">
+          <span class="ico" data-hdr-icon>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </span>
+        </button>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Subsea Calculations Dashboard">Subsea Calculations Dashboard</h1>
+          <p class="screen-subtitle" data-i18n="Enter marine elevations and calculate system strokes">Enter marine elevations and calculate system strokes</p>
+        </section>
+        <div class="screen-body">
+          <div id="calculations-container-subsea"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Select rig type to start your cementing job plan.">Select rig type to start your cementing job plan.</span>
-      </div>
+      </main>
+    </div>
 
-      <div class="selection-card-list">
+    <!-- Screen: Subsea Wellhead Cementing (/cement-planner/subsea) -->
+    <div id="screen-cement-planner-subsea" class="screen">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" id="cementing-screen-title-compact" data-i18n="Subsea Wellhead">Subsea Wellhead</div>
+        <span id="cementing-header-badge" class="cement-badge-model" style="display:none;"></span>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" id="cementing-screen-title" data-i18n="Subsea Wellhead">Subsea Wellhead</h1>
+          <p class="screen-subtitle" id="cementing-screen-subtitle" data-i18n="Floater Rig · Subsea & riserless casing cement calculation">Floater Rig · Subsea &amp; riserless casing cement calculation</p>
+        </section>
+        <div class="screen-body">
+          <div id="cementing-fixed-header-wrapper" class="cementing-fixed-header-wrapper" style="display:none;">
+            <div id="cementing-job-header-slot"></div>
+          </div>
+          <div id="cementing-container" style="padding-bottom: 40px;"></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Screen: Cement Job Planner Landing Screen (/cement-planner) -->
+    <div id="screen-cement-planner" class="screen">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Cement Job Planner">Cement Job Planner</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Cement Job Planner">Cement Job Planner</h1>
+          <p class="screen-subtitle" data-i18n="Select rig type to start your cementing job plan.">Select rig type to start your cementing job plan.</p>
+        </section>
+        <div class="screen-body">
+          <div class="selection-card-list">
         <!-- Card 1: Surface Wellhead -->
         <div class="toolkit-card selection-card" onclick="navigateTo('/cement-planner/surface');">
           <div class="card-icon-container icon-subsea">
@@ -554,23 +625,31 @@
           <span class="card-chevron">&rsaquo;</span>
         </div>
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- Screen: Cement Planner Surface Stub (/cement-planner/surface) -->
     <div id="screen-cement-planner-surface" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Surface Wellhead">Surface Wellhead</h2>
-        </div>
-        <span class="screen-subtitle" data-i18n="Land Rig & Jack-up Rig cementing job plan">Land Rig &amp; Jack-up Rig cementing job plan</span>
-      </div>
-      <div style="padding: 32px 20px; text-align: center; max-width: 480px; margin: 30px auto;">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Surface Wellhead">Surface Wellhead</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Surface Wellhead">Surface Wellhead</h1>
+          <p class="screen-subtitle" data-i18n="Land Rig & Jack-up Rig cementing job plan">Land Rig &amp; Jack-up Rig cementing job plan</p>
+        </section>
+        <div class="screen-body">
+          <div style="padding: 32px 20px; text-align: center; max-width: 480px; margin: 30px auto;">
         <div class="card-icon-container icon-subsea" style="width: 72px; height: 72px; margin: 0 auto 20px;">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 20h18"></path>
@@ -590,6 +669,8 @@
           Surface wellhead casing string setup, slurry volumes, and displacement calculations.
         </p>
       </div>
+        </div>
+      </main>
     </div>
 
 
@@ -599,168 +680,240 @@
 
     <!-- API Tubular Data Screen -->
     <div id="screen-api-tubular" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="API Tubular Reference">API Tubular Reference</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="API Tubular Reference">API Tubular Reference</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="API Tubular Reference">API Tubular Reference</h1>
+          <p class="screen-subtitle" data-i18n="API standards nominal capacity & displacement data">API standards nominal capacity &amp; displacement data</p>
+        </section>
+        <div class="screen-body">
+          <div id="api-tubular-container"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="API standards nominal capacity & displacement data">API standards nominal capacity &amp; displacement data</span>
-      </div>
-      <div id="api-tubular-container"></div>
+      </main>
     </div>
 
     <!-- Stuck Pipe Analysis Screen -->
     <div id="screen-stuck-pipe" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Stuck Pipe Assistant">Stuck Pipe Assistant</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Stuck Pipe Assistant">Stuck Pipe Assistant</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Stuck Pipe Assistant">Stuck Pipe Assistant</h1>
+          <p class="screen-subtitle" data-i18n="Identify sticking mechanism & determine first action remedies">Identify sticking mechanism &amp; determine first action remedies</p>
+        </section>
+        <div class="screen-body">
+          <div id="stuck-pipe-container"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Identify sticking mechanism & determine first action remedies">Identify sticking mechanism &amp; determine first action remedies</span>
-      </div>
-      <div id="stuck-pipe-container"></div>
+      </main>
     </div>
 
     <!-- Conversion Screen -->
     <div id="screen-conversion" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Unit Conversion">Unit Conversion</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Unit Conversion">Unit Conversion</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Unit Conversion">Unit Conversion</h1>
+          <p class="screen-subtitle" data-i18n="Quick oilfield volume, pressure & density calculator">Quick oilfield volume, pressure &amp; density calculator</p>
+        </section>
+        <div class="screen-body">
+          <div id="conversion-container"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Quick oilfield volume, pressure & density calculator">Quick oilfield volume, pressure &amp; density calculator</span>
-      </div>
-      <div id="conversion-container"></div>
+      </main>
     </div>
 
     <!-- Drilling Calculator Screen -->
     <div id="screen-drilling-calc" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Calculation Hub">Calculation Hub</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Calculation Hub">Calculation Hub</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Calculation Hub">Calculation Hub</h1>
+          <p class="screen-subtitle" data-i18n="Applied, basic & well control engineering calculations">Applied, basic &amp; well control engineering calculations</p>
+        </section>
+        <div class="screen-body">
+          <div id="drilling-calc-container"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Applied, basic & well control engineering calculations">Applied, basic &amp; well control engineering calculations</span>
-      </div>
-      <div id="drilling-calc-container"></div>
+      </main>
     </div>
 
     <!-- Well Control Screen -->
     <div id="screen-well-control" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Well Control Operations">Well Control Operations</h2>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Well Control Operations">Well Control Operations</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Well Control Operations">Well Control Operations</h1>
+          <p class="screen-subtitle" data-i18n="Surface and subsea stack well control calculators & formulas">Surface and subsea stack well control calculators &amp; formulas</p>
+        </section>
+        <div class="screen-body">
+          <div id="well-control-container"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Surface and subsea stack well control calculators & formulas">Surface and subsea stack well control calculators &amp; formulas</span>
-      </div>
-      <div id="well-control-container"></div>
+      </main>
     </div>
 
     <!-- Quick Reference Screen -->
     <div id="screen-quick-ref" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" id="quick-ref-title" data-i18n="Quick Reference">Quick Reference</h2>
-          <button class="top-bar-btn" id="quick-ref-fav-btn" onclick="toggleQuickRefFavorite()" style="margin-left:auto; padding:4px; margin-top:0; display:none;" aria-label="Favorite">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" id="quick-ref-title-compact" data-i18n="Quick Reference">Quick Reference</div>
+        <button class="hdr-action-btn" id="quick-ref-fav-btn" onclick="toggleQuickRefFavorite()" style="display:none;" aria-label="Favorite">
+          <span class="ico" data-hdr-icon>
             <svg class="toolkit-icon" viewBox="0 0 24 24" width="20" height="20" fill="#EAB308" aria-hidden="true" focusable="false"><path d="m22 9.24-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
-          </button>
+          </span>
+        </button>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" id="quick-ref-title" data-i18n="Quick Reference">Quick Reference</h1>
+          <p class="screen-subtitle" data-i18n="Drill Bit Make-Up Torque Reference Table">Drill Bit Make-Up Torque Reference Table</p>
+        </section>
+        <div class="screen-body">
+          <div id="quick-ref-container"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Drill Bit Make-Up Torque Reference Table">Drill Bit Make-Up Torque Reference Table</span>
-      </div>
-      <div id="quick-ref-container"></div>
+      </main>
     </div>
 
     <!-- Kill Data Sheet Screen -->
     <div id="screen-kill-data-sheet" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <div style="display:flex; align-items:center; gap:15px;">
-            <button class="back-btn" onclick="navigateBack();" aria-label="Back">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
-            </button>
-            <h2 class="screen-title" data-i18n="Kill Data Sheet">Kill Data Sheet</h2>
-          </div>
-          <button class="history-btn" onclick="openHistoryScreen();" aria-label="History">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Kill Data Sheet">Kill Data Sheet</div>
+        <button class="hdr-action-btn history-btn" onclick="openHistoryScreen();" aria-label="History">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-          </button>
+          </span>
+        </button>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Kill Data Sheet">Kill Data Sheet</h1>
+          <p class="screen-subtitle" data-i18n="Calculate well control kill parameters and step-down drop">Calculate well control kill parameters and step-down drop</p>
+        </section>
+        <div class="screen-body">
+          <div id="kill-data-sheet-container" class="app-container-inner" style="padding: 16px;"></div>
         </div>
-        <span class="screen-subtitle" data-i18n="Calculate well control kill parameters and step-down drop">Calculate well control kill parameters and step-down drop</span>
-      </div>
-      <div id="kill-data-sheet-container" class="app-container-inner" style="padding: 16px;"></div>
+      </main>
     </div>
     
     <!-- Screen: History -->
     <div id="screen-history" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Calculation History">Calculation History</h2>
-        </div>
-        <span class="screen-subtitle" data-i18n="Select a past entry to restore its data">Select a past entry to restore its data</span>
-      </div>
-      <div id="history-container" class="app-container-inner" style="padding: 16px;">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Calculation History">Calculation History</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Calculation History">Calculation History</h1>
+          <p class="screen-subtitle" data-i18n="Select a past entry to restore its data">Select a past entry to restore its data</p>
+        </section>
+        <div class="screen-body">
+          <div id="history-container" class="app-container-inner" style="padding: 16px;">
         <!-- History items will be rendered here -->
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- Screen: Settings -->
     <div id="screen-settings" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Settings">Settings</h2>
-        </div>
-        <span class="screen-subtitle" data-i18n="Customize capacity units, themes and language">Customize capacity units, themes and language</span>
-      </div>
-      <div class="app-container-inner" style="padding: 16px;">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Settings">Settings</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Settings">Settings</h1>
+          <p class="screen-subtitle" data-i18n="Customize capacity units, themes and language">Customize capacity units, themes and language</p>
+        </section>
+        <div class="screen-body">
+          <div class="app-container-inner" style="padding: 16px;">
         <div class="content-card">
           <div class="form-group" style="margin-bottom: 0;">
             <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:block; color:var(--text-primary);" data-i18n="Default Capacity Unit">Default Capacity Unit</label>
@@ -840,70 +993,96 @@
 
 
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- ========================================== -->
     <!-- DRILLING GUIDE SCREEN                      -->
     <!-- ========================================== -->
     <div id="screen-drilling-guide" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Drilling Guide">Drilling Guide</h2>
-        </div>
-        <span class="screen-subtitle" data-i18n="Comprehensive operational guides & calculations reference">Comprehensive operational guides &amp; calculations reference</span>
-      </div>
-      <div id="drilling-guide-container" class="app-container-inner" style="padding: 16px;">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Drilling Guide">Drilling Guide</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Drilling Guide">Drilling Guide</h1>
+          <p class="screen-subtitle" data-i18n="Comprehensive operational guides & calculations reference">Comprehensive operational guides &amp; calculations reference</p>
+        </section>
+        <div class="screen-body">
+          <div id="drilling-guide-container" class="app-container-inner" style="padding: 16px;">
         <!-- Dynamically rendered -->
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- ========================================== -->
     <!-- DRILLING GUIDE DETAIL SCREEN               -->
     <!-- ========================================== -->
     <div id="screen-drilling-guide-detail" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" id="guide-detail-title" data-i18n="Drilling Guide">Drilling Guide</h2>
-        </div>
-      </div>
-      <div id="drilling-guide-detail-container" class="app-container-inner" style="padding: 16px;">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" id="guide-detail-title-compact" data-i18n="Drilling Guide">Drilling Guide</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" id="guide-detail-title" data-i18n="Drilling Guide">Drilling Guide</h1>
+          
+        </section>
+        <div class="screen-body">
+          <div id="drilling-guide-detail-container" class="app-container-inner" style="padding: 16px;">
         <!-- Dynamically rendered -->
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- ========================================== -->
     <!-- BIT DULL GRADING SCREEN                    -->
     <!-- ========================================== -->
     <div id="screen-bit-dull-grading" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Bit Dull Grading">Bit Dull Grading</h2>
-          <button class="history-btn" onclick="navigateTo('iadc-history')" style="margin-left:auto; background:none; border:none; color:var(--text-primary); cursor:pointer; display:flex; align-items:center; justify-content:center; padding:4px;" aria-label="History">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Bit Dull Grading">Bit Dull Grading</div>
+        <button class="hdr-action-btn history-btn" onclick="navigateTo('iadc-history')" aria-label="History">
+          <span class="ico" data-hdr-icon>
             <svg class="toolkit-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8z"/></svg>
-          </button>
-        </div>
-        <span class="screen-subtitle" data-i18n="Calculate and log IADC dull bit grades">Calculate and log IADC dull bit grades</span>
-      </div>
-
-      <!-- Bit Info Card -->
+          </span>
+        </button>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Bit Dull Grading">Bit Dull Grading</h1>
+          <p class="screen-subtitle" data-i18n="Calculate and log IADC dull bit grades">Calculate and log IADC dull bit grades</p>
+        </section>
+        <div class="screen-body">
+          <!-- Bit Info Card -->
       <div class="content-card">
         <h3 class="card-section-title" data-i18n="Bit Information">Bit Information</h3>
         <div class="input-grid">
@@ -1158,28 +1337,37 @@
           Generate / Save
         </button>
       </div>
+        </div>
+      </main>
     </div>
 
     <!-- ========================================== -->
     <!-- IADC HISTORY SCREEN                        -->
     <!-- ========================================== -->
     <div id="screen-iadc-history" class="screen">
-      <div class="screen-header">
-        <div class="screen-header-top">
-          <button class="back-btn" onclick="navigateBack();" aria-label="Back">
+      <header class="bar">
+        <div class="bar-bg"></div>
+        <button class="back back-btn" onclick="navigateBack();" aria-label="Back">
+          <span class="ico" data-hdr-icon>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          </button>
-          <h2 class="screen-title" data-i18n="Grading History">Grading History</h2>
-        </div>
-        <span class="screen-subtitle" data-i18n="Past bit dull grades and records">Past bit dull grades and records</span>
-      </div>
-
-      <div id="iadc-history-list-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">
+          </span>
+        </button>
+        <div class="bar-title" aria-hidden="true" data-i18n="Grading History">Grading History</div>
+      </header>
+      <main class="scroller">
+        <section class="large">
+          <h1 class="screen-title" data-i18n="Grading History">Grading History</h1>
+          <p class="screen-subtitle" data-i18n="Past bit dull grades and records">Past bit dull grades and records</p>
+        </section>
+        <div class="screen-body">
+          <div id="iadc-history-list-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">
         <!-- Filled dynamically -->
       </div>
+        </div>
+      </main>
     </div>
 
       </div> <!-- /app-container -->
@@ -1434,6 +1622,7 @@
   <script src="icons.js?v=1.1.6" defer></script>
   <script src="cementing_engine.js?v=1.1.6" defer></script>
   <script src="cementing_pdf.js?v=1.1.6" defer></script>
+  <script src="collapsing_header.js" defer></script>
   <script src="app.js?v=1.1.6" defer></script>
   <script src="cementing_ui.js?v=1.1.6" defer></script>
   <script type="module" src="stuckpipe/ui.js"></script>

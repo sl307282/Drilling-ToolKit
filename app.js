@@ -1643,7 +1643,7 @@ const initApp = () => {
     // Initial render (DO IMMEDIATELY SO IT'S READY UNDER THE SPLASH SCREEN)
     renderScreen();
     CardOverrideManager.apply();
-    initCollapsingHeaderScroll();
+    // Collapsing header controller initialized via collapsing_header.js
 
     // Optimize initialization: Preload essential data BEFORE dismissing splash screen
     const preloadDataAndShow = () => {
@@ -2863,29 +2863,7 @@ function showToast(message) {
 
 // Screen Rendering router
 
-// Universal Collapsing Sticky Header Controller
-function initCollapsingHeaderScroll() {
-  let ticking = false;
-  const onScroll = () => {
-    if (!ticking) {
-      window.requestAnimationFrame(() => {
-        const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-        const headers = document.querySelectorAll('.screen.active .screen-header');
-        headers.forEach(header => {
-          if (scrollY > 20) {
-            header.classList.add('collapsed');
-          } else {
-            header.classList.remove('collapsed');
-          }
-        });
-        ticking = false;
-      });
-      ticking = true;
-    }
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  document.addEventListener('scroll', onScroll, { passive: true });
-}
+// Screen Rendering router
 
 function renderScreen() {
   // Hide all screens
@@ -2906,18 +2884,21 @@ function renderScreen() {
     // Trigger reflow to restart animation reliably
     void activeScreenEl.offsetWidth;
 
-    // Reset all headers to expanded state on screen transition
-    document.querySelectorAll('.screen-header.collapsed').forEach(h => h.classList.remove('collapsed'));
+    // Reset active screen scroll position and collapsing header state
+    const scroller = activeScreenEl.querySelector('.scroller') || activeScreenEl;
+    if (scroller) scroller.scrollTop = 0;
+    if (window.CollapsingHeader) {
+      window.CollapsingHeader.reset(activeScreenEl);
+    }
 
     // Scroll to top on every screen transition — after DOM paint and reflow
     setTimeout(() => {
       try {
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-        const appContainer = document.querySelector('.app-container');
-        if (appContainer) appContainer.scrollTop = 0;
-        if (activeScreenEl) activeScreenEl.scrollTop = 0;
+        const scroller = activeScreenEl.querySelector('.scroller') || activeScreenEl;
+        if (scroller) scroller.scrollTop = 0;
+        if (window.CollapsingHeader) {
+          window.CollapsingHeader.reset(activeScreenEl);
+        }
       } catch(e) {}
     }, 50);
 

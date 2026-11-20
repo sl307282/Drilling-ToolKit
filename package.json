@@ -4,7 +4,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "build": "mkdir -p www && cp index.html style.css icons.js app.js translations.js tubulars_db.js cementing_engine.js cementing_ui.js cementing_pdf.js roboto_font.js jspdf.umd.min.js jspdf.plugin.autotable.min.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/ && cp -r fonts www/ && cp -r stuckpipe www/",
+    "build": "mkdir -p www && cp index.html style.css collapsing_header.js icons.js app.js translations.js tubulars_db.js cementing_engine.js cementing_ui.js cementing_pdf.js roboto_font.js jspdf.umd.min.js jspdf.plugin.autotable.min.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/ && cp -r fonts www/ && cp -r stuckpipe www/",
     "test": "node stuckpipe/engine.test.mjs && python3 scripts/verify_stuckpipe_locales.py && python3 scripts/offline_icon_guard.py && python3 scripts/mojibake_guard.py",
     "test:stuckpipe": "node stuckpipe/engine.test.mjs && python3 scripts/verify_stuckpipe_locales.py",
     "guard": "python3 scripts/offline_icon_guard.py && python3 scripts/mojibake_guard.py"

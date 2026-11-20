@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+:root{--bar-h:56px;--back:44px;--pad:16px;--gap:12px;--bg:#faf8f4;--text:#1e1a17;--muted:#6b635b;--line:#e7e1d8}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+.page{position:relative;height:100dvh}
+/* Fixed compact bar: constant layout box. Only opacity changes with scroll. */
+.bar{position:absolute;inset:0 0 auto 0;z-index:10;height:calc(var(--bar-h) + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);box-sizing:border-box;display:flex;align-items:center;gap:var(--gap);padding-inline:var(--pad);contain:layout paint style;pointer-events:none}
+.bar > *{pointer-events:auto}
+.bar-bg{position:absolute;inset:0;background:var(--bg);border-bottom:1px solid var(--line);opacity:0;will-change:opacity;pointer-events:none}
+/* .back keeps a constant 44px hit area. Only the inner .ico (the visible circle + glyph) scales. */
+.back{position:relative;flex:none;width:var(--back);height:var(--back);padding:0;border:0;background:transparent;display:grid;place-items:center;color:inherit;-webkit-tap-highlight-color:transparent}
+.ico{display:grid;place-items:center;width:var(--back);height:var(--back);border-radius:50%;background:#fff;box-shadow:0 0 0 1px var(--line);font-size:20px;transform-origin:center;will-change:transform}
+.bar-title{position:relative;font-size:18px;font-weight:700;margin:0;opacity:0;will-change:opacity;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Single scroller: native scrolling, no overscroll effect, no scroll anchoring. */
+.scroller{position:absolute;inset:0;overflow-y:auto;overscroll-behavior-y:none;overflow-anchor:none;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.scroller::-webkit-scrollbar{display:none}
+/* Expanded header = normal content. Title starts at the same inline position as the compact title,
+   so the back icon (fixed bar) and the large title share one row. */
+.large{padding:env(safe-area-inset-top,0px) var(--pad) 16px;padding-inline-start:calc(var(--pad) + var(--back) + var(--gap));will-change:opacity}
+.large h1{font-size:30px;line-height:1.15;letter-spacing:-.01em;overflow-wrap:anywhere;margin:0 0 4px;
+  /* centre the first title line on the back icon (needs 1lh; falls back to 11px) */
+  margin-block-start:11px;margin-block-start:max(0px,calc((var(--bar-h) - 1lh) / 2))}
+.large p{margin:0;color:var(--muted);font-size:14px;line-height:1.3}
+.item{margin:0 16px 12px;padding:16px;background:#fff;border:1px solid var(--line);border-radius:14px;height:64px}
+</style></head><body>
+<div class="page">
+  <header class="bar" id="bar"><div class="bar-bg" id="barBg"></div><button class="back" aria-label="Back"><span class="ico" data-hdr-icon>&#8592;</span></button><div class="bar-title" id="barTitle" aria-hidden="true">Drilling Guide</div></header>
+  <main class="scroller" id="scroller">
+    <section class="large" id="large"><h1 id="h1">Drilling Guide</h1><p>Comprehensive operational guides &amp; calculation references</p></section>
+    <div id="list"></div>
+  </main>
+</div>
+<script>
+(() => {
+  const scroller = document.getElementById('scroller'), large = document.getElementById('large'), bar = document.getElementById('bar');
+  const barBg = document.getElementById('barBg'), barTitle = document.getElementById('barTitle'), list = document.getElementById('list');
+  for (let i = 0; i < 30; i++) { const d = document.createElement('div'); d.className = 'item'; d.textContent = 'Section ' + (i + 1); list.append(d); }
+  const ICON_MIN = 0.8;                                          // icons end at 80% of their expanded size (44 -> ~35 dp)
+  const icons = [...bar.querySelectorAll('[data-hdr-icon]')];     // every header icon opts in with data-hdr-icon
+  let end = 26, fadeOutEnd = 12, ticking = false;
+  // Measure only when layout changes, never inside the scroll handler.
+  const measure = () => {
+    // `end` = scrollTop at which the first list item reaches the bottom of the compact bar.
+    end = Math.max(24, large.offsetHeight - bar.offsetHeight);
+    fadeOutEnd = end * 0.45;
+    apply();
+  };
+  const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const apply = () => {
+    ticking = false;
+    const y = Math.max(0, scroller.scrollTop);                       // no negative values from overscroll
+    large.style.opacity = 1 - clamp01(y / fadeOutEnd);               // expanded title/subtitle fade out first ...
+    barTitle.style.opacity = clamp01((y - fadeOutEnd) / (end - fadeOutEnd)); // ... then the compact title fades in (never both)
+    barBg.style.opacity = clamp01((y - (end - 20)) / 20);            // bar is opaque exactly when content reaches it
+    const sc = 1 - (1 - ICON_MIN) * clamp01(y / end);                // icons shrink in step with the header, then stay small
+    for (const el of icons) el.style.transform = 'scale(' + sc + ')';
+  };
+  scroller.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(apply); } }, { passive: true });
+  new ResizeObserver(measure).observe(large);
+  new ResizeObserver(measure).observe(scroller);
+  measure();
+})();
+</script></body></html>

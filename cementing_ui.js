@@ -833,42 +833,8 @@
     }
   }
 
-  let cementingScrollListenerInitialized = false;
   function initCementingStickyHeaderScroll() {
-    if (cementingScrollListenerInitialized) return;
-    cementingScrollListenerInitialized = true;
-
-    let ticking = false;
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const wrapper = document.getElementById('cementing-fixed-header-wrapper');
-          if (wrapper && cementingState && cementingState.view !== 'chooser') {
-            const appContainer = document.querySelector('.app-container');
-            const screenEl = document.getElementById('screen-cement-planner-subsea') || document.getElementById('screen-cementing');
-            const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || (appContainer ? appContainer.scrollTop : 0) || (screenEl ? screenEl.scrollTop : 0) || 0;
-            if (scrollY > 15) {
-              wrapper.classList.add('is-scrolled');
-            } else {
-              wrapper.classList.remove('is-scrolled');
-            }
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    document.addEventListener('scroll', onScroll, { passive: true });
-    const appContainer = document.querySelector('.app-container');
-    if (appContainer) {
-      appContainer.addEventListener('scroll', onScroll, { passive: true });
-    }
-    const screenEl = document.getElementById('screen-cement-planner-subsea') || document.getElementById('screen-cementing');
-    if (screenEl) {
-      screenEl.addEventListener('scroll', onScroll, { passive: true });
-    }
+    // Legacy scroll threshold removed: managed by unified CollapsingHeader engine
   }
 
   /**
