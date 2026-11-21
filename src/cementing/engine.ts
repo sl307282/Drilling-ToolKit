@@ -86,11 +86,69 @@ export interface RiserlessCementInput {
   cap_dp: number;            // inner string capacity
 }
 
-export interface PumpingStep {
-  step: number;
-  name: string;
-  volume: number;
-  density: number;
+export interface SurfaceConductorInput {
+  rig_type: 'jack-up' | 'land';
+  seabed: number;            // ft (RKB to seabed if jack-up; RKB to ground level if land)
+  td: number;                // ft (hole TD)
+  shoe: number;              // ft (conductor shoe)
+  shoe_track_len: number;    // ft
+  seawater_mw?: number;      // ppg (jack-up only; ignored for Land)
+  hole_fluid_mw: number;     // ppg (in annulus before job)
+  disp_mw: number;           // ppg (displacement fluid MW)
+  f1_vol?: number;           // bbl
+  f1_mw?: number;            // ppg
+  f2_vol?: number;           // bbl
+  f2_mw?: number;            // ppg
+  sp_vol?: number;           // bbl
+  sp_mw?: number;            // ppg
+  lead_vol?: number;         // bbl
+  lead_mw?: number;          // ppg
+  tail_vol: number;          // bbl
+  tail_mw: number;           // ppg
+  excess_pct: number;        // %
+  pump_output: number;       // bbl/stk
+  collapse_rating?: number;  // psi
+  burst_rating?: number;     // psi
+  max_pump_pressure?: number;// psi
+
+  // Capacities (bbl/ft)
+  cap_csg: number;
+  cap_oh: number;
+  cap_ann_oh: number;
+  cap_dp: number;            // inner string capacity
+}
+
+export interface SurfaceCasingInput {
+  prev_shoe: number;         // ft (previous casing shoe depth)
+  td: number;                // ft (hole TD)
+  shoe: number;              // ft (casing shoe)
+  shoe_track_len: number;    // ft
+  planned_toc: number;       // ft (0 = cement to surface)
+  mw: number;                // ppg (well mud in hole; also displacement fluid)
+  f1_vol?: number;           // bbl
+  f1_mw?: number;            // ppg
+  f2_vol?: number;           // bbl
+  f2_mw?: number;            // ppg
+  sp_vol?: number;           // bbl
+  sp_mw?: number;            // ppg
+  lead_vol?: number;         // bbl
+  lead_mw?: number;          // ppg
+  tail_vol: number;          // bbl
+  tail_mw: number;           // ppg
+  excess_pct: number;        // %
+  pump_output: number;       // bbl/stk
+  lot?: number;              // ppg EMW (LOT/FIT at previous shoe)
+  collapse_rating?: number;  // psi
+  burst_rating?: number;     // psi
+  bump?: number;             // psi (bump pressure above final circulating pressure)
+
+  // Capacities (bbl/ft)
+  cap_csg: number;
+  csg_disp?: number;
+  cap_prev_csg?: number;
+  cap_ann_c: number;         // prev_csg - (csg + csg_disp)
+  cap_oh: number;
+  cap_ann_oh: number;        // oh - (csg + csg_disp)
 }
 
 export interface JobCheck {
@@ -100,7 +158,7 @@ export interface JobCheck {
 }
 
 export interface CementingResult {
-  model: 'subsea' | 'riserless';
+  model: 'subsea' | 'riserless' | 'surface_conductor' | 'surface_casing';
   mudline: number;
   fc: number;
   st_vol: number;
@@ -138,6 +196,8 @@ export interface CementingResult {
   returns_surface?: number;
   toc_below_mudline?: number;
   cement_returns_seabed?: number;
+  cement_returns_surface?: number;
+  toc_above_plan?: number;
   all_fluids_returned?: number;
 
   // Displacement
@@ -586,6 +646,7 @@ export function calcRiserless(inp: RiserlessCementInput): CementingResult {
     ? inp.lot - emw_prev_shoe
     : undefined;
 
+  const bottom_rho = (inp.tail_vol || 0) > 0 ? (inp.tail_mw || 0) : (inp.lead_mw || 0);
   const p_col = p_ann_shoe - (p_in_fc + CONSTANTS.PSI_GRADIENT * bottom_rho * (((inp.shoe || 0) as number) - fc));
   const collapse_sf = (p_col > 0 && (inp.collapse_rating || 0) > 0)
     ? inp.collapse_rating / p_col
@@ -810,4 +871,555 @@ export function bblFtToBblM(bblFt: number): number {
 
 export function bblMToBblFt(bblM: number): number {
   return Number(bblM) * 0.3048;
+}
+
+/**
+ * Surface Conductor Calculation Engine (Inner-string stab-in job on Jack-up or Land rig)
+ */
+export function calcSurfaceConductor(inp: SurfaceConductorInput): CementingResult {
+  const xs = 1 + (inp.excess_pct || 0) / 100;
+  const isJackUp = inp.rig_type === 'jack-up';
+  const seabed = inp.seabed || 0;
+  const fc = inp.shoe - inp.shoe_track_len;
+
+  const st_vol = inp.shoe_track_len * inp.cap_csg;
+  const rat_vol = Math.max(0, inp.td - inp.shoe) * inp.cap_oh * xs;
+  const v_below = st_vol + rat_vol;
+
+  const top_ann = seabed;
+  const oh_full = Math.max(0, inp.shoe - top_ann) * inp.cap_ann_oh * xs;
+  const c_full = 0;
+  const ann_total = oh_full;
+
+  // depthTop(V)
+  const depthTop = (v: number): number => {
+    if (v <= 0) return inp.shoe || 0;
+    const annOhCap = (inp.cap_ann_oh || 0) * xs;
+    if (annOhCap > 0) {
+      return Math.max(top_ann, (inp.shoe || 0) - v / annOhCap);
+    }
+    return top_ann;
+  };
+
+  const v_tail = (inp.tail_vol || 0) - v_below;
+  const v_cem = v_tail + (inp.lead_vol || 0);
+  const v_sp = v_cem + (inp.sp_vol || 0);
+  const v_f2 = v_sp + (inp.f2_vol || 0);
+  const v_f1 = v_f2 + (inp.f1_vol || 0);
+
+  const tail_top = (inp.tail_vol || 0) > 0 ? depthTop(v_tail) : inp.shoe;
+  const toc = depthTop(v_cem);
+  const sp_top = depthTop(v_sp);
+  const f2_top = depthTop(v_f2);
+  const f1_top = depthTop(v_f1);
+
+  const rise_tail = (inp.tail_vol || 0) > 0 ? inp.shoe - tail_top : 0;
+  const rise_lead = (inp.lead_vol || 0) > 0 ? tail_top - toc : 0;
+  const rise_tot = inp.shoe - toc;
+  const rise_sp = (inp.sp_vol || 0) > 0 ? toc - sp_top : 0;
+  const rise_f2 = (inp.f2_vol || 0) > 0 ? sp_top - f2_top : 0;
+  const rise_f1 = (inp.f1_vol || 0) > 0 ? f2_top - f1_top : 0;
+  const total_slurry = (inp.lead_vol || 0) + (inp.tail_vol || 0);
+
+  const toc_below_mudline = Math.max(0, toc - top_ann);
+  const cement_returns_seabed = Math.max(0, v_cem - ann_total);
+  const all_fluids_returned = Math.max(0, v_f1 - ann_total);
+
+  // Displacement (inner string only)
+  const disp_tot = fc * inp.cap_dp;
+  const strokes = inp.pump_output > 0 ? disp_tot / inp.pump_output : 0;
+
+  const pumping_sequence: PumpingStep[] = [
+    { step: 1, name: '1st Pumping Mud', volume: inp.f1_vol || 0, density: inp.f1_mw || 0 },
+    { step: 2, name: '2nd Pumping Mud', volume: inp.f2_vol || 0, density: inp.f2_mw || 0 },
+    { step: 3, name: 'Spacer', volume: inp.sp_vol || 0, density: inp.sp_mw || 0 },
+    { step: 4, name: 'Lead Slurry', volume: inp.lead_vol || 0, density: inp.lead_mw || 0 },
+    { step: 5, name: 'Tail Slurry', volume: inp.tail_vol || 0, density: inp.tail_mw || 0 },
+    { step: 6, name: 'Displacement (Inner String)', volume: disp_tot, density: inp.disp_mw || 0 }
+  ].filter(s => s.volume > 0 || s.step === 6);
+
+  const total_pumped = (inp.f1_vol || 0) + (inp.f2_vol || 0) + (inp.sp_vol || 0) + (inp.lead_vol || 0) + (inp.tail_vol || 0) + disp_tot;
+
+  // Pressures (Static, End of Job)
+  const topLayerMw = isJackUp ? (inp.seawater_mw || 0) : 0;
+  const layers = [
+    { rho: topLayerMw, top: 0, bot: top_ann },
+    { rho: inp.hole_fluid_mw || 0, top: top_ann, bot: f1_top },
+    { rho: inp.f1_mw || 0, top: f1_top, bot: f2_top },
+    { rho: inp.f2_mw || 0, top: f2_top, bot: sp_top },
+    { rho: inp.sp_mw || 0, top: sp_top, bot: toc },
+    { rho: inp.lead_mw || 0, top: toc, bot: tail_top },
+    { rho: inp.tail_mw || 0, top: tail_top, bot: inp.shoe }
+  ];
+
+  const pAnn = (depth: number): number => {
+    let sum = 0;
+    for (const l of layers) {
+      const h = Math.max(0, Math.min(l.bot, depth) - Math.min(l.top, depth));
+      sum += CONSTANTS.PSI_GRADIENT * l.rho * h;
+    }
+    return sum;
+  };
+
+  const p_ann_fc = pAnn(fc);
+  const p_in_fc = CONSTANTS.PSI_GRADIENT * inp.disp_mw * fc;
+  const diff_press = p_ann_fc - p_in_fc;
+  const diff_meaning = diff_press > 0
+    ? 'Annulus heavier – floats must hold (U-tube risk)'
+    : 'String heavier – no back-flow';
+
+  const p_ann_shoe = pAnn(inp.shoe);
+  const emw_fc = fc > 0 ? p_ann_fc / (CONSTANTS.PSI_GRADIENT * fc) : 0;
+  const emw_shoe = inp.shoe > 0 ? p_ann_shoe / (CONSTANTS.PSI_GRADIENT * inp.shoe) : 0;
+
+  const bottom_rho = (inp.tail_vol || 0) > 0 ? (inp.tail_mw || 0) : (inp.lead_mw || 0);
+  const p_col = p_ann_shoe - (p_in_fc + CONSTANTS.PSI_GRADIENT * bottom_rho * (inp.shoe - fc));
+  const collapse_sf = (p_col > 0 && (inp.collapse_rating || 0) > 0)
+    ? (inp.collapse_rating as number) / p_col
+    : ((inp.collapse_rating || 0) > 0 ? 999 : 0);
+
+  const burst_limit = 0.8 * (inp.burst_rating || 0);
+
+  // Job Checks
+  const checks: JobCheck[] = [];
+  const returnLocLabel = isJackUp ? 'Seabed Returns' : 'Ground Level Returns';
+  const returnLocName = isJackUp ? 'seabed' : 'ground level';
+
+  // 1. Returns Check
+  if (total_slurry <= 0) {
+    checks.push({
+      label: returnLocLabel,
+      status: 'OK',
+      message: 'OK – No slurry pumped'
+    });
+  } else if (cement_returns_seabed > 0) {
+    checks.push({
+      label: returnLocLabel,
+      status: 'OK',
+      message: `OK – Cement returns observed at ${returnLocName} (${cement_returns_seabed.toFixed(1)} bbl excess returned)`
+    });
+  } else {
+    checks.push({
+      label: returnLocLabel,
+      status: 'CHECK',
+      message: `CHECK – No cement returns to ${returnLocName}! TOC is ${toc_below_mudline.toFixed(1)} ft below ${returnLocName}.`
+    });
+  }
+
+  // 2. Cement Below Shoe Check
+  if (total_slurry <= 0) {
+    checks.push({
+      label: 'Cement Below Shoe',
+      status: 'OK',
+      message: 'OK – No slurry volume entered'
+    });
+  } else if (total_slurry < v_below) {
+    checks.push({
+      label: 'Cement Below Shoe',
+      status: 'CHECK',
+      message: `CHECK – Slurry volume (${total_slurry.toFixed(1)} bbl) does not fill shoe track & rathole (${v_below.toFixed(1)} bbl)`
+    });
+  } else if ((inp.tail_vol || 0) === 0) {
+    checks.push({
+      label: 'Tail Slurry Placement',
+      status: 'OK',
+      message: 'OK – No tail slurry (single-slurry job)'
+    });
+  } else if (v_tail <= 0) {
+    checks.push({
+      label: 'Tail Slurry Placement',
+      status: 'CHECK',
+      message: 'CHECK – Tail slurry does not clear shoe into annulus'
+    });
+  } else {
+    checks.push({
+      label: 'Tail Slurry Placement',
+      status: 'OK',
+      message: `OK – Tail slurry placed ${rise_tail.toFixed(1)} ft into annulus`
+    });
+  }
+
+  // 3. Collapse Safety Factor
+  if ((inp.collapse_rating || 0) <= 0 || p_col <= 0) {
+    checks.push({
+      label: 'Collapse SF',
+      status: 'OK',
+      message: 'OK – No net collapse differential load at shoe'
+    });
+  } else if (collapse_sf >= 1.1) {
+    checks.push({
+      label: 'Collapse SF',
+      status: 'OK',
+      message: `OK – Collapse safety factor is ${collapse_sf.toFixed(2)} (≥ 1.10)`
+    });
+  } else {
+    checks.push({
+      label: 'Collapse SF',
+      status: 'CHECK',
+      message: `CHECK – Collapse safety factor is ${collapse_sf.toFixed(2)} (< 1.10 design limit)`
+    });
+  }
+
+  // 4. Max Pump Pressure vs 80% Burst Limit
+  if (burst_limit <= 0) {
+    checks.push({
+      label: 'Pump Pressure',
+      status: 'OK',
+      message: 'OK – No burst limit specified'
+    });
+  } else if ((inp.max_pump_pressure || 0) <= burst_limit) {
+    checks.push({
+      label: 'Pump Pressure',
+      status: 'OK',
+      message: `OK – Max pump pressure ${Number(inp.max_pump_pressure || 0).toFixed(0)} psi ≤ 80% burst limit (${burst_limit.toFixed(0)} psi)`
+    });
+  } else {
+    checks.push({
+      label: 'Pump Pressure',
+      status: 'CHECK',
+      message: `CHECK – Max pump pressure ${Number(inp.max_pump_pressure || 0).toFixed(0)} psi exceeds 80% burst limit (${burst_limit.toFixed(0)} psi)`
+    });
+  }
+
+  return {
+    model: 'surface_conductor',
+    mudline: seabed,
+    fc,
+    st_vol,
+    rat_vol,
+    v_below,
+    top_ann,
+    oh_full,
+    c_full,
+    ann_total,
+    v_tail,
+    v_cem,
+    v_sp,
+    v_f2,
+    v_f1,
+    tail_top,
+    toc,
+    sp_top,
+    f2_top,
+    f1_top,
+    rise_tail,
+    rise_lead,
+    rise_tot,
+    rise_sp,
+    rise_f2,
+    rise_f1,
+    total_slurry,
+    toc_below_mudline,
+    cement_returns_seabed,
+    all_fluids_returned,
+    disp_tot,
+    strokes,
+    pumping_sequence,
+    total_pumped,
+    p_ann_fc,
+    p_in_fc,
+    diff_press,
+    diff_meaning,
+    p_ann_shoe,
+    emw_fc,
+    emw_shoe,
+    p_col,
+    collapse_sf,
+    burst_limit,
+    checks
+  };
+}
+
+/**
+ * Surface Casing Calculation Engine (Surface Casing, Intermediate Casing, Production Casing, Custom)
+ */
+export function calcSurfaceCasing(inp: SurfaceCasingInput): CementingResult {
+  const xs = 1 + (inp.excess_pct || 0) / 100;
+  const fc = inp.shoe - inp.shoe_track_len;
+
+  const st_vol = inp.shoe_track_len * inp.cap_csg;
+  const rat_vol = Math.max(0, inp.td - inp.shoe) * inp.cap_oh * xs;
+  const v_below = st_vol + rat_vol;
+
+  const prev_shoe = inp.prev_shoe || 0;
+  const hasPrev = prev_shoe > 0;
+  const top_ann = prev_shoe;
+  const oh_full = Math.max(0, inp.shoe - prev_shoe) * inp.cap_ann_oh * xs;
+  const c_full = prev_shoe * inp.cap_ann_c;
+  const ann_total = oh_full + c_full;
+
+  // depthTop(V)
+  const depthTop = (v: number): number => {
+    if (v <= 0) return inp.shoe || 0;
+    const annOhCap = (inp.cap_ann_oh || 0) * xs;
+    if (oh_full > 0 && annOhCap > 0 && v <= oh_full) {
+      return Math.max(0, inp.shoe - v / annOhCap);
+    }
+    const annCCap = inp.cap_ann_c || 0;
+    if (annCCap > 0) {
+      return Math.max(0, prev_shoe - (v - oh_full) / annCCap);
+    }
+    return 0;
+  };
+
+  const v_tail = (inp.tail_vol || 0) - v_below;
+  const v_cem = v_tail + (inp.lead_vol || 0);
+  const v_sp = v_cem + (inp.sp_vol || 0);
+  const v_f2 = v_sp + (inp.f2_vol || 0);
+  const v_f1 = v_f2 + (inp.f1_vol || 0);
+
+  const tail_top = (inp.tail_vol || 0) > 0 ? depthTop(v_tail) : inp.shoe;
+  const toc = depthTop(v_cem);
+  const sp_top = depthTop(v_sp);
+  const f2_top = depthTop(v_f2);
+  const f1_top = depthTop(v_f1);
+
+  const rise_tail = (inp.tail_vol || 0) > 0 ? inp.shoe - tail_top : 0;
+  const rise_lead = (inp.lead_vol || 0) > 0 ? tail_top - toc : 0;
+  const rise_tot = inp.shoe - toc;
+  const rise_sp = (inp.sp_vol || 0) > 0 ? toc - sp_top : 0;
+  const rise_f2 = (inp.f2_vol || 0) > 0 ? sp_top - f2_top : 0;
+  const rise_f1 = (inp.f1_vol || 0) > 0 ? f2_top - f1_top : 0;
+  const total_slurry = (inp.lead_vol || 0) + (inp.tail_vol || 0);
+
+  const cement_returns_surface = Math.max(0, v_cem - ann_total);
+  const returns_surface = cement_returns_surface;
+  const all_fluids_returned = Math.max(0, v_f1 - ann_total);
+  const planned_toc = inp.planned_toc || 0;
+  const toc_above_plan = planned_toc - toc;
+
+  // Displacement (from surface casing head)
+  const disp_tot = fc * inp.cap_csg;
+  const strokes = inp.pump_output > 0 ? disp_tot / inp.pump_output : 0;
+  const max_disp_no_bump = disp_tot + st_vol / 2;
+  const bottom_plug_lands = Math.max(0, disp_tot - total_slurry);
+
+  const pumping_sequence: PumpingStep[] = [
+    { step: 1, name: '1st Pumping Mud', volume: inp.f1_vol || 0, density: inp.f1_mw || 0 },
+    { step: 2, name: '2nd Pumping Mud', volume: inp.f2_vol || 0, density: inp.f2_mw || 0 },
+    { step: 3, name: 'Spacer', volume: inp.sp_vol || 0, density: inp.sp_mw || 0 },
+    { step: 4, name: 'Lead Slurry', volume: inp.lead_vol || 0, density: inp.lead_mw || 0 },
+    { step: 5, name: 'Tail Slurry', volume: inp.tail_vol || 0, density: inp.tail_mw || 0 },
+    { step: 6, name: 'Displacement', volume: disp_tot, density: inp.mw || 0 }
+  ].filter(s => s.volume > 0 || s.step === 6);
+
+  const total_pumped = (inp.f1_vol || 0) + (inp.f2_vol || 0) + (inp.sp_vol || 0) + (inp.lead_vol || 0) + (inp.tail_vol || 0) + disp_tot;
+
+  // Pressures (Static, End of Job)
+  const layers = [
+    { rho: inp.mw || 0, top: 0, bot: f1_top },
+    { rho: inp.f1_mw || 0, top: f1_top, bot: f2_top },
+    { rho: inp.f2_mw || 0, top: f2_top, bot: sp_top },
+    { rho: inp.sp_mw || 0, top: sp_top, bot: toc },
+    { rho: inp.lead_mw || 0, top: toc, bot: tail_top },
+    { rho: inp.tail_mw || 0, top: tail_top, bot: inp.shoe }
+  ];
+
+  const pAnn = (depth: number): number => {
+    let sum = 0;
+    for (const l of layers) {
+      const h = Math.max(0, Math.min(l.bot, depth) - Math.min(l.top, depth));
+      sum += CONSTANTS.PSI_GRADIENT * l.rho * h;
+    }
+    return sum;
+  };
+
+  const p_ann_fc = pAnn(fc);
+  const p_in_fc = CONSTANTS.PSI_GRADIENT * inp.mw * fc;
+  const diff_press = p_ann_fc - p_in_fc;
+  const diff_meaning = diff_press > 0
+    ? 'Annulus heavier – floats must hold (U-tube risk)'
+    : 'String heavier – no back-flow';
+
+  const p_ann_shoe = pAnn(inp.shoe);
+  const p_prev_shoe = hasPrev ? pAnn(prev_shoe) : undefined;
+
+  const emw_fc = fc > 0 ? p_ann_fc / (CONSTANTS.PSI_GRADIENT * fc) : 0;
+  const emw_shoe = inp.shoe > 0 ? p_ann_shoe / (CONSTANTS.PSI_GRADIENT * inp.shoe) : 0;
+  const emw_prev_shoe = (hasPrev && p_prev_shoe !== undefined && prev_shoe > 0)
+    ? p_prev_shoe / (CONSTANTS.PSI_GRADIENT * prev_shoe)
+    : undefined;
+  const lot_margin = (inp.lot && inp.lot > 0 && emw_prev_shoe !== undefined)
+    ? inp.lot - emw_prev_shoe
+    : undefined;
+
+  const bottom_rho = (inp.tail_vol || 0) > 0 ? (inp.tail_mw || 0) : (inp.lead_mw || 0);
+  const p_col = p_ann_shoe - (p_in_fc + CONSTANTS.PSI_GRADIENT * bottom_rho * (inp.shoe - fc));
+  const collapse_sf = (p_col > 0 && (inp.collapse_rating || 0) > 0)
+    ? inp.collapse_rating / p_col
+    : ((inp.collapse_rating || 0) > 0 ? 999 : 0);
+
+  const bump_pressure = diff_press + (inp.bump || 0);
+  const burst_limit = 0.8 * (inp.burst_rating || 0);
+
+  // Job Checks
+  const checks: JobCheck[] = [];
+
+  // 1. TOC vs Planned
+  if (total_slurry <= 0) {
+    checks.push({
+      label: 'TOC Position',
+      status: 'OK',
+      message: 'OK – No slurry pumped'
+    });
+  } else if (toc <= planned_toc + 0.5) {
+    checks.push({
+      label: 'TOC Position',
+      status: 'OK',
+      message: `OK – TOC is at ${toc.toFixed(1)} ft (${Math.abs(toc_above_plan).toFixed(1)} ft ${toc_above_plan >= 0 ? 'above' : 'below'} planned ${planned_toc.toFixed(0)} ft)`
+    });
+  } else {
+    checks.push({
+      label: 'TOC Position',
+      status: 'CHECK',
+      message: `CHECK – TOC is at ${toc.toFixed(1)} ft (${Math.abs(toc_above_plan).toFixed(1)} ft below planned ${planned_toc.toFixed(0)} ft!)`
+    });
+  }
+
+  // 2. Cement Below Shoe Check
+  if (total_slurry <= 0) {
+    checks.push({
+      label: 'Cement Below Shoe',
+      status: 'OK',
+      message: 'OK – No slurry volume entered'
+    });
+  } else if (total_slurry < v_below) {
+    checks.push({
+      label: 'Cement Below Shoe',
+      status: 'CHECK',
+      message: `CHECK – Slurry volume (${total_slurry.toFixed(1)} bbl) does not fill shoe track & rathole (${v_below.toFixed(1)} bbl)`
+    });
+  } else if ((inp.tail_vol || 0) === 0) {
+    checks.push({
+      label: 'Tail Slurry Placement',
+      status: 'OK',
+      message: 'OK – No tail slurry (single-slurry job)'
+    });
+  } else if (v_tail <= 0) {
+    checks.push({
+      label: 'Tail Slurry Placement',
+      status: 'CHECK',
+      message: 'CHECK – Tail slurry does not clear shoe into annulus'
+    });
+  } else {
+    checks.push({
+      label: 'Tail Slurry Placement',
+      status: 'OK',
+      message: `OK – Tail slurry placed ${rise_tail.toFixed(1)} ft into annulus`
+    });
+  }
+
+  // 3. LOT Margin at Previous Shoe
+  if (lot_margin !== undefined) {
+    if (lot_margin >= 0) {
+      checks.push({
+        label: 'Formation Margin',
+        status: 'OK',
+        message: `OK – LOT margin at previous shoe (${prev_shoe} ft) is +${lot_margin.toFixed(2)} ppg (EMW ${emw_prev_shoe?.toFixed(2)} vs LOT ${inp.lot} ppg)`
+      });
+    } else {
+      checks.push({
+        label: 'Formation Margin',
+        status: 'CHECK',
+        message: `CHECK – EMW at previous shoe (${emw_prev_shoe?.toFixed(2)} ppg) exceeds LOT (${inp.lot} ppg) by ${Math.abs(lot_margin).toFixed(2)} ppg! Loss risk.`
+      });
+    }
+  }
+
+  // 4. Bump Pressure vs 80% Burst Limit
+  if (burst_limit <= 0) {
+    checks.push({
+      label: 'Bump Pressure',
+      status: 'OK',
+      message: 'OK – No burst limit specified'
+    });
+  } else if (bump_pressure <= burst_limit) {
+    checks.push({
+      label: 'Bump Pressure',
+      status: 'OK',
+      message: `OK – Bump pressure ${bump_pressure.toFixed(0)} psi ≤ 80% burst limit (${burst_limit.toFixed(0)} psi)`
+    });
+  } else {
+    checks.push({
+      label: 'Bump Pressure',
+      status: 'CHECK',
+      message: `CHECK – Bump pressure ${bump_pressure.toFixed(0)} psi exceeds 80% burst limit (${burst_limit.toFixed(0)} psi)`
+    });
+  }
+
+  // 5. Collapse Safety Factor
+  if ((inp.collapse_rating || 0) <= 0 || p_col <= 0) {
+    checks.push({
+      label: 'Collapse SF',
+      status: 'OK',
+      message: 'OK – No net collapse differential load at shoe'
+    });
+  } else if (collapse_sf >= 1.1) {
+    checks.push({
+      label: 'Collapse SF',
+      status: 'OK',
+      message: `OK – Collapse safety factor is ${collapse_sf.toFixed(2)} (≥ 1.10)`
+    });
+  } else {
+    checks.push({
+      label: 'Collapse SF',
+      status: 'CHECK',
+      message: `CHECK – Collapse safety factor is ${collapse_sf.toFixed(2)} (< 1.10 design limit)`
+    });
+  }
+
+  return {
+    model: 'surface_casing',
+    mudline: 0,
+    fc,
+    st_vol,
+    rat_vol,
+    v_below,
+    top_ann,
+    oh_full,
+    c_full,
+    ann_total,
+    v_tail,
+    v_cem,
+    v_sp,
+    v_f2,
+    v_f1,
+    tail_top,
+    toc,
+    sp_top,
+    f2_top,
+    f1_top,
+    rise_tail,
+    rise_lead,
+    rise_tot,
+    rise_sp,
+    rise_f2,
+    rise_f1,
+    total_slurry,
+    cement_returns_surface,
+    returns_surface,
+    toc_above_plan,
+    all_fluids_returned,
+    disp_tot,
+    strokes,
+    max_disp_no_bump,
+    bottom_plug_lands,
+    pumping_sequence,
+    total_pumped,
+    p_ann_fc,
+    p_in_fc,
+    diff_press,
+    diff_meaning,
+    p_ann_shoe,
+    p_prev_shoe,
+    emw_fc,
+    emw_shoe,
+    emw_prev_shoe,
+    lot_margin,
+    p_col,
+    collapse_sf,
+    bump_pressure,
+    burst_limit,
+    checks
+  };
 }

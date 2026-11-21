@@ -336,16 +336,23 @@ const navigateTo = (screenId) => {
     }
   }
 
-  // Ensure cementingState is set to chooser if entering without active section/view
+  const current = state.currentScreen;
+  if (current === screenId) return;
+
+  // Ensure cementingState is set to chooser if entering without active section/view or from planner home
   if (screenId === 'cement-planner-subsea') {
     const store = (typeof cementingStore !== 'undefined' ? cementingStore : (typeof cementingState !== 'undefined' ? cementingState : null));
-    if (store && (!store.view || (store.view === 'results' && !store.results))) {
+    if (store && (current === 'cement-planner' || !store.view || (store.view === 'results' && !store.results))) {
       store.view = 'chooser';
     }
   }
 
-  const current = state.currentScreen;
-  if (current === screenId) return;
+  if (screenId === 'cement-planner-surface') {
+    const store = (typeof surfaceCementingStore !== 'undefined' ? surfaceCementingStore : (typeof surfaceCementingState !== 'undefined' ? surfaceCementingState : null));
+    if (store && (current === 'cement-planner' || !store.view || (store.view === 'results' && !store.results))) {
+      store.view = 'chooser';
+    }
+  }
 
   // Track if we are navigating out of active home search
   if (current === 'dashboard' && state.searchQuery && state.searchQuery.trim() !== '') {
@@ -789,6 +796,30 @@ function handleAppBack() {
       if (store.view === 'capacities' || store.view === 'job') {
         store.view = 'chooser';
         if (typeof renderCementingScreen === 'function') renderCementingScreen();
+        return;
+      }
+    }
+    popScreenHistory();
+    return;
+  }
+
+  // --- Tool: Surface Wellhead Cementing (screen-cement-planner-surface) ---
+  if (state.currentScreen === 'cement-planner-surface') {
+    const store = (typeof surfaceCementingStore !== 'undefined' ? surfaceCementingStore : (typeof surfaceCementingState !== 'undefined' ? surfaceCementingState : null));
+    if (store) {
+      if (store.view === 'results') {
+        store.view = 'welldata';
+        if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
+        return;
+      }
+      if (store.view === 'welldata') {
+        store.view = 'capacities';
+        if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
+        return;
+      }
+      if (store.view === 'capacities' || store.view === 'job') {
+        store.view = 'chooser';
+        if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
         return;
       }
     }
@@ -2952,7 +2983,7 @@ function renderScreen() {
       } catch(e) {}
     }, 50);
 
-    if (screenId === 'cement-planner-subsea' || screenId === 'cementing') {
+    if (screenId === 'cement-planner-subsea' || screenId === 'cementing' || screenId === 'cement-planner-surface') {
       // Do not apply slide animations to cementing screen: persistent transform prevents sticky/fixed header from staying pinned to viewport
     } else if (screenId === 'kill-data-sheet') {
       activeScreenEl.classList.add('animate-slide-down');
@@ -2997,7 +3028,7 @@ function renderScreen() {
     }
   }
 
-  if (screenId === 'cement-planner-subsea' || screenId === 'cementing') {
+  if (screenId === 'cement-planner-subsea' || screenId === 'cementing' || screenId === 'cement-planner-surface') {
     if (appContainer) appContainer.classList.add('cementing-active');
   } else {
     if (appContainer) appContainer.classList.remove('cementing-active', 'cementing-job-active');
@@ -3076,6 +3107,9 @@ function renderScreen() {
     case 'cement-planner-subsea':
     case 'cementing':
       renderCementingScreen();
+      break;
+    case 'cement-planner-surface':
+      if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
       break;
   }
 }

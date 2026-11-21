@@ -634,7 +634,7 @@
       </main>
     </div>
 
-    <!-- Screen: Cement Planner Surface Stub (/cement-planner/surface) -->
+    <!-- Screen: Surface Wellhead Cementing (/cement-planner/surface) -->
     <div id="screen-cement-planner-surface" class="screen">
       <header class="bar">
         <div class="bar-bg"></div>
@@ -646,34 +646,19 @@
             </svg>
           </span>
         </button>
-        <div class="bar-title" aria-hidden="true" data-i18n="Surface Wellhead">Surface Wellhead</div>
+        <div class="bar-title" aria-hidden="true" id="cementing-surface-screen-title-compact" data-i18n="Surface Wellhead">Surface Wellhead</div>
+        <span id="cementing-surface-header-badge" class="cement-badge-model" style="display:none;"></span>
       </header>
       <main class="scroller">
         <section class="large">
-          <h1 class="screen-title" data-i18n="Surface Wellhead">Surface Wellhead</h1>
-          <p class="screen-subtitle" data-i18n="Land Rig & Jack-up Rig cementing job plan">Land Rig &amp; Jack-up Rig cementing job plan</p>
+          <h1 class="screen-title" id="cementing-surface-screen-title" data-i18n="Surface Wellhead">Surface Wellhead</h1>
+          <p class="screen-subtitle" id="cementing-surface-screen-subtitle" data-i18n="Land Rig & Jack-up Rig · Casing strings to surface">Land Rig &amp; Jack-up Rig · Casing strings to surface</p>
         </section>
         <div class="screen-body">
-          <div style="padding: 32px 20px; text-align: center; max-width: 480px; margin: 30px auto;">
-        <div class="card-icon-container icon-subsea" style="width: 72px; height: 72px; margin: 0 auto 20px;">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 20h18"></path>
-            <path d="M5 20v-2h14v2"></path>
-            <path d="M8 18L11 5h2l3 13"></path>
-            <path d="M9.2 13h5.6"></path>
-            <path d="M10.2 8h3.6"></path>
-            <path d="M11 5h2"></path>
-            <path d="M9.2 18l4.4-5"></path>
-            <path d="M13.6 18l-4.4-5"></path>
-            <path d="M10.2 13l2.8-5"></path>
-            <path d="M13 13l-2.8-5"></path>
-          </svg>
-        </div>
-        <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;" data-i18n="Surface Wellhead Planner">Surface Wellhead Planner</h3>
-        <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0 auto;" data-i18n="Surface wellhead casing string setup, slurry volumes, and displacement calculations.">
-          Surface wellhead casing string setup, slurry volumes, and displacement calculations.
-        </p>
-      </div>
+          <div id="cementing-surface-fixed-header-wrapper" class="cementing-fixed-header-wrapper" style="display:none;">
+            <div id="cementing-surface-job-header-slot"></div>
+          </div>
+          <div id="cementing-surface-container" style="padding-bottom: 40px;"></div>
         </div>
       </main>
     </div>
@@ -1610,10 +1595,12 @@
   <script src="roboto_font.js?v=1.1.6" defer></script>
   <script src="icons.js?v=1.1.6" defer></script>
   <script src="cementing_engine.js?v=1.1.6" defer></script>
+  <script src="cementing_common.js?v=1.1.6" defer></script>
   <script src="cementing_pdf.js?v=1.1.6" defer></script>
   <script src="collapsing_header.js" defer></script>
   <script src="app.js?v=1.1.6" defer></script>
   <script src="cementing_ui.js?v=1.1.6" defer></script>
+  <script src="cementing_surface_ui.js?v=1.1.6" defer></script>
   <script type="module" src="stuckpipe/ui.js"></script>
   <!-- IADC Info Modal -->
   <div id="iadc-info-modal" class="modal-overlay" onclick="closeIADCInfoModal(event)">

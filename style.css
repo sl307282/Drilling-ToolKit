@@ -3841,6 +3841,7 @@ textarea.toolkit-input {
 }
 
 #screen-cement-planner-subsea .cementing-fixed-header-wrapper,
+#screen-cement-planner-surface .cementing-fixed-header-wrapper,
 #screen-cementing .cementing-fixed-header-wrapper {
   position: -webkit-sticky !important;
   position: sticky !important;
@@ -3857,6 +3858,7 @@ textarea.toolkit-input {
 
 @media (max-width: 480px) {
   #screen-cement-planner-subsea .cementing-fixed-header-wrapper,
+  #screen-cement-planner-surface .cementing-fixed-header-wrapper,
   #screen-cementing .cementing-fixed-header-wrapper {
     padding-left: 14px;
     padding-right: 14px;
@@ -3865,6 +3867,7 @@ textarea.toolkit-input {
 
 /* Scrolled / Shrunk state of the fixed header */
 #screen-cement-planner-subsea.job-active .cementing-fixed-header-wrapper.is-scrolled,
+#screen-cement-planner-surface.job-active .cementing-fixed-header-wrapper.is-scrolled,
 #screen-cementing.job-active .cementing-fixed-header-wrapper.is-scrolled {
   padding-top: max(env(safe-area-inset-top, 0px), 42px);
   padding-bottom: 5px;
@@ -3874,6 +3877,7 @@ textarea.toolkit-input {
 }
 
 #screen-cement-planner-subsea .screen-header,
+#screen-cement-planner-surface .screen-header,
 #screen-cementing .screen-header {
   margin-bottom: 6px;
   padding-top: 0;
@@ -3881,11 +3885,13 @@ textarea.toolkit-input {
 }
 
 #screen-cement-planner-subsea .screen-title,
+#screen-cement-planner-surface .screen-title,
 #screen-cementing .screen-title {
   font-size: 1.15rem;
 }
 
 #screen-cement-planner-subsea .back-btn,
+#screen-cement-planner-surface .back-btn,
 #screen-cementing .back-btn {
   width: 36px;
   height: 36px;
@@ -3893,16 +3899,19 @@ textarea.toolkit-input {
 
 /* Upper header reduction on scroll */
 #screen-cement-planner-subsea.job-active .cementing-fixed-header-wrapper.is-scrolled .screen-header,
+#screen-cement-planner-surface.job-active .cementing-fixed-header-wrapper.is-scrolled .screen-header,
 #screen-cementing.job-active .cementing-fixed-header-wrapper.is-scrolled .screen-header {
   margin-bottom: 3px;
 }
 
 #screen-cement-planner-subsea.job-active .cementing-fixed-header-wrapper.is-scrolled .screen-title,
+#screen-cement-planner-surface.job-active .cementing-fixed-header-wrapper.is-scrolled .screen-title,
 #screen-cementing.job-active .cementing-fixed-header-wrapper.is-scrolled .screen-title {
   font-size: 0.95rem;
 }
 
 #screen-cement-planner-subsea.job-active .cementing-fixed-header-wrapper.is-scrolled .back-btn,
+#screen-cement-planner-surface.job-active .cementing-fixed-header-wrapper.is-scrolled .back-btn,
 #screen-cementing.job-active .cementing-fixed-header-wrapper.is-scrolled .back-btn {
   width: 30px;
   height: 30px;
@@ -3911,6 +3920,7 @@ textarea.toolkit-input {
 }
 
 #screen-cement-planner-subsea.job-active .cementing-fixed-header-wrapper.is-scrolled .cement-badge-model,
+#screen-cement-planner-surface.job-active .cementing-fixed-header-wrapper.is-scrolled .cement-badge-model,
 #screen-cementing.job-active .cementing-fixed-header-wrapper.is-scrolled .cement-badge-model {
   padding: 2px 7px;
   font-size: 0.65rem;
@@ -3918,6 +3928,7 @@ textarea.toolkit-input {
 
 /* Container is in normal flow below the sticky header: consistent gutters */
 #screen-cement-planner-subsea #cementing-container,
+#screen-cement-planner-surface #cementing-surface-container,
 #screen-cementing #cementing-container {
   padding-top: 12px !important;
   padding-left: 16px !important;
@@ -3928,6 +3939,7 @@ textarea.toolkit-input {
 
 @media (max-width: 480px) {
   #screen-cement-planner-subsea #cementing-container,
+  #screen-cement-planner-surface #cementing-surface-container,
   #screen-cementing #cementing-container {
     padding-left: 14px !important;
     padding-right: 14px !important;
@@ -4212,12 +4224,14 @@ textarea.toolkit-input {
 
 /* Dark mode overrides for fixed header */
 [data-theme="dark"] #screen-cement-planner-subsea .cementing-fixed-header-wrapper,
+[data-theme="dark"] #screen-cement-planner-surface .cementing-fixed-header-wrapper,
 [data-theme="dark"] #screen-cementing .cementing-fixed-header-wrapper {
   background-color: color-mix(in srgb, var(--bg-color, #12100E) 90%, transparent);
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme="dark"] #screen-cement-planner-subsea.job-active .cementing-fixed-header-wrapper.is-scrolled,
+[data-theme="dark"] #screen-cement-planner-surface.job-active .cementing-fixed-header-wrapper.is-scrolled,
 [data-theme="dark"] #screen-cementing.job-active .cementing-fixed-header-wrapper.is-scrolled {
   background-color: color-mix(in srgb, var(--bg-color, #12100E) 96%, transparent);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
