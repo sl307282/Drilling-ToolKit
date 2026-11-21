@@ -17,6 +17,8 @@ import android.view.animation.LinearInterpolator;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -57,6 +59,21 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ThemeManagerPlugin.class);
 
         super.onCreate(savedInstanceState);
+
+        // Synchronize initial navigation bar and status bar colors to matching theme token
+        Window window = getWindow();
+        if (window != null) {
+            int nightMode = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+            boolean isDark = (nightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES);
+            int navColor = Color.parseColor(isDark ? "#141210" : "#FAF8F5");
+            window.setNavigationBarColor(navColor);
+            window.setStatusBarColor(navColor);
+            WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+            if (controller != null) {
+                controller.setAppearanceLightNavigationBars(!isDark);
+                controller.setAppearanceLightStatusBars(!isDark);
+            }
+        }
 
         // Register CustomSplashScreenPlugin on bridge to take precedence over default plugin
         if (this.bridge != null) {

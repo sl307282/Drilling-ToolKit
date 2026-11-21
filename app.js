@@ -809,8 +809,8 @@ window.handleAppBack = handleAppBack;
 // Helper controllers for drawer, modals and theme
 const updateDynamicBackground = (theme, bgTheme) => {
   const bodyColors = {
-    light: { default: '#FDFBF8', cream: '#FAF4EB', mist: '#F0F4F7', sage: '#F1F5F1', lavender: '#F5F1F7', peach: '#FAF2ED' },
-    dark: { default: '#12100E', cream: '#1C1814', mist: '#141A22', sage: '#141A16', lavender: '#17141E', peach: '#1D1511' }
+    light: { default: '#FAF8F5', cream: '#FAF4EB', mist: '#F0F4F7', sage: '#F1F5F1', lavender: '#F5F1F7', peach: '#FAF2ED' },
+    dark: { default: '#141210', cream: '#1C1814', mist: '#141A22', sage: '#141A16', lavender: '#17141E', peach: '#1D1511' }
   };
 
   const bodyBg = bodyColors[theme][bgTheme] || bodyColors[theme]['default'];
@@ -824,20 +824,31 @@ const updateDynamicBackground = (theme, bgTheme) => {
     document.head.appendChild(metaTheme);
   }
   metaTheme.setAttribute('content', bodyBg);
-
+  return bodyBg;
 };
 
-const syncNativeTheme = (theme, bodyBg) => {
-  // Sync Capacitor Status Bar if loaded
+const syncNativeTheme = (theme, bgTheme) => {
+  const isDark = theme === 'dark';
+  const hexBg = isDark ? '#141210' : '#FAF8F5';
+
+  // Sync HTML meta theme-color tag
+  let metaTheme = document.getElementById('theme-color-meta');
+  if (!metaTheme) {
+    metaTheme = document.createElement('meta');
+    metaTheme.id = 'theme-color-meta';
+    metaTheme.name = 'theme-color';
+    document.head.appendChild(metaTheme);
+  }
+  metaTheme.setAttribute('content', hexBg);
+
+  // Sync Capacitor Status Bar & Android Navigation Bar
   if (window.Capacitor && window.Capacitor.Plugins) {
     if (window.Capacitor.Plugins.StatusBar) {
       const StatusBar = window.Capacitor.Plugins.StatusBar;
       try {
         // Capacitor Style.DARK = light text (for dark backgrounds). Style.LIGHT = dark text (for light backgrounds).
-        StatusBar.setStyle({ style: theme === 'dark' ? 'DARK' : 'LIGHT' }).catch(() => { });
-        if (bodyBg) {
-          StatusBar.setBackgroundColor({ color: bodyBg }).catch(() => { });
-        }
+        StatusBar.setStyle({ style: isDark ? 'DARK' : 'LIGHT' }).catch(() => { });
+        StatusBar.setBackgroundColor({ color: hexBg }).catch(() => { });
       } catch (err) {
         console.warn('Capacitor StatusBar error:', err);
       }
@@ -924,6 +935,7 @@ const initThemeToggler = () => {
 
       const currentBg = localStorage.getItem('bgTheme') || 'default';
       updateDynamicBackground(newTheme, currentBg);
+      syncNativeTheme(newTheme, currentBg);
 
       showToast(`${newTheme.charAt(0).toUpperCase() + newTheme.slice(1)} Mode activated`);
     };
@@ -1077,6 +1089,7 @@ const initSettingsPage = (closeDrawer) => {
 
         const theme = html.getAttribute('data-theme') || 'light';
         updateDynamicBackground(theme, newBg);
+        syncNativeTheme(theme, newBg);
 
         const bgNames = {
           default: 'Default',

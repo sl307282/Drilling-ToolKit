@@ -1,6 +1,11 @@
 package com.drillingtoolkit.app;
 
+import android.graphics.Color;
+import android.view.Window;
+
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -15,12 +20,25 @@ public class ThemeManagerPlugin extends Plugin {
         String mode = call.getString("mode");
         
         getActivity().runOnUiThread(() -> {
-            if ("dark".equals(mode)) {
+            boolean isDark = "dark".equalsIgnoreCase(mode);
+            if (isDark) {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-            } else if ("light".equals(mode)) {
+            } else if ("light".equalsIgnoreCase(mode)) {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
             } else {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+            }
+
+            Window window = getActivity().getWindow();
+            if (window != null) {
+                int navColor = Color.parseColor(isDark ? "#141210" : "#FAF8F5");
+                window.setNavigationBarColor(navColor);
+                window.setStatusBarColor(navColor);
+                WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+                if (controller != null) {
+                    controller.setAppearanceLightNavigationBars(!isDark);
+                    controller.setAppearanceLightStatusBars(!isDark);
+                }
             }
             call.resolve();
         });

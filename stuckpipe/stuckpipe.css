@@ -1,14 +1,14 @@
 /* Stuck Pipe Assistant Styles - DrillingToolkit */
 .sp {
-  --sp-bg: var(--bg-primary, #FAF8F4);
+  --sp-bg: var(--bg-color, #FAF8F5);
   --sp-card: var(--card-bg, #FFFFFF);
-  --sp-text: var(--text-primary, #1E1A17);
-  --sp-muted: var(--text-secondary, #6B635B);
-  --sp-line: var(--border-subtle, #E7E1D8);
-  --sp-accent: var(--btn-primary-bg, #2C1A11);
-  --sp-accent-text: var(--btn-primary-color, #FDFBF8);
-  --sp-chip: rgba(141, 119, 101, 0.08);
-  --sp-chip-on: #2C1A11;
+  --sp-text: var(--text-primary, #1C1917);
+  --sp-muted: var(--text-secondary, #57534E);
+  --sp-line: var(--border-subtle, rgba(28, 25, 23, 0.08));
+  --sp-accent: var(--btn-primary-bg, #1C1917);
+  --sp-accent-text: var(--btn-primary-color, #FAF8F5);
+  --sp-chip: rgba(28, 25, 23, 0.08);
+  --sp-chip-on: #1C1917;
   --sp-chip-on-text: #FFFFFF;
   --sp-danger: #B3261E;
   --sp-danger-bg: rgba(179, 38, 30, 0.1);
@@ -27,19 +27,20 @@
   margin: 0 auto;
   padding: 0 0 64px;
   min-height: 100%;
+  transition: background-color 220ms ease-out, color 180ms ease-out;
 }
 
 [data-theme="dark"] .sp {
-  --sp-bg: var(--bg-primary, #12100E);
-  --sp-card: var(--card-bg, #1C1917);
-  --sp-text: var(--text-primary, #F2EDE6);
-  --sp-muted: var(--text-secondary, #A39A90);
-  --sp-line: var(--border-subtle, #292524);
-  --sp-accent: var(--btn-primary-bg, #F3ECE6);
-  --sp-accent-text: var(--btn-primary-color, #12100E);
+  --sp-bg: var(--bg-color, #141210);
+  --sp-card: var(--card-bg, #1E1B18);
+  --sp-text: var(--text-primary, #F5F5F4);
+  --sp-muted: var(--text-secondary, #A8A29E);
+  --sp-line: var(--border-subtle, rgba(245, 245, 244, 0.09));
+  --sp-accent: var(--btn-primary-bg, #F5F5F4);
+  --sp-accent-text: var(--btn-primary-color, #141210);
   --sp-chip: rgba(255, 255, 255, 0.06);
-  --sp-chip-on: #F3ECE6;
-  --sp-chip-on-text: #12100E;
+  --sp-chip-on: #F5F5F4;
+  --sp-chip-on-text: #141210;
   --sp-danger: #FF8A80;
   --sp-danger-bg: rgba(255, 138, 128, 0.15);
   --sp-warn: #FFBF5E;
@@ -61,6 +62,7 @@
   background: var(--sp-bg);
   padding: 10px 16px 12px;
   border-bottom: 1px solid var(--sp-line);
+  transition: background-color 220ms ease-out, border-color 220ms ease-out;
 }
 
 /* Primary Mode Segmented Control (Diagnose | Calculate) */
@@ -70,16 +72,17 @@
   gap: 6px;
   padding: 4px;
   border-radius: 14px;
-  background-color: #EFECE6;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background-color: var(--bg-subtle, #F2EFE9);
+  border: 1px solid var(--border-subtle, rgba(28, 25, 23, 0.08));
   box-sizing: border-box;
   width: 100%;
   margin: 0;
+  transition: background-color 220ms ease-out, border-color 220ms ease-out;
 }
 
 [data-theme="dark"] .sp-tabs {
-  background-color: #1E293B;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-subtle, #292524);
+  border: 1px solid var(--border-subtle, rgba(245, 245, 244, 0.09));
 }
 
 .sp-tab {
@@ -94,17 +97,17 @@
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
-  color: #57534E;
+  color: var(--text-secondary, #57534E);
   cursor: pointer;
   text-align: center;
-  transition: all 0.15s ease;
+  transition: background-color 220ms ease-out, color 180ms ease-out, transform 0.15s ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
 
 [data-theme="dark"] .sp-tab {
-  color: #94A3B8;
+  color: var(--text-secondary, #A8A29E);
 }
 
 .sp-tab:active {
@@ -112,15 +115,15 @@
 }
 
 .sp-tab.on {
-  background-color: #1C1917;
-  color: #FFFFFF;
+  background-color: var(--card-bg, #FFFFFF);
+  color: var(--text-primary, #1C1917);
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] .sp-tab.on {
-  background-color: #F59E0B;
-  color: #0F172A;
+  background-color: var(--card-bg, #1E1B18);
+  color: #FBBF24;
   font-weight: 700;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
@@ -175,6 +178,7 @@
   border-radius: 16px;
   padding: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: background-color 220ms ease-out, border-color 220ms ease-out, color 180ms ease-out;
 }
 
 .sp-card h2 {
@@ -540,13 +544,14 @@
 .sp-first5-body {
   border-top: 1px solid rgba(217, 119, 6, 0.18);
   padding: 12px 14px 14px;
-  background-color: #FFFFFF;
+  background-color: var(--card-bg, #FFFFFF);
   box-sizing: border-box;
+  transition: background-color 220ms ease-out, border-color 220ms ease-out;
 }
 
 [data-theme="dark"] .sp-first5-body {
   border-top: 1px solid rgba(245, 158, 11, 0.2);
-  background-color: #0F172A;
+  background-color: var(--card-bg, #1E1B18);
 }
 
 .sp-first5-list {
@@ -753,16 +758,17 @@
   gap: 6px;
   padding: 4px;
   border-radius: 12px;
-  background-color: #F5F3EF;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background-color: var(--bg-subtle, #F2EFE9);
+  border: 1px solid var(--border-subtle, rgba(28, 25, 23, 0.08));
   margin-bottom: 14px;
   box-sizing: border-box;
   width: 100%;
+  transition: background-color 220ms ease-out, border-color 220ms ease-out;
 }
 
 [data-theme="dark"] .sp-subtabs {
-  background-color: #0F172A;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-subtle, #292524);
+  border: 1px solid var(--border-subtle, rgba(245, 245, 244, 0.09));
 }
 
 .sp-subtab {
@@ -777,9 +783,9 @@
   border-radius: 9px;
   font-size: 12px;
   font-weight: 600;
-  color: #57534E;
+  color: var(--text-secondary, #57534E);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 220ms ease-out, color 180ms ease-out, border-color 220ms ease-out, transform 0.15s ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
@@ -789,7 +795,7 @@
 }
 
 [data-theme="dark"] .sp-subtab {
-  color: #94A3B8;
+  color: var(--text-secondary, #A8A29E);
 }
 
 .sp-subtab:active {
@@ -797,8 +803,8 @@
 }
 
 .sp-subtab.on {
-  background-color: #FFFFFF;
-  color: #1C1917;
+  background-color: var(--card-bg, #FFFFFF);
+  color: var(--text-primary, #1C1917);
   border: 1.5px solid #D97706;
   font-size: 12px;
   font-weight: 700;
@@ -808,7 +814,7 @@
 }
 
 [data-theme="dark"] .sp-subtab.on {
-  background-color: #1E293B;
+  background-color: var(--card-bg, #1E1B18);
   color: #FBBF24;
   border: 1.5px solid #F59E0B;
   font-size: 12px;
