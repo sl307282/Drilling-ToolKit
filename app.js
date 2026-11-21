@@ -869,30 +869,71 @@ const withThemeTransition = (updateDOMCallback, postTransitionCallback) => {
 };
 
 const initThemeToggler = () => {
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
   const checkbox = document.getElementById('theme-toggle-checkbox');
   const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
 
   const updateThemeToggleUI = (theme) => {
-    const icon = document.getElementById('theme-toggle-icon');
+    const homeIcon = document.getElementById('home-theme-icon');
+    const drawerIcon = document.getElementById('theme-toggle-icon');
     const text = document.getElementById('theme-toggle-text');
-    if (icon && text) {
-      if (theme === 'dark') {
-        text.textContent = (window.t ? window.t('Light Mode', 'Light Mode') : 'Light Mode');
-        icon.innerHTML = `<circle cx="12" cy="12" r="5"></circle>
-                          <line x1="12" y1="1" x2="12" y2="3"></line>
-                          <line x1="12" y1="21" x2="12" y2="23"></line>
-                          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                          <line x1="1" y1="12" x2="3" y2="12"></line>
-                          <line x1="21" y1="12" x2="23" y2="12"></line>
-                          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
-      } else {
-        text.textContent = (window.t ? window.t('Dark Mode', 'Dark Mode') : 'Dark Mode');
-        icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
-      }
+    const btn = document.getElementById('theme-toggle-btn');
+
+    if (btn) {
+      const label = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+      btn.setAttribute('aria-label', (window.t ? window.t(label, label) : label));
+    }
+
+    const sunSvg = `<circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+    const moonSvg = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+
+    if (homeIcon) {
+      homeIcon.innerHTML = theme === 'dark' ? sunSvg : moonSvg;
+    }
+    if (drawerIcon) {
+      drawerIcon.innerHTML = theme === 'dark' ? sunSvg : moonSvg;
+    }
+    if (text) {
+      text.textContent = (theme === 'dark')
+        ? (window.t ? window.t('Light Mode', 'Light Mode') : 'Light Mode')
+        : (window.t ? window.t('Dark Mode', 'Dark Mode') : 'Dark Mode');
+    }
+    if (checkbox) {
+      checkbox.checked = theme === 'dark';
     }
   };
+  window.updateThemeToggleUI = updateThemeToggleUI;
+
+  const toggleTheme = () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+
+    const applyThemeChange = () => {
+      const html = document.documentElement;
+      html.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateThemeToggleUI(newTheme);
+
+      const currentBg = localStorage.getItem('bgTheme') || 'default';
+      updateDynamicBackground(newTheme, currentBg);
+
+      showToast(`${newTheme.charAt(0).toUpperCase() + newTheme.slice(1)} Mode activated`);
+    };
+
+    withThemeTransition(applyThemeChange, () => {
+      const currentBg = localStorage.getItem('bgTheme') || 'default';
+      syncNativeTheme(newTheme, currentBg);
+    });
+  };
+  window.toggleTheme = toggleTheme;
 
   // Call updateDynamicBackground on startup to sync meta tag and Capacitor status bar colors
   const currentBg = localStorage.getItem('bgTheme') || 'default';
@@ -900,26 +941,17 @@ const initThemeToggler = () => {
   syncNativeTheme(currentTheme, currentBg);
   updateThemeToggleUI(currentTheme);
 
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+  }
+
   if (checkbox) {
-    checkbox.checked = currentTheme === 'dark';
     checkbox.addEventListener('change', (e) => {
-      const newTheme = e.target.checked ? 'dark' : 'light';
-      const applyThemeChange = () => {
-        const html = document.documentElement;
-        html.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeToggleUI(newTheme);
-
-        const currentBg = localStorage.getItem('bgTheme') || 'default';
-        updateDynamicBackground(newTheme, currentBg);
-
-        showToast(`${newTheme.charAt(0).toUpperCase() + newTheme.slice(1)} Mode activated`);
-      };
-
-      withThemeTransition(applyThemeChange, () => {
-        const currentBg = localStorage.getItem('bgTheme') || 'default';
-        syncNativeTheme(newTheme, currentBg);
-      });
+      const targetTheme = e.target.checked ? 'dark' : 'light';
+      const cur = document.documentElement.getAttribute('data-theme') || 'light';
+      if (targetTheme !== cur) {
+        toggleTheme();
+      }
     });
   }
 };
@@ -1097,6 +1129,9 @@ const initSettingsPage = (closeDrawer) => {
     }
     // Update theme toggle UI text (Light Mode / Dark Mode)
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    if (typeof window.updateThemeToggleUI === 'function') {
+      window.updateThemeToggleUI(currentTheme);
+    }
     const themeText = document.getElementById('theme-toggle-text');
     if (themeText) {
       themeText.textContent = (currentTheme === 'dark') ? (window.t ? window.t('Light Mode', 'Light Mode') : 'Light Mode') : (window.t ? window.t('Dark Mode', 'Dark Mode') : 'Dark Mode');

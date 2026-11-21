@@ -257,6 +257,42 @@ header.top-bar .top-bar-btn {
   transform: scale(0.95);
 }
 
+.theme-toggle-btn {
+  width: 40px;
+  height: 40px;
+  margin-inline-start: 0;
+  margin-inline-end: -8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  pointer-events: auto;
+  padding: 0;
+  color: #1C1917;
+  transition: transform 0.1s ease, opacity 0.1s ease, background-color var(--transition-speed);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.theme-toggle-btn:hover {
+  background-color: rgba(46, 26, 17, 0.05);
+}
+
+.theme-toggle-btn:active {
+  opacity: 0.6;
+  transform: scale(0.95);
+}
+
+[data-theme="dark"] .theme-toggle-btn {
+  color: #FBBF24;
+}
+
+[data-theme="dark"] .theme-toggle-btn:hover {
+  background-color: rgba(243, 236, 230, 0.06);
+}
+
 /* Branding Logo & Header Left */
 .header-left {
   display: flex;

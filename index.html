@@ -73,6 +73,11 @@
         </h1>
       </div>
     </div>
+    <button class="top-bar-btn theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle Theme" onclick="if (typeof toggleTheme === 'function') toggleTheme();">
+      <svg id="home-theme-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
   </header>
 
     <div class="app-container">
@@ -1387,22 +1392,6 @@
       </button>
     </div>
     <div class="drawer-content">
-      <!-- Smart Light/Dark Theme Toggle -->
-      <div class="drawer-item theme-toggle-row">
-        <div class="drawer-item-left">
-          <svg id="theme-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drawer-icon">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-          <span id="theme-toggle-text" data-i18n="Dark Mode">Dark Mode</span>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="theme-toggle-checkbox">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="drawer-divider"></div>
-
       <!-- Settings -->
       <div class="drawer-item" id="drawer-settings-btn">
         <div class="drawer-item-left">
