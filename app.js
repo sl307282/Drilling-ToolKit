@@ -176,7 +176,11 @@ let state = {
     chokeLength: ''
   }),
 
-  searchQuery: ''
+  searchQuery: '',
+  selectedGuideId: null,
+  selectedGuideCategory: null,
+  expandedGuideCategoryId: null,
+  guideScrollTop: 0
 };
 
 // Internal in-page sub-states
@@ -198,7 +202,9 @@ let calcSubState = {
   section: 'drilling',
   category: 'calculations',
   search: '',
-  formulaId: ''
+  formulaId: '',
+  expandedCategoryId: null,
+  listScrollTop: 0
 };
 
 let quickRefSubState = {
@@ -319,6 +325,43 @@ const getCasingAnnularCapacity = (casingSize, pipeType, pipeSize) => {
 // Direction flag for slide animation: 'forward' | 'back'
 let _navDirection = 'none';
 
+let _ignoreNextPopstate = 0;
+let _handlingPopstate = false;
+
+function pushNavHistory(stateObj) {
+  try {
+    const hash = '#' + (stateObj.screen || 'dashboard') +
+      (stateObj.view ? '/' + stateObj.view : '') +
+      (stateObj.section ? '/' + stateObj.section : '') +
+      (stateObj.formulaId ? '/' + stateObj.formulaId : '') +
+      (stateObj.itemId ? '/' + stateObj.itemId : '');
+    window.history.pushState(stateObj, '', hash);
+  } catch (e) {}
+}
+
+function syncHistoryBack() {
+  if (_handlingPopstate) return;
+  try {
+    _ignoreNextPopstate++;
+    window.history.back();
+  } catch (e) {}
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    if (_ignoreNextPopstate > 0) {
+      _ignoreNextPopstate--;
+      return;
+    }
+    _handlingPopstate = true;
+    try {
+      handleAppBack();
+    } finally {
+      _handlingPopstate = false;
+    }
+  });
+}
+
 // UI Navigation Controller
 const navigateTo = (screenId) => {
   if (typeof screenId === 'string') {
@@ -352,6 +395,21 @@ const navigateTo = (screenId) => {
     if (store && (current === 'cement-planner' || !store.view || (store.view === 'results' && !store.results))) {
       store.view = 'chooser';
     }
+  }
+
+  // Ensure Calculation Hub starts on Categories landing portal when entering from Dashboard
+  if (screenId === 'drilling-calc' && current === 'dashboard') {
+    calcSubState.view = 'categories';
+    calcSubState.formulaId = null;
+    calcSubState.expandedCategoryId = null;
+    calcSubState.listScrollTop = 0;
+  }
+
+  // Ensure Drilling Guide starts on top-level categories when entering from Dashboard
+  if (screenId === 'drilling-guide' && current === 'dashboard') {
+    state.expandedGuideCategoryId = null;
+    state.selectedGuideId = null;
+    state.guideScrollTop = 0;
   }
 
   // Track if we are navigating out of active home search
@@ -392,6 +450,7 @@ const navigateTo = (screenId) => {
 
   _navDirection = 'forward';
   state.currentScreen = screenId;
+  pushNavHistory({ screen: screenId });
   renderScreen();
 };
 window.navigateTo = navigateTo;
@@ -619,40 +678,36 @@ function handleAppBack() {
     // If opened directly from Home Search, return straight to Home with search preserved
     if (state.openedFromHomeSearch) {
       popScreenHistory();
+      syncHistoryBack();
       return;
     }
-    // Level 3: Inside a specific calculator formula view
+    // Level 3: Inside a specific calculator formula view -> return to list with expanded category & scroll preserved
     if (calcSubState.view === 'formula') {
       calcSubState.view = 'list';
       renderDrillingCalcScreen();
+      syncHistoryBack();
       return;
     }
 
-    // Level 2: Inside the category list view ("Drilling Calculations")
+    // Level 2: Inside the category list view ("Drilling Calculations" or "Well Control Calculations")
     if (calcSubState.view === 'list') {
-      // 2a. If an accordion category card is expanded, collapse it first
-      const expanded = document.querySelector('#drilling-calc-container .guide-category-card.expanded');
-      if (expanded) {
-        expanded.classList.remove('expanded');
-        const subList = expanded.querySelector('.guide-subcategory-list');
-        if (subList) subList.style.maxHeight = null;
-        calcSubState.formulaId = null;
-        return;
-      }
-      // 2b. If search inside calc is active, clear it first
+      // If search inside calc is active, clear it first
       if (calcSubState.search && calcSubState.search.trim() !== '') {
         calcSubState.search = '';
         renderDrillingCalcScreen();
         return;
       }
-      // 2c. Step back to Categories portal view
+      // Step back directly to Categories landing portal view (preserves natural step back without collapsing accordion first)
       calcSubState.view = 'categories';
       calcSubState.formulaId = null;
+      calcSubState.expandedCategoryId = null;
+      calcSubState.listScrollTop = 0;
       renderDrillingCalcScreen();
+      syncHistoryBack();
       return;
     }
 
-    // Level 1: In Categories portal view
+    // Level 1: In Categories portal view -> exit to Home
     if (calcSubState.view === 'categories') {
       if (calcSubState.search && calcSubState.search.trim() !== '') {
         calcSubState.search = '';
@@ -661,6 +716,7 @@ function handleAppBack() {
       }
       // Level 0: Exit to Home
       popScreenHistory();
+      syncHistoryBack();
       return;
     }
   }
@@ -753,30 +809,48 @@ function handleAppBack() {
     return;
   }
 
+  // --- Tool: Drilling Guide Detail (screen-drilling-guide-detail) ---
+  if (state.currentScreen === 'drilling-guide-detail') {
+    if (state.openedFromHomeSearch) {
+      popScreenHistory();
+      syncHistoryBack();
+      return;
+    }
+    // Step back to drilling-guide list, preserving expanded category and scroll position
+    popScreenHistory();
+    syncHistoryBack();
+    return;
+  }
+
   // --- Tool: Drilling Guide (screen-drilling-guide) ---
   if (state.currentScreen === 'drilling-guide') {
     if (state.openedFromHomeSearch) {
       popScreenHistory();
+      syncHistoryBack();
       return;
     }
     // If search within drilling guide is active, clear it first
-    const guideSearch = document.getElementById('guide-search-inp');
+    const guideSearch = document.getElementById('guide-search-inp') || document.getElementById('guide-search-input');
     if (guideSearch && guideSearch.value && guideSearch.value.trim() !== '') {
       guideSearch.value = '';
+      state.expandedGuideCategoryId = null;
       renderDrillingGuideScreen();
       return;
     }
     // If an accordion category card is expanded, collapse it first
-    const expanded = document.querySelector('#drilling-guide-container .guide-category-card.expanded');
-    if (expanded) {
-      expanded.classList.remove('expanded');
-      const subList = expanded.querySelector('.guide-subcategory-list');
-      if (subList) subList.style.maxHeight = null;
+    if (state.expandedGuideCategoryId || document.querySelector('#drilling-guide-container .guide-category-card.expanded')) {
+      const expanded = document.querySelector('#drilling-guide-container .guide-category-card.expanded');
+      if (expanded) {
+        expanded.classList.remove('expanded');
+        const subList = expanded.querySelector('.guide-subcategory-list');
+        if (subList) subList.style.maxHeight = null;
+      }
       state.selectedGuideId = null;
-      window.lastExpandedGuideCat = null;
+      state.expandedGuideCategoryId = null;
       return;
     }
     popScreenHistory();
+    syncHistoryBack();
     return;
   }
 
@@ -3123,23 +3197,35 @@ function renderScreen() {
     // Trigger reflow to restart animation reliably
     void activeScreenEl.offsetWidth;
 
-    // Reset active screen scroll position and collapsing header state
+    // Reset active screen scroll position and collapsing header state on forward navigation
     const scroller = activeScreenEl.querySelector('.scroller') || activeScreenEl;
-    if (scroller) scroller.scrollTop = 0;
-    if (window.CollapsingHeader) {
-      window.CollapsingHeader.reset(activeScreenEl);
-    }
+    if (_navDirection !== 'back') {
+      if (scroller) scroller.scrollTop = 0;
+      if (window.CollapsingHeader) {
+        window.CollapsingHeader.reset(activeScreenEl);
+      }
 
-    // Scroll to top on every screen transition — after DOM paint and reflow
-    setTimeout(() => {
-      try {
-        const scroller = activeScreenEl.querySelector('.scroller') || activeScreenEl;
-        if (scroller) scroller.scrollTop = 0;
-        if (window.CollapsingHeader) {
-          window.CollapsingHeader.reset(activeScreenEl);
-        }
-      } catch(e) {}
-    }, 50);
+      // Scroll to top on forward screen transition — after DOM paint and reflow
+      setTimeout(() => {
+        try {
+          const scroller = activeScreenEl.querySelector('.scroller') || activeScreenEl;
+          if (scroller) scroller.scrollTop = 0;
+          if (window.CollapsingHeader) {
+            window.CollapsingHeader.reset(activeScreenEl);
+          }
+        } catch(e) {}
+      }, 50);
+    } else {
+      // When navigating back to drilling-guide, restore preserved scroll position
+      if (screenId === 'drilling-guide' && state.guideScrollTop > 0) {
+        setTimeout(() => {
+          try {
+            const scroller = activeScreenEl.querySelector('.scroller') || activeScreenEl;
+            if (scroller) scroller.scrollTop = state.guideScrollTop;
+          } catch(e) {}
+        }, 50);
+      }
+    }
 
     if (screenId === 'cement-planner-subsea' || screenId === 'cementing' || screenId === 'cement-planner-surface') {
       // Do not apply slide animations to cementing screen: persistent transform prevents sticky/fixed header from staying pinned to viewport
@@ -8316,10 +8402,24 @@ function findCalculator(formulaId, optCategory) {
 function openFormulaDirectly(formulaId, optCategory) {
   const found = findCalculator(formulaId, optCategory);
   if (found) {
+    const scroller = document.querySelector('#screen-drilling-calc .scroller');
+    if (scroller) {
+      calcSubState.listScrollTop = scroller.scrollTop;
+    }
+    const currSection = calcSectionsConfig[found.sectionKey] || calcSectionsConfig.drilling;
+    if (currSection && currSection.groups) {
+      currSection.groups.forEach((sec, idx) => {
+        if (sec.items && sec.items.includes(formulaId)) {
+          calcSubState.expandedCategoryId = 'calc-cat-' + idx;
+        }
+      });
+    }
+
     calcSubState.view = 'formula';
     calcSubState.section = found.sectionKey;
     calcSubState.category = found.category;
     calcSubState.formulaId = formulaId;
+    pushNavHistory({ screen: 'drilling-calc', view: 'formula', formulaId: formulaId });
     renderDrillingCalcScreen();
   }
 }
@@ -8556,6 +8656,9 @@ function renderDrillingCalcScreen() {
       calcSubState.view = 'list';
       calcSubState.category = 'calculations';
       calcSubState.formulaId = null;
+      calcSubState.expandedCategoryId = null;
+      calcSubState.listScrollTop = 0;
+      pushNavHistory({ screen: 'drilling-calc', view: 'list', section: 'drilling' });
       renderDrillingCalcScreen();
     };
     document.getElementById('cat-wellcontrol-ops-btn').onclick = () => {
@@ -8563,6 +8666,9 @@ function renderDrillingCalcScreen() {
       calcSubState.view = 'list';
       calcSubState.category = 'surface';
       calcSubState.formulaId = null;
+      calcSubState.expandedCategoryId = null;
+      calcSubState.listScrollTop = 0;
+      pushNavHistory({ screen: 'drilling-calc', view: 'list', section: 'wellcontrol' });
       renderDrillingCalcScreen();
     };
 
@@ -8639,9 +8745,14 @@ function renderDrillingCalcScreen() {
 
     html += `<div style="display:flex; flex-direction:column; gap:12px; padding-bottom:30px;" id="formula-list-container">`;
     currSection.groups.forEach((sec, idx) => {
+      const catId = `calc-cat-${idx}`;
+      const isExpanded = (calcSubState.expandedCategoryId === catId) || (!calcSubState.expandedCategoryId && calcSubState.formulaId && sec.items.includes(calcSubState.formulaId));
+      if (isExpanded) {
+        calcSubState.expandedCategoryId = catId;
+      }
       html += `
-        <div class="guide-category-card guide-cat-accent-${sec.accent}" id="calc-cat-${idx}">
-          <div class="guide-category-header" onclick="toggleGuideCategory('calc-cat-${idx}')">
+        <div class="guide-category-card guide-cat-accent-${sec.accent} ${isExpanded ? 'expanded' : ''}" id="${catId}">
+          <div class="guide-category-header" onclick="toggleGuideCategory('${catId}')">
             <div class="guide-category-title-section">
               <div class="guide-category-icon-wrapper">
                 ${renderIcon(sec.icon, { size: '1.25rem', className: 'guide-category-icon' })}
@@ -8653,7 +8764,7 @@ function renderDrillingCalcScreen() {
             </div>
             ${renderIcon('chevron_right', { size: '1.2rem', className: 'guide-category-chevron' })}
           </div>
-          <div class="guide-subcategory-list">
+          <div class="guide-subcategory-list" ${isExpanded ? 'style="max-height:none;"' : ''}>
       `;
       sec.items.forEach(itemId => {
         const item = currSection.getFormula(itemId, sec.category);
@@ -8681,19 +8792,20 @@ function renderDrillingCalcScreen() {
     html += `</div></div>`;
     container.innerHTML = html;
 
-    if (calcSubState.formulaId) {
-      currSection.groups.forEach((sec, idx) => {
-        if (sec.items.includes(calcSubState.formulaId)) {
-          window.toggleGuideCategory('calc-cat-' + idx);
-        }
+    const scroller = document.querySelector('#screen-drilling-calc .scroller');
+    if (scroller && calcSubState.listScrollTop > 0) {
+      scroller.scrollTop = calcSubState.listScrollTop;
+      requestAnimationFrame(() => {
+        if (scroller) scroller.scrollTop = calcSubState.listScrollTop;
       });
     }
 
-    document.getElementById('list-back-btn').onclick = () => {
-      calcSubState.view = 'categories';
-      calcSubState.formulaId = null;
-      renderDrillingCalcScreen();
-    };
+    const listBackBtn = document.getElementById('list-back-btn');
+    if (listBackBtn) {
+      listBackBtn.onclick = () => {
+        handleAppBack();
+      };
+    }
 
   } else if (calcSubState.view === 'formula') {
     // Detailed Calculator View
@@ -10250,9 +10362,14 @@ function renderDrillingGuideScreen() {
   
   for (const catKey in drillingGuideData) {
     const cat = drillingGuideData[catKey];
+    const catId = `guide-cat-${catKey}`;
+    const isExpanded = (state.expandedGuideCategoryId === catId) || (!state.expandedGuideCategoryId && state.selectedGuideId && cat.items && cat.items.some(it => it.id === state.selectedGuideId));
+    if (isExpanded) {
+      state.expandedGuideCategoryId = catId;
+    }
     html += `
-      <div class="guide-category-card guide-cat-accent-${cat.accent}" id="guide-cat-${catKey}">
-        <div class="guide-category-header" onclick="toggleGuideCategory('guide-cat-${catKey}')">
+      <div class="guide-category-card guide-cat-accent-${cat.accent} ${isExpanded ? 'expanded' : ''}" id="${catId}">
+        <div class="guide-category-header" onclick="toggleGuideCategory('${catId}')">
           <div class="guide-category-title-section">
             <div class="guide-category-icon-wrapper">
               ${renderIcon(cat.icon, { size: '1.25rem', className: 'guide-category-icon' })}
@@ -10264,7 +10381,7 @@ function renderDrillingGuideScreen() {
           </div>
           ${renderIcon('chevron_right', { size: '1.2rem', className: 'guide-category-chevron' })}
         </div>
-        <div class="guide-subcategory-list">
+        <div class="guide-subcategory-list" ${isExpanded ? 'style="max-height:none;"' : ''}>
     `;
     
     cat.items.forEach(item => {
@@ -10292,17 +10409,13 @@ function renderDrillingGuideScreen() {
   
   html += `</div>`;
   container.innerHTML = html;
-  
-  if (state.selectedGuideId) {
-    for (const catKey in drillingGuideData) {
-      const items = drillingGuideData[catKey].items || [];
-      if (items.some(item => item.id === state.selectedGuideId)) {
-        setTimeout(() => {
-          window.toggleGuideCategory('guide-cat-' + catKey);
-        }, 0);
-        break;
-      }
-    }
+
+  const scroller = document.querySelector('#screen-drilling-guide .scroller');
+  if (scroller && state.guideScrollTop > 0) {
+    scroller.scrollTop = state.guideScrollTop;
+    requestAnimationFrame(() => {
+      if (scroller) scroller.scrollTop = state.guideScrollTop;
+    });
   }
 }
 
@@ -10425,6 +10538,21 @@ window.toggleGuideCategory = (cardId) => {
     if (list) {
       list.style.maxHeight = list.scrollHeight + 'px';
     }
+    if (cardId.startsWith('calc-cat-')) {
+      calcSubState.expandedCategoryId = cardId;
+      const scroller = document.querySelector('#screen-drilling-calc .scroller');
+      if (scroller) calcSubState.listScrollTop = scroller.scrollTop;
+    } else if (cardId.startsWith('guide-cat-')) {
+      state.expandedGuideCategoryId = cardId;
+      const scroller = document.querySelector('#screen-drilling-guide .scroller');
+      if (scroller) state.guideScrollTop = scroller.scrollTop;
+    }
+  } else {
+    if (cardId.startsWith('calc-cat-')) {
+      calcSubState.expandedCategoryId = null;
+    } else if (cardId.startsWith('guide-cat-')) {
+      state.expandedGuideCategoryId = null;
+    }
   }
 };
 
@@ -10526,8 +10654,20 @@ window.switchGuideWellheadTab = (section) => {
 };
 
 window.handleGuideItemClick = (itemId, categoryName) => {
+  const scroller = document.querySelector('#screen-drilling-guide .scroller');
+  if (scroller) {
+    state.guideScrollTop = scroller.scrollTop;
+  }
+  for (const catKey in drillingGuideData) {
+    const items = drillingGuideData[catKey].items || [];
+    if (items.some(item => item.id === itemId)) {
+      state.expandedGuideCategoryId = 'guide-cat-' + catKey;
+      break;
+    }
+  }
   state.selectedGuideId = itemId;
   state.selectedGuideCategory = categoryName;
+  pushNavHistory({ screen: 'drilling-guide-detail', itemId: itemId });
   navigateTo('drilling-guide-detail');
 };
 
@@ -10535,6 +10675,14 @@ window.renderDrillingGuideDetailScreen = () => {
   const itemId = state.selectedGuideId;
   const container = document.getElementById('drilling-guide-detail-container');
   if (!itemId || !container) return;
+
+  const backBtn = document.querySelector('#screen-drilling-guide-detail .back-btn');
+  if (backBtn) {
+    backBtn.onclick = (e) => {
+      e.preventDefault();
+      handleAppBack();
+    };
+  }
 
   // Header row: always "Drilling Guide" title, no subtitle, no star in header
   const titleEl = document.getElementById('guide-detail-title');

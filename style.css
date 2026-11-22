@@ -3752,6 +3752,7 @@ html[data-theme="dark"][data-bg-theme="peach"] {
 }
 .guide-category-card.expanded .guide-subcategory-list {
   border-top-width: 1px;
+  max-height: none;
 }
 .guide-item-row {
   display: flex;
