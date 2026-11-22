@@ -30,7 +30,6 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
 
     private static volatile boolean isAppReady = false;
-    private static volatile boolean isOverlayReady = false;
 
     private static MainActivity instance;
     private View overlayView;
@@ -39,16 +38,27 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         instance = this;
         isAppReady = false;
-        isOverlayReady = false;
 
         // Install Android core splash screen
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
 
-        // Keep system splash visible until the native overlay has completed pre-draw
-        splashScreen.setKeepOnScreenCondition(() -> !isOverlayReady);
+        // Keep system splash visible until the app is fully loaded
+        splashScreen.setKeepOnScreenCondition(() -> !isAppReady);
 
-        // Immediately dismiss system splash with 0 exit animation duration once overlay is ready
-        splashScreen.setOnExitAnimationListener(splashViewProvider -> splashViewProvider.remove());
+        // Smoothly fade out the native splash screen directly into the home screen
+        splashScreen.setOnExitAnimationListener(splashViewProvider -> {
+            View splashView = splashViewProvider.getView();
+            ObjectAnimator fadeOut = ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f);
+            fadeOut.setDuration(200);
+            fadeOut.setInterpolator(new LinearInterpolator());
+            fadeOut.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    splashViewProvider.remove();
+                }
+            });
+            fadeOut.start();
+        });
 
         registerPlugin(ThemeManagerPlugin.class);
 
@@ -74,42 +84,14 @@ public class MainActivity extends BridgeActivity {
             }
         }
 
-        // Attach full-screen native overlay view on frame 1 (identical across API 24-36)
-        ViewGroup root = findViewById(android.R.id.content);
-        if (root != null) {
-            overlayView = getLayoutInflater().inflate(R.layout.native_splash_overlay, root, false);
-            root.addView(overlayView);
-
-            final View taglineView = overlayView.findViewById(R.id.splash_tagline_view);
-
-            // Match native windowSplashScreenBrandingImage bottom positioning (60dp from bottom)
-            ViewCompat.setOnApplyWindowInsetsListener(overlayView, (v, insets) -> {
-                if (taglineView != null) {
-                    FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) taglineView.getLayoutParams();
-                    int baseMargin = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 60, getResources().getDisplayMetrics());
-                    lp.bottomMargin = baseMargin;
-                    taglineView.setLayoutParams(lp);
-                }
-                return insets;
-            });
-
-            // Wait until overlayView is fully measured, laid out, and about to draw its first frame
-            overlayView.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-                @Override
-                public boolean onPreDraw() {
-                    if (overlayView != null) {
-                        overlayView.getViewTreeObserver().removeOnPreDrawListener(this);
-                    }
-                    isOverlayReady = true;
-                    return true;
-                }
-            });
+        // On Android 11 and below (API < 31), attach native overlay view as fallback
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            ViewGroup root = findViewById(android.R.id.content);
+            if (root != null) {
+                overlayView = getLayoutInflater().inflate(R.layout.native_splash_overlay, root, false);
+                root.addView(overlayView);
+            }
         }
-
-        // Failsafe timer: guarantee isOverlayReady within 200ms
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            isOverlayReady = true;
-        }, 200);
 
         // Neutralize underlying window background so no ghost logo or tagline remains underneath overlay during fadeout
         if (window != null) {

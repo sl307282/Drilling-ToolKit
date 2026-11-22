@@ -7,9 +7,9 @@
         android:gravity="center"
         android:drawable="@drawable/ic_splash_logo" />
     <item
-        android:width="320dp"
-        android:height="40dp"
+        android:width="200dp"
+        android:height="80dp"
         android:gravity="bottom|center_horizontal"
         android:bottom="60dp"
-        android:drawable="@drawable/ic_splash_tagline" />
+        android:drawable="@drawable/splash_branding" />
 </layer-list>
