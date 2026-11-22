@@ -6,7 +6,7 @@ window.addEventListener('error', (event) => {
       console.log('ERROR STACK:', event.error.stack);
     }
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 500 }).catch(() => { });
+      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => { });
     }
   } catch (e) { }
 });
@@ -87,7 +87,7 @@ const DB = {
 let state = {
   currentScreen: 'dashboard',
   screenHistory: [],
-  globalUnit: localStorage.getItem('globalUnit') || 'L/m', // L/m, bbl/m, bbl/ft
+  globalUnit: (window.UnitsEngine ? window.UnitsEngine.getUnit('capacity') : (localStorage.getItem('globalUnit') || 'L/m')), // L/m, bbl/m, bbl/ft
   flowType: 'surface', // surface, subsea, or other modules
   
   openedFromHomeSearch: false,
@@ -394,6 +394,7 @@ const navigateTo = (screenId) => {
   state.currentScreen = screenId;
   renderScreen();
 };
+window.navigateTo = navigateTo;
 
 let calcHistory = safeJSONParse(localStorage.getItem('drillingToolkitHistory'), []);
 
@@ -1038,24 +1039,49 @@ const initSettingsPage = (closeDrawer) => {
     });
   }
 
-  if (unitControl) {
-    unitControl.addEventListener('click', (e) => {
-      const btn = e.target.closest('.segmented-control-btn');
+  const unitSystemControl = document.getElementById('settings-unit-system-control');
+  if (unitSystemControl) {
+    unitSystemControl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-system]');
       if (!btn) return;
 
-      const newUnit = btn.getAttribute('data-unit');
-      const oldUnit = state.globalUnit;
-      if (newUnit === oldUnit) return;
+      const newSys = btn.getAttribute('data-system');
+      if (!newSys) return;
 
-      state.globalUnit = newUnit;
-      localStorage.setItem('globalUnit', newUnit);
+      if (window.UnitsEngine) {
+        window.UnitsEngine.setUnitSystem(newSys);
+        state.globalUnit = window.UnitsEngine.getUnit('capacity');
+        localStorage.setItem('globalUnit', state.globalUnit);
+      }
 
-      const buttons = unitControl.querySelectorAll('.segmented-control-btn');
-      buttons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      renderSettingsScreen();
+      if (state.currentScreen !== 'settings') {
+        renderScreen();
+      }
 
-      renderScreen();
-      showToast(`Capacity unit set to: ${newUnit}`);
+      const labels = {
+        api: t('Oilfield Units (API)'),
+        si: t('Metric Units (SI)'),
+        mixed: t('Mixed Units')
+      };
+      showToast(`${t('Unit System')}: ${labels[newSys] || newSys}`);
+    });
+
+    unitSystemControl.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const buttons = Array.from(unitSystemControl.querySelectorAll('button[data-system]'));
+      const activeIdx = buttons.findIndex(b => b.classList.contains('active') || b.getAttribute('aria-checked') === 'true');
+      let targetIdx = activeIdx;
+      if (e.key === 'ArrowLeft') {
+        targetIdx = activeIdx <= 0 ? buttons.length - 1 : activeIdx - 1;
+      } else if (e.key === 'ArrowRight') {
+        targetIdx = activeIdx >= buttons.length - 1 ? 0 : activeIdx + 1;
+      }
+      if (buttons[targetIdx]) {
+        e.preventDefault();
+        buttons[targetIdx].click();
+        buttons[targetIdx].focus();
+      }
     });
   }
 
@@ -1218,9 +1244,64 @@ const initSettingsPage = (closeDrawer) => {
 };
 
 const renderSettingsScreen = () => {
-  const unitControl = document.getElementById('settings-unit-control');
+  const unitSystemControl = document.getElementById('settings-unit-system-control');
   const colorControl = document.getElementById('settings-color-control');
   const bgControl = document.getElementById('settings-bg-control');
+
+  const currentSys = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed');
+
+  if (unitSystemControl) {
+    unitSystemControl.setAttribute('data-active-system', currentSys);
+    const sysButtons = unitSystemControl.querySelectorAll('button[data-system]');
+    sysButtons.forEach(btn => {
+      const isSelected = btn.getAttribute('data-system') === currentSys;
+      if (isSelected) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-checked', 'true');
+        btn.setAttribute('tabindex', '0');
+      } else {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-checked', 'false');
+        btn.setAttribute('tabindex', '-1');
+      }
+    });
+
+    const badgeEl = document.getElementById('active-unit-system-badge');
+    if (badgeEl) {
+      const badgeKeys = {
+        api: 'API',
+        si: 'SI',
+        mixed: 'MIXED'
+      };
+      const textKey = badgeKeys[currentSys] || 'MIXED';
+      badgeEl.textContent = t(textKey);
+      badgeEl.setAttribute('data-i18n', textKey);
+    }
+
+    const summaryEl = document.getElementById('settings-unit-system-summary');
+    if (summaryEl) {
+      const summaries = {
+        api: 'ft · in · bbl · ppg · psi · bbl/ft · °F',
+        si: 'm · mm · m³ · SG · bar · L/m · °C',
+        mixed: t('Each screen keeps its own default units')
+      };
+      const targetText = summaries[currentSys] || summaries.mixed;
+      if (!summaryEl.textContent.trim()) {
+        summaryEl.textContent = targetText;
+      } else if (summaryEl.textContent.trim() !== targetText) {
+        summaryEl.classList.add('is-fading');
+        setTimeout(() => {
+          summaryEl.textContent = targetText;
+          if (currentSys === 'mixed') {
+            summaryEl.setAttribute('data-i18n', 'Each screen keeps its own default units');
+          } else {
+            summaryEl.removeAttribute('data-i18n');
+          }
+          summaryEl.classList.remove('is-fading');
+        }, 75);
+      }
+    }
+  }
 
   const themeNames = {
     milktea: 'Milk Tea',
@@ -1238,17 +1319,6 @@ const renderSettingsScreen = () => {
     lavender: 'Lavender',
     peach: 'Peach'
   };
-
-  if (unitControl) {
-    const buttons = unitControl.querySelectorAll('.segmented-control-btn');
-    buttons.forEach(btn => {
-      if (btn.getAttribute('data-unit') === state.globalUnit) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-  }
 
   let currentColor = localStorage.getItem('colorTheme') || 'milktea';
   if (currentColor === 'sand') currentColor = 'milktea';
@@ -1677,15 +1747,15 @@ const initApp = () => {
   let splashAttempts = 0;
   const hideSplash = () => {
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 500 }).catch(() => { });
-    } else if (splashAttempts < 120) { // Keep polling up to 6 seconds (120 * 50ms)
+      window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => { });
+    } else if (splashAttempts < 40) { // Keep polling up to 2 seconds (40 * 50ms)
       splashAttempts++;
       setTimeout(hideSplash, 50);
     }
   };
 
-  // Safe Fallback Timer: Hide native splash screen after maximum 6 seconds no matter what
-  setTimeout(hideSplash, 6000);
+  // Safe Fallback Timer: Hide native splash screen after 2.5 seconds max
+  setTimeout(hideSplash, 2500);
 
   try {
     // Bind core Global events safely
@@ -1726,41 +1796,35 @@ const initApp = () => {
     CardOverrideManager.apply();
     // Collapsing header controller initialized via collapsing_header.js
 
-    // Optimize initialization: Preload essential data BEFORE dismissing splash screen
-    const preloadDataAndShow = () => {
+    // Load tubulars database asynchronously in the background so it never blocks home screen first paint
+    const loadTubularsAsync = () => {
+      if (document.querySelector('script[src="tubulars_db.js"]')) return;
       const script = document.createElement('script');
       script.src = 'tubulars_db.js';
       script.async = true;
-      script.onload = () => {
-        // Data is loaded. Wait 2 frames to guarantee the WebView has fully composited the UI 
-        // to prevent any white flash during the crossfade.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Wait for all CSS and Web Fonts to fully download and parse
-            if (document.fonts && document.fonts.ready) {
-              document.fonts.ready.then(() => {
-                hideSplash();
-                checkForUpdates();
-              });
-            } else {
-              hideSplash();
-              checkForUpdates();
-            }
-          });
-        });
-      };
-      
-      // Fallback if script fails to load
-      script.onerror = () => {
-        hideSplash();
-        checkForUpdates();
-      };
-      
       document.body.appendChild(script);
     };
+    loadTubularsAsync();
 
-    // Kick off preloading immediately after initial UI render
-    preloadDataAndShow();
+    // Dismiss splash screen as soon as the first frame is composited and fonts are ready
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(() => {
+            hideSplash();
+          }).catch(() => hideSplash());
+        } else {
+          hideSplash();
+        }
+      });
+    });
+
+    // Defer non-critical update checks completely off the launch path
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => checkForUpdates(), { timeout: 3000 });
+    } else {
+      setTimeout(checkForUpdates, 3000);
+    }
   } catch (error) {
     console.error('Fatal initialization error in DOMContentLoaded:', error);
     // Ensure native splash screen gets hidden even in case of critical init error
@@ -4286,40 +4350,6 @@ function renderCalculations() {
   container.querySelector('#' + 'open-kill-sheet-btn').onclick = () => {
     navigateTo('kill-data-sheet');
   };
-
-  if (state.flowType === 'subsea') {
-    const cemBtnCard = document.createElement('div');
-    cemBtnCard.id = 'subsea-cementing-btn-card';
-    cemBtnCard.className = 'content-card compact-card';
-    cemBtnCard.style.marginTop = '12px';
-    cemBtnCard.style.borderTop = '4px solid #0369a1';
-    cemBtnCard.style.display = showResults ? 'block' : 'none';
-
-    cemBtnCard.innerHTML = `
-      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600; color:var(--text-primary);">Casing Cementing Calculation</h3>
-      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:15px; line-height:1.4;">
-        Run a full casing cement job calculation for this section with API tubular capacities and live wellbore schematic.
-      </p>
-      <button class="btn btn-primary" id="open-subsea-cementing-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg, #0369a1 0%, #0284c7 100%);">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-        </svg>
-        CEMENTING CALCULATION
-      </button>
-    `;
-    container.appendChild(cemBtnCard);
-
-    cemBtnCard.querySelector('#open-subsea-cementing-btn').onclick = () => {
-      const hole = String(state.selectedHoleSize);
-      let sec = '13.375';
-      if (hole === '26') sec = '20';
-      else if (hole === '17.5') sec = '13.375';
-      else if (hole === '12.25') sec = '9.625';
-      else if (hole === '36') sec = '30';
-      else sec = 'custom';
-      openCementingModule(sec);
-    };
-  }
 
   // Sync Input Elements Values & Bind change listeners
   const holeMEl = container.querySelector('#' + 'hole-md-calc');

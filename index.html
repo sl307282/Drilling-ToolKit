@@ -6,9 +6,6 @@
   <link rel="preload" href="style.css" as="style">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="stuckpipe/stuckpipe.css">
-  <!-- Firebase SDK Compat -->
-  <script src="firebase-app-compat.js" defer></script>
-  <script src="firebase-remote-config-compat.js" defer></script>
   <script>
     // Initialize theme instantly before body rendering to avoid flashes
     (function() {
@@ -26,18 +23,18 @@
       const savedLang = localStorage.getItem('appLang') || 'en';
       document.documentElement.setAttribute('lang', savedLang);
 
-      // Safe fallback: Hide native splash screen after 5 seconds if app initialization fails
+      // Safe fallback: Hide native splash screen after 3 seconds if app initialization fails
       setTimeout(function() {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-          window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 300 }).catch(function(){});
+          window.Capacitor.Plugins.SplashScreen.hide({ fadeOutDuration: 200 }).catch(function(){});
         }
-      }, 5000);
+      }, 3000);
     })();
   </script>
   <style>
     /* Prevent white flash during WebView startup */
     :where(html, body) {
-      background-color: #FDFBF8;
+      background-color: #FAF8F5;
       opacity: 1;
       margin: 0;
       padding: 0;
@@ -900,18 +897,32 @@
       <main class="scroller">
         <section class="large">
           <h1 class="screen-title" data-i18n="Settings">Settings</h1>
-          <p class="screen-subtitle" data-i18n="Customize capacity units, themes and language">Customize capacity units, themes and language</p>
+          <p class="screen-subtitle" data-i18n="Customize unit system, themes and language">Customize unit system, themes and language</p>
         </section>
         <div class="screen-body">
           <div class="app-container-inner" style="padding: 16px;">
-        <div class="content-card">
+        <div class="content-card" id="settings-unit-system-card">
           <div class="form-group" style="margin-bottom: 0;">
-            <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:block; color:var(--text-primary);" data-i18n="Default Capacity Unit">Default Capacity Unit</label>
-            <div class="segmented-control" id="settings-unit-control" style="margin-bottom:0;">
-              <button class="segmented-control-btn" data-unit="L/m">L/m</button>
-              <button class="segmented-control-btn" data-unit="bbl/m">bbl/m</button>
-              <button class="segmented-control-btn" data-unit="bbl/ft">bbl/ft</button>
+            <label style="font-size:0.85rem; font-weight:700; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; color:var(--text-primary);">
+              <span data-i18n="UNIT SYSTEM">UNIT SYSTEM</span>
+              <span id="active-unit-system-badge" class="unit-system-badge" data-i18n="MIXED">MIXED</span>
+            </label>
+            <div class="unit-system-segmented-control" id="settings-unit-system-control" role="radiogroup" aria-label="Unit System" data-active-system="mixed">
+              <div class="unit-system-slider" aria-hidden="true"></div>
+              <button type="button" class="unit-system-segment segmented-control-btn" data-system="api" role="radio" aria-checked="false" tabindex="-1" aria-label="Oilfield Units (API)">
+                <span class="unit-btn-line1" data-i18n="API">API</span>
+                <span class="unit-btn-line2" data-i18n="Oilfield">Oilfield</span>
+              </button>
+              <button type="button" class="unit-system-segment segmented-control-btn" data-system="si" role="radio" aria-checked="false" tabindex="-1" aria-label="Metric Units (SI)">
+                <span class="unit-btn-line1" data-i18n="SI">SI</span>
+                <span class="unit-btn-line2" data-i18n="Metric">Metric</span>
+              </button>
+              <button type="button" class="unit-system-segment segmented-control-btn active" data-system="mixed" role="radio" aria-checked="true" tabindex="0" aria-label="Mixed Units">
+                <span class="unit-btn-line1" data-i18n="Mixed">Mixed</span>
+                <span class="unit-btn-line2" data-i18n="Custom">Custom</span>
+              </button>
             </div>
+            <div id="settings-unit-system-summary" class="unit-system-summary" aria-live="polite" data-i18n="Each screen keeps its own default units">Each screen keeps its own default units</div>
           </div>
         </div>
         
@@ -1589,6 +1600,7 @@
   <div id="toast" class="toast">Action Saved</div>
 
   <!-- Application Scripts -->
+  <script src="units_engine.js?v=1.1.6" defer></script>
   <script src="translations.js?v=1.1.6" defer></script>
   <script src="jspdf.umd.min.js" defer></script>
   <script src="jspdf.plugin.autotable.min.js" defer></script>
@@ -1602,6 +1614,9 @@
   <script src="cementing_ui.js?v=1.1.6" defer></script>
   <script src="cementing_surface_ui.js?v=1.1.6" defer></script>
   <script type="module" src="stuckpipe/ui.js"></script>
+  <!-- Firebase SDK Compat (deferred off critical startup path) -->
+  <script src="firebase-app-compat.js" defer></script>
+  <script src="firebase-remote-config-compat.js" defer></script>
   <!-- IADC Info Modal -->
   <div id="iadc-info-modal" class="modal-overlay" onclick="closeIADCInfoModal(event)">
     <div class="modal-content" style="max-width:420px;">
