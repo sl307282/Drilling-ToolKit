@@ -82,19 +82,12 @@ public class MainActivity extends BridgeActivity {
 
             final View taglineView = overlayView.findViewById(R.id.splash_tagline_view);
 
-            // On Android 12+ (API 31+), the system splash displayed only the badge.
-            // Prepare tagline with alpha 0 so it fades in smoothly once the overlay is visible.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && taglineView != null) {
-                taglineView.setAlpha(0f);
-            }
-
-            // Anchor tagline above navigation bar inset across all screen sizes and orientations
+            // Match native windowSplashScreenBrandingImage bottom positioning (60dp from bottom)
             ViewCompat.setOnApplyWindowInsetsListener(overlayView, (v, insets) -> {
-                Insets navInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars());
                 if (taglineView != null) {
                     FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) taglineView.getLayoutParams();
-                    int baseMargin = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 48, getResources().getDisplayMetrics());
-                    lp.bottomMargin = baseMargin + navInsets.bottom;
+                    int baseMargin = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 60, getResources().getDisplayMetrics());
+                    lp.bottomMargin = baseMargin;
                     taglineView.setLayoutParams(lp);
                 }
                 return insets;
@@ -108,15 +101,6 @@ public class MainActivity extends BridgeActivity {
                         overlayView.getViewTreeObserver().removeOnPreDrawListener(this);
                     }
                     isOverlayReady = true;
-
-                    // Smoothly fade in tagline over 120ms on Android 12+
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && taglineView != null) {
-                        taglineView.animate()
-                            .alpha(1f)
-                            .setDuration(120)
-                            .setInterpolator(new LinearInterpolator())
-                            .start();
-                    }
                     return true;
                 }
             });

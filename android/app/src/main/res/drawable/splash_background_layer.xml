@@ -10,6 +10,6 @@
         android:width="320dp"
         android:height="40dp"
         android:gravity="bottom|center_horizontal"
-        android:bottom="48dp"
+        android:bottom="60dp"
         android:drawable="@drawable/ic_splash_tagline" />
 </layer-list>

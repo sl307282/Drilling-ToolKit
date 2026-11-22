@@ -17,13 +17,13 @@
         android:contentDescription="@string/app_name"
         android:src="@drawable/ic_splash_logo" />
 
-    <!-- Anchored Tagline: 320dp x 40dp centered horizontally, 48dp from bottom -->
+    <!-- Anchored Tagline: 320dp x 40dp centered horizontally, 60dp from bottom -->
     <ImageView
         android:id="@+id/splash_tagline_view"
         android:layout_width="320dp"
         android:layout_height="40dp"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="48dp"
+        android:layout_marginBottom="60dp"
         android:scaleType="fitCenter"
         android:contentDescription="Calculators • Guides • References"
         android:src="@drawable/ic_splash_tagline" />
