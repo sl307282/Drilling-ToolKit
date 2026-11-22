@@ -162,12 +162,26 @@ console.log('--- TEST GROUP 3: Exact Riser Margin Worked Example ---');
 const rm = allCalcs.find(x => x.id === 'riser_margin');
 assert(rm, 'Riser Margin calculator must exist');
 
-// In Native / Mixed / API:
-// Mud Weight: 10 ppg, Water Depth: 3000 ft, Air Gap: 80 ft, TVD: 9000 ft
-const rmNativeArgs = { mw: 10, wd: 3000, ag: 80, tvd: 9000 };
+// Acceptance Test 1: MW=10, WD=3000, AG=80, TVD=9000, SW=8.6 -> output ≈ 0.8446 ppg
+const rmNativeArgs = { mw: 10, wd: 3000, ag: 80, tvd: 9000, sw: 8.6 };
 const rmNativeResult = rm.calc(rmNativeArgs);
-console.log(`  Native Riser Margin result: ${rmNativeResult.toFixed(4)} ppg`);
-assert(Math.abs(rmNativeResult - 5.1333) < 0.001, `Native result should be ~5.1333 ppg, got ${rmNativeResult}`);
+console.log(`  Native Riser Margin result (SW=8.6): ${rmNativeResult.toFixed(4)} ppg`);
+assert(Math.abs(rmNativeResult - 0.8446) < 0.0001, `Native result should be ~0.8446 ppg, got ${rmNativeResult}`);
+
+// Acceptance Test 2: MW=10, WD=3000, AG=80, TVD=9000, SW=8.5 -> output ≈ 0.8953 (≈ 0.8946) ppg
+const rmNativeArgs2 = { mw: 10, wd: 3000, ag: 80, tvd: 9000, sw: 8.5 };
+const rmNativeResult2 = rm.calc(rmNativeArgs2);
+console.log(`  Native Riser Margin result (SW=8.5): ${rmNativeResult2.toFixed(4)} ppg`);
+assert(Math.abs(rmNativeResult2 - 0.8953) < 0.001, `Native result (SW=8.5) should be ~0.8953 ppg, got ${rmNativeResult2}`);
+
+// Guard Tests: TVD - WD - AG <= 0 -> 'Invalid input'
+const rmGuardResult1 = rm.calc({ mw: 10, wd: 3000, ag: 80, tvd: 3000, sw: 8.6 });
+console.log(`  Guard test TVD <= WD + AG (TVD=3000): ${rmGuardResult1}`);
+assert.strictEqual(rmGuardResult1, 'Invalid input', 'Should return Invalid input when TVD <= WD + AG');
+
+const rmGuardResult2 = rm.calc({ mw: 10, wd: 3000, ag: 80, tvd: 3080, sw: 8.6 });
+console.log(`  Guard test TVD == WD + AG (denom=0): ${rmGuardResult2}`);
+assert.strictEqual(rmGuardResult2, 'Invalid input', 'Should return Invalid input when TVD == WD + AG');
 
 // In SI:
 // Convert inputs to SI:
@@ -175,8 +189,9 @@ const mwSI = UnitsEngine.convert('density', 10, 'ppg', 'SG'); // ~1.1983 SG
 const wdSI = UnitsEngine.convert('length', 3000, 'ft', 'm');  // 914.4 m
 const agSI = UnitsEngine.convert('length', 80, 'ft', 'm');    // 24.384 m
 const tvdSI = UnitsEngine.convert('length', 9000, 'ft', 'm'); // 2743.2 m
+const swSI = UnitsEngine.convert('density', 8.6, 'ppg', 'SG'); // ~1.0305 SG
 
-console.log(`  Converted to SI inputs: MW=${mwSI.toFixed(3)} SG, WD=${wdSI.toFixed(1)} m, AG=${agSI.toFixed(2)} m, TVD=${tvdSI.toFixed(1)} m`);
+console.log(`  Converted to SI inputs: MW=${mwSI.toFixed(3)} SG, WD=${wdSI.toFixed(1)} m, AG=${agSI.toFixed(2)} m, TVD=${tvdSI.toFixed(1)} m, SW=${swSI.toFixed(3)} SG`);
 
 // Boundary adapter execution:
 // User enters SI values -> Boundary adapter converts to native formula units -> executes -> converts result back to SG
@@ -185,6 +200,7 @@ const rmSimulatedNativeArgs = {
   wd: UnitsEngine.convert('length', wdSI, 'm', 'ft'),
   ag: UnitsEngine.convert('length', agSI, 'm', 'ft'),
   tvd: UnitsEngine.convert('length', tvdSI, 'm', 'ft'),
+  sw: UnitsEngine.convert('density', swSI, 'SG', 'ppg'),
 };
 const rmSimulatedNativeResult = rm.calc(rmSimulatedNativeArgs);
 const rmFinalSIResult = UnitsEngine.convert('density', rmSimulatedNativeResult, 'ppg', 'SG');
@@ -192,7 +208,7 @@ const rmFinalSIResult = UnitsEngine.convert('density', rmSimulatedNativeResult, 
 console.log(`  Simulated native execution: ${rmSimulatedNativeResult.toFixed(4)} ppg`);
 console.log(`  SI Display Output: ${rmFinalSIResult.toFixed(4)} SG (formatted: ${rmFinalSIResult.toFixed(2)} SG)`);
 
-assert(Math.abs(rmFinalSIResult - 0.6151) < 0.001, `SI result should be ~0.6151 SG, got ${rmFinalSIResult}`);
+assert(Math.abs(rmFinalSIResult - 0.1012) < 0.001, `SI result should be ~0.1012 SG, got ${rmFinalSIResult}`);
 console.log('PASSED: Exact Riser Margin test verified perfectly!\n');
 
 // -----------------------------------------------------------------------------

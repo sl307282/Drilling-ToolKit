@@ -7966,9 +7966,17 @@ const wellControlDb = {
         { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
         { key: 'wd', label: 'Water Depth (ft)', val: 3000 },
         { key: 'ag', label: 'Air Gap (ft)', val: 80 },
-        { key: 'tvd', label: 'Well TVD (ft)', val: 9000 }
+        { key: 'tvd', label: 'Well TVD (ft)', val: 9000 },
+        { key: 'sw', label: 'Seawater Density (ppg)', val: 8.6 }
       ],
-      calc: (i) => ((i.wd + i.ag) * i.mw * 0.052) / (0.052 * (i.tvd - i.wd)),
+      calc: (i) => {
+        const sw = (i.sw !== undefined && !isNaN(i.sw)) ? i.sw : 8.6;
+        const denom = i.tvd - i.wd - i.ag;
+        if (denom <= 0) return 'Invalid input';
+        const num = (i.mw * (i.wd + i.ag)) - (sw * i.wd);
+        const rm = num / denom;
+        return (typeof rm === 'number' && Number.isFinite(rm)) ? rm : 'Invalid input';
+      },
       unit: 'ppg'
     },
     {
@@ -8779,6 +8787,8 @@ function renderDrillingCalcScreen() {
           }
           const outVal = finalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
           document.getElementById('calc-output-val').innerHTML = `${outVal} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+        } else if (result === 'Invalid input' || !result) {
+          document.getElementById('calc-output-val').innerHTML = `${result || 'Invalid input'}`;
         } else {
           document.getElementById('calc-output-val').innerHTML = `${result} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
         }
@@ -9094,7 +9104,7 @@ if (wellControlSubState.view === 'clf-guide') {
     ` : `
       <div class="wc-equation-card">
         <span class="wc-equation-name">Riser Margin (RM)</span>
-        <span class="wc-equation-formula">RM = [(Water_Depth + Air_Gap) &times; MW &times; 0.052] / [0.052 &times; (TVD - Water_Depth)]</span>
+        <span class="wc-equation-formula">RM = [MW &times; (Water_Depth + Air_Gap) - SW &times; Water_Depth] / (TVD - Water_Depth - Air_Gap)</span>
         <p class="wc-equation-desc">Mud density increment to prevent blowout/collapse when riser is disconnected.</p>
       </div>
       <div class="wc-equation-card">
