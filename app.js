@@ -1023,16 +1023,12 @@ const initThemeToggler = () => {
     themeToggleBtn.addEventListener('click', toggleTheme);
   }
 
-  if (drawerThemeItem && !drawerThemeItem._themeBound) {
-    drawerThemeItem._themeBound = true;
-    drawerThemeItem.addEventListener('click', (e) => {
-      if (e.target && e.target.id === 'theme-toggle-checkbox') return;
-      toggleTheme();
-    });
-  }
-
   if (switchTrack && !switchTrack._themeBound) {
     switchTrack._themeBound = true;
+    switchTrack.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleTheme();
+    });
     switchTrack.addEventListener('keydown', (e) => {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();

@@ -2247,6 +2247,22 @@ mark.search-highlight {
 /* Drawer Theme Item & High-Contrast Tactile Pill Switch */
 .drawer-theme-row {
   user-select: none;
+  cursor: default !important;
+}
+
+.drawer-theme-row:hover,
+.drawer-theme-row:active {
+  background-color: transparent !important;
+}
+
+.drawer-theme-row:hover .drawer-icon {
+  color: var(--text-secondary) !important;
+}
+
+.drawer-theme-row .drawer-item-left,
+.drawer-theme-row #theme-toggle-title,
+.drawer-theme-row .drawer-theme-status {
+  cursor: default !important;
 }
 
 .drawer-theme-control {
