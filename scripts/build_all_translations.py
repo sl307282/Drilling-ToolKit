@@ -31,6 +31,24 @@ if os.path.exists(cementing_extra_file):
                 master_keys.append(k)
 
 UNIT_SYSTEM_KEYS = {
+    "Theme": {
+        "es": "Tema", "hi": "थीम", "ar": "المظهر",
+        "zh": "主题", "fr": "Thème", "pt": "Tema",
+        "de": "Design", "ja": "テーマ", "ru": "Тема",
+        "id": "Tema", "ko": "테마", "uk": "Тема",
+    },
+    "Light": {
+        "es": "Claro", "hi": "लाइट", "ar": "فاتح",
+        "zh": "浅色", "fr": "Clair", "pt": "Claro",
+        "de": "Hell", "ja": "ライト", "ru": "Светлая",
+        "id": "Terang", "ko": "라이트", "uk": "Світла",
+    },
+    "Dark": {
+        "es": "Oscuro", "hi": "डार्क", "ar": "داكن",
+        "zh": "深色", "fr": "Sombre", "pt": "Escuro",
+        "de": "Dunkel", "ja": "ダーク", "ru": "Темная",
+        "id": "Gelap", "ko": "다크", "uk": "Темна",
+    },
     "Unit System": {
         "es": "Sistema de unidades", "hi": "इकाई प्रणाली", "ar": "نظام الوحدات",
         "zh": "单位制", "fr": "Système d'unités", "pt": "Sistema de unidades",

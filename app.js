@@ -914,12 +914,18 @@ const withThemeTransition = (updateDOMCallback, postTransitionCallback) => {
 const initThemeToggler = () => {
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
   const checkbox = document.getElementById('theme-toggle-checkbox');
+  const drawerThemeItem = document.getElementById('drawer-theme-item');
+  const switchTrack = document.getElementById('drawer-switch-track');
   const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  let lastToggleTime = 0;
 
   const updateThemeToggleUI = (theme) => {
     const homeIcon = document.getElementById('home-theme-icon');
     const drawerIcon = document.getElementById('theme-toggle-icon');
-    const text = document.getElementById('theme-toggle-text');
+    const statusText = document.getElementById('theme-toggle-status') || document.getElementById('theme-toggle-text');
+    const titleText = document.getElementById('theme-toggle-title');
+    const track = document.getElementById('drawer-switch-track');
+    const cb = document.getElementById('theme-toggle-checkbox');
     const btn = document.getElementById('theme-toggle-btn');
 
     if (btn) {
@@ -944,24 +950,46 @@ const initThemeToggler = () => {
     if (drawerIcon) {
       drawerIcon.innerHTML = theme === 'dark' ? sunSvg : moonSvg;
     }
-    if (text) {
-      text.textContent = (theme === 'dark')
-        ? (window.t ? window.t('Light Mode', 'Light Mode') : 'Light Mode')
-        : (window.t ? window.t('Dark Mode', 'Dark Mode') : 'Dark Mode');
+    if (titleText) {
+      titleText.textContent = window.t ? window.t('Theme', 'Theme') : 'Theme';
     }
-    if (checkbox) {
-      checkbox.checked = theme === 'dark';
+    if (statusText) {
+      const modeKey = theme === 'dark' ? 'Dark' : 'Light';
+      statusText.textContent = window.t ? window.t(modeKey, modeKey) : modeKey;
+      statusText.setAttribute('data-i18n', modeKey);
+    }
+    if (track) {
+      track.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
+      if (theme === 'dark') {
+        track.classList.add('active');
+      } else {
+        track.classList.remove('active');
+      }
+    }
+    if (cb) {
+      cb.checked = theme === 'dark';
     }
   };
   window.updateThemeToggleUI = updateThemeToggleUI;
 
   const toggleTheme = () => {
+    const now = Date.now();
+    if (now - lastToggleTime < 300) return;
+    lastToggleTime = now;
+
     const current = document.documentElement.getAttribute('data-theme') || 'light';
     const newTheme = current === 'dark' ? 'light' : 'dark';
 
     const applyThemeChange = () => {
       const html = document.documentElement;
       html.setAttribute('data-theme', newTheme);
+      if (newTheme === 'dark') {
+        html.classList.add('dark');
+        document.body.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+        document.body.classList.remove('dark');
+      }
       localStorage.setItem('theme', newTheme);
       updateThemeToggleUI(newTheme);
 
@@ -972,10 +1000,15 @@ const initThemeToggler = () => {
       showToast(`${newTheme.charAt(0).toUpperCase() + newTheme.slice(1)} Mode activated`);
     };
 
-    withThemeTransition(applyThemeChange, () => {
-      const currentBg = localStorage.getItem('bgTheme') || 'default';
-      syncNativeTheme(newTheme, currentBg);
-    });
+    const isDrawerOpen = document.getElementById('drawer-menu')?.classList.contains('active');
+    if (isDrawerOpen) {
+      applyThemeChange();
+    } else {
+      withThemeTransition(applyThemeChange, () => {
+        const currentBg = localStorage.getItem('bgTheme') || 'default';
+        syncNativeTheme(newTheme, currentBg);
+      });
+    }
   };
   window.toggleTheme = toggleTheme;
 
@@ -985,11 +1018,31 @@ const initThemeToggler = () => {
   syncNativeTheme(currentTheme, currentBg);
   updateThemeToggleUI(currentTheme);
 
-  if (themeToggleBtn) {
+  if (themeToggleBtn && !themeToggleBtn._themeBound) {
+    themeToggleBtn._themeBound = true;
     themeToggleBtn.addEventListener('click', toggleTheme);
   }
 
-  if (checkbox) {
+  if (drawerThemeItem && !drawerThemeItem._themeBound) {
+    drawerThemeItem._themeBound = true;
+    drawerThemeItem.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'theme-toggle-checkbox') return;
+      toggleTheme();
+    });
+  }
+
+  if (switchTrack && !switchTrack._themeBound) {
+    switchTrack._themeBound = true;
+    switchTrack.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        toggleTheme();
+      }
+    });
+  }
+
+  if (checkbox && !checkbox._themeBound) {
+    checkbox._themeBound = true;
     checkbox.addEventListener('change', (e) => {
       const targetTheme = e.target.checked ? 'dark' : 'light';
       const cur = document.documentElement.getAttribute('data-theme') || 'light';
@@ -998,6 +1051,11 @@ const initThemeToggler = () => {
       }
     });
   }
+
+  window.addEventListener('languageChanged', () => {
+    const cur = document.documentElement.getAttribute('data-theme') || 'light';
+    updateThemeToggleUI(cur);
+  });
 };
 
 const initDrawer = () => {
