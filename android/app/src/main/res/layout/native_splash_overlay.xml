@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/native_splash_overlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/splash_background"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Centered Logo: 288dp x 288dp canvas centered in parent -->
+    <ImageView
+        android:id="@+id/splash_logo_view"
+        android:layout_width="288dp"
+        android:layout_height="288dp"
+        android:layout_gravity="center"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/app_name"
+        android:src="@drawable/ic_splash_logo" />
+
+    <!-- Anchored Tagline: 320dp x 40dp centered horizontally, 48dp from bottom -->
+    <ImageView
+        android:id="@+id/splash_tagline_view"
+        android:layout_width="320dp"
+        android:layout_height="40dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="48dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="Calculators • Guides • References"
+        android:src="@drawable/ic_splash_tagline" />
+
+</FrameLayout>

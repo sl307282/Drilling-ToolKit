@@ -1,20 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/splashBackground" />
-    
-    <!-- Center Logo (Using explicit sizing to fix OxygenOS gravity/bitmap rendering bugs) -->
+    <item android:drawable="@color/splash_background" />
     <item
-        android:width="192dp"
-        android:height="192dp"
-        android:drawable="@drawable/splash_logo_drill"
-        android:gravity="center" />
-
-    <!-- Bottom Branding Text -->
+        android:width="288dp"
+        android:height="288dp"
+        android:gravity="center"
+        android:drawable="@drawable/ic_splash_logo" />
     <item
+        android:width="320dp"
+        android:height="40dp"
         android:gravity="bottom|center_horizontal"
-        android:bottom="40dp">
-        <bitmap
-            android:src="@drawable/branding"
-            android:gravity="bottom|center_horizontal" />
-    </item>
+        android:bottom="48dp"
+        android:drawable="@drawable/ic_splash_tagline" />
 </layer-list>

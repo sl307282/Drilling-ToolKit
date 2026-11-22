@@ -3,21 +3,25 @@ package com.drillingtoolkit.app;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
-import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.TypedValue;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
+import android.widget.FrameLayout;
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
 import androidx.core.splashscreen.SplashScreen;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
@@ -25,84 +29,121 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
 
     private static volatile boolean isAppReady = false;
+    private static volatile boolean isOverlayAttached = false;
 
     private static MainActivity instance;
+    private View overlayView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         instance = this;
         isAppReady = false;
+        isOverlayAttached = false;
 
         // Install Android core splash screen
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
 
-        // Keep native launch splash visible until the web app has rendered its first frame
-        splashScreen.setKeepOnScreenCondition(() -> !isAppReady);
+        // Keep system splash visible only until the native overlay is attached
+        splashScreen.setKeepOnScreenCondition(() -> !isOverlayAttached);
 
-        // Smooth exit animation: dissolve native splash directly into the home screen
-        splashScreen.setOnExitAnimationListener(splashViewProvider -> {
-            android.util.Log.i("MainActivity", "splashScreen onExitAnimationListener fired!");
-            View splashView = splashViewProvider.getView();
-            ObjectAnimator fadeOut = ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f);
-            fadeOut.setDuration(250);
-            fadeOut.setInterpolator(new LinearInterpolator());
-            fadeOut.addListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    android.util.Log.i("MainActivity", "splashViewProvider.remove() called");
-                    splashViewProvider.remove();
-                }
-            });
-            fadeOut.start();
-        });
+        // Immediately dismiss empty system splash once overlay is ready
+        splashScreen.setOnExitAnimationListener(splashViewProvider -> splashViewProvider.remove());
 
         registerPlugin(ThemeManagerPlugin.class);
 
         super.onCreate(savedInstanceState);
 
-        // Synchronize initial navigation bar and status bar colors to matching theme token
+        // Sizing & display cutout handling: ensure splash and window layout do not jump on notched displays
         Window window = getWindow();
         if (window != null) {
-            int nightMode = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-            boolean isDark = (nightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES);
-            int navColor = Color.parseColor(isDark ? "#141210" : "#FAF8F5");
-            window.setNavigationBarColor(navColor);
-            window.setStatusBarColor(navColor);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                WindowManager.LayoutParams lp = window.getAttributes();
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                window.setAttributes(lp);
+            }
+
+            // Force solid light system bars matching the splash background across light and dark system themes
+            int splashColor = Color.parseColor("#FAF8F5");
+            window.setNavigationBarColor(splashColor);
+            window.setStatusBarColor(splashColor);
             WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
             if (controller != null) {
-                controller.setAppearanceLightNavigationBars(!isDark);
-                controller.setAppearanceLightStatusBars(!isDark);
+                controller.setAppearanceLightNavigationBars(true);
+                controller.setAppearanceLightStatusBars(true);
             }
         }
 
-        // Register CustomSplashScreenPlugin on bridge to take precedence over default plugin
+        // Attach full-screen native overlay view on frame 1 (identical across API 24-36)
+        ViewGroup root = findViewById(android.R.id.content);
+        if (root != null) {
+            overlayView = getLayoutInflater().inflate(R.layout.native_splash_overlay, root, false);
+            root.addView(overlayView);
+            isOverlayAttached = true;
+
+            // Anchor tagline above navigation bar inset across all screen sizes and orientations
+            ViewCompat.setOnApplyWindowInsetsListener(overlayView, (v, insets) -> {
+                Insets navInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                View taglineView = v.findViewById(R.id.splash_tagline_view);
+                if (taglineView != null) {
+                    FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) taglineView.getLayoutParams();
+                    int baseMargin = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 48, getResources().getDisplayMetrics());
+                    lp.bottomMargin = baseMargin + navInsets.bottom;
+                    taglineView.setLayoutParams(lp);
+                }
+                return insets;
+            });
+        }
+
+        // Neutralize underlying window background so no ghost logo or tagline remains underneath overlay during fadeout
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#FAF8F5")));
+        }
+
+        // Register CustomSplashScreenPlugin on bridge to forward SplashScreen.hide() to MainActivity
         if (this.bridge != null) {
             this.bridge.registerPlugin(CustomSplashScreenPlugin.class);
             if (this.bridge.getWebView() != null) {
-                this.bridge.getWebView().setBackgroundColor(Color.TRANSPARENT);
+                this.bridge.getWebView().setBackgroundColor(Color.parseColor("#FAF8F5"));
                 this.bridge.getWebView().setOverScrollMode(android.view.View.OVER_SCROLL_NEVER);
             }
         }
 
-        // Failsafe timer: dismiss splash after 4s max if web bootstrap encounters an error
+        // Failsafe timer: dismiss overlay after 2s max if web bootstrap encounters an unexpected error
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             if (!isAppReady) {
-                android.util.Log.i("MainActivity", "Failsafe timer expired, setting isAppReady = true");
+                android.util.Log.i("MainActivity", "Failsafe timer (2s) expired, setting isAppReady = true");
                 setAppReady();
             }
-        }, 4000);
+        }, 2000);
     }
 
     public static void setAppReady() {
+        if (isAppReady) return;
         android.util.Log.i("MainActivity", "setAppReady() invoked!");
         isAppReady = true;
         if (instance != null) {
-            instance.runOnUiThread(() -> {
-                View content = instance.findViewById(android.R.id.content);
-                if (content != null) {
-                    content.invalidate();
-                }
-            });
+            instance.runOnUiThread(() -> instance.dismissOverlay());
         }
+    }
+
+    private void dismissOverlay() {
+        if (overlayView == null || !overlayView.isAttachedToWindow()) return;
+        android.util.Log.i("MainActivity", "dismissOverlay() animating fadeout (200ms)");
+        ObjectAnimator fadeOut = ObjectAnimator.ofFloat(overlayView, View.ALPHA, 1f, 0f);
+        fadeOut.setDuration(200);
+        fadeOut.setInterpolator(new LinearInterpolator());
+        fadeOut.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (overlayView != null) {
+                    ViewGroup parent = (ViewGroup) overlayView.getParent();
+                    if (parent != null) {
+                        parent.removeView(overlayView);
+                    }
+                    overlayView = null;
+                }
+            }
+        });
+        fadeOut.start();
     }
 }
