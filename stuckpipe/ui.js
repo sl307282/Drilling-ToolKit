@@ -257,15 +257,7 @@ export function mountStuckPipe(root, options = {}) {
         'aria-selected': String(s.tab === 'calculate'),
         tabindex: s.tab === 'calculate' ? '0' : '-1',
         onclick: () => { s.tab = 'calculate'; redraw(); },
-      }, tabIcon(TAB_ICONS.calculator), h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_calculate'))),
-      showLog ? h('button', {
-        type: 'button',
-        class: 'sp-tab' + (s.tab === 'log' ? ' on active' : ''),
-        role: 'tab',
-        'aria-selected': String(s.tab === 'log'),
-        tabindex: s.tab === 'log' ? '0' : '-1',
-        onclick: () => { s.tab = 'log'; redraw(); },
-      }, h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_log'))) : null
+      }, tabIcon(TAB_ICONS.calculator), h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_calculate')))
     );
 
     tabs.addEventListener('keydown', (e) => {
@@ -295,7 +287,6 @@ export function mountStuckPipe(root, options = {}) {
     panel.replaceChildren();
     if (s.tab === 'diagnose') renderDiagnose();
     else if (s.tab === 'calculate') renderCalculate();
-    else if (s.tab === 'log' && showLog) renderLog();
   }
 
   // ---------------------------------------------------------------- Diagnose Section
@@ -532,17 +523,60 @@ export function mountStuckPipe(root, options = {}) {
 
       const planCard = h('section', { class: 'sp-card', style: 'margin-top:12px;' });
 
+      function getShortMechName(mech, otherMech) {
+        const lang = (window.I18n && window.I18n.getCurrentLang && window.I18n.getCurrentLang()) || 'en';
+        const fullName = tr(mech.nameKey, {}, mech.name);
+        const otherFullName = otherMech ? tr(otherMech.nameKey, {}, otherMech.name) : '';
+
+        const leadParts = fullName.split(/:\s*/);
+        const otherParts = otherFullName.split(/:\s*/);
+
+        const isSameCategory = leadParts.length > 1 && otherParts.length > 1 &&
+          leadParts[0].trim().toLowerCase() === otherParts[0].trim().toLowerCase();
+
+        if (isSameCategory) {
+          if (lang === 'en') {
+            if (mech.id === 'pack_cut') return `${leadParts[0].trim()} (Cuttings)`;
+            if (mech.id === 'pack_shale') return `${leadParts[0].trim()} (Shale)`;
+            if (mech.id === 'pack_frac') return `${leadParts[0].trim()} (Fractured)`;
+          }
+          const sub = (leadParts[1] || '').split(/[\/\(]/)[0].trim();
+          const subCap = sub ? (sub.charAt(0).toUpperCase() + sub.slice(1)) : '';
+          return subCap ? `${leadParts[0].trim()} (${subCap})` : leadParts[0].trim();
+        }
+
+        if (leadParts.length > 1) {
+          return leadParts[0].trim();
+        }
+
+        if (mech.id === 'diff') {
+          return fullName.replace(/\s+sticking/i, '').trim();
+        }
+        return fullName.split(/[\/\(]/)[0].trim();
+      }
+
       // Plan Switcher if second likely candidate exists
       if (alt) {
-        const seg = h('div', { class: 'sp-seg', role: 'tablist' },
+        const leadLabel = getShortMechName(lead, alt);
+        const altLabel = getShortMechName(alt, lead);
+
+        const seg = h('div', { class: 'sp-seg', role: 'tablist', 'aria-label': 'Action Plan Alternatives' },
           h('button', {
-            type: 'button', class: planMech.id === lead.id ? 'on' : '',
+            type: 'button',
+            class: 'sp-seg-btn' + (planMech.id === lead.id ? ' on active' : ''),
+            role: 'tab',
+            'aria-selected': String(planMech.id === lead.id),
+            tabindex: planMech.id === lead.id ? '0' : '-1',
             onclick: () => { s.planId = lead.id; drawResults(); },
-          }, tr('stuckpipe.res_plan_for', { name: tr(lead.nameKey, {}, lead.name).split(':')[0] })),
+          }, h('span', { class: 'sp-seg-text' }, tr('stuckpipe.res_plan_for', { name: leadLabel }))),
           h('button', {
-            type: 'button', class: planMech.id === alt.id ? 'on' : '',
+            type: 'button',
+            class: 'sp-seg-btn' + (planMech.id === alt.id ? ' on active' : ''),
+            role: 'tab',
+            'aria-selected': String(planMech.id === alt.id),
+            tabindex: planMech.id === alt.id ? '0' : '-1',
             onclick: () => { s.planId = alt.id; drawResults(); },
-          }, tr('stuckpipe.res_if_instead', { name: tr(alt.nameKey, {}, alt.name).split(':')[0] }))
+          }, h('span', { class: 'sp-seg-text' }, tr('stuckpipe.res_if_instead', { name: altLabel })))
         );
         planCard.append(seg);
 
@@ -597,28 +631,18 @@ export function mountStuckPipe(root, options = {}) {
         )
       );
 
-      // Action buttons: Jump to calculator & Add to log
-      const actions = h('div', { class: 'sp-row', style: 'margin-top:14px;' },
+      // Action button: Jump to calculator (expanded full width)
+      const actions = h('div', { class: 'sp-actions-wrap', style: 'margin-top:16px;' },
         h('button', {
-          type: 'button', class: 'sp-btn small',
+          type: 'button',
+          class: 'sp-btn w-full',
           onclick: () => {
             s.tab = 'calculate';
             s.calcTab = planMech.id === 'diff' ? 'diff' : 'free';
             redraw();
             window.scrollTo && window.scrollTo(0, 0);
           },
-        }, planMech.id === 'diff' ? tr('stuckpipe.calc.btn_estimate_force') : tr('stuckpipe.calc.btn_find_freepoint')),
-        h('button', {
-          type: 'button', class: 'sp-btn ghost small',
-          onclick: () => {
-            s.log.unshift({
-              time: new Date().toLocaleTimeString(),
-              note: `Diagnosis: ${leadName} ${pct(lead.prob)} (${confLevel})`,
-            });
-            store.set(key + '.log', s.log);
-            showToast(tr('stuckpipe.toast_added_log'));
-          },
-        }, tr('stuckpipe.log_btn_add'))
+        }, planMech.id === 'diff' ? tr('stuckpipe.calc.btn_estimate_force') : tr('stuckpipe.calc.btn_find_freepoint'))
       );
       planCard.append(actions);
 
@@ -909,41 +933,6 @@ export function mountStuckPipe(root, options = {}) {
       updateSpot();
     }
 
-    panel.append(card);
-  }
-
-  // ---------------------------------------------------------------- Log Section (behind showLog)
-  function renderLog() {
-    const card = h('section', { class: 'sp-card' });
-    card.append(h('h2', null, tr('stuckpipe.tab_log')));
-
-    if (!s.log.length) {
-      card.append(h('p', { class: 'sp-muted' }, tr('stuckpipe.log_empty')));
-    } else {
-      const list = h('div', { style: 'margin:12px 0;' },
-        s.log.map((item, idx) =>
-          h('div', { class: 'sp-log-item' },
-            h('div', { class: 'sp-log-meta' }, h('span', null, item.time)),
-            h('div', null, item.note)
-          )
-        )
-      );
-      const row = h('div', { class: 'sp-row' },
-        h('button', {
-          type: 'button', class: 'sp-btn ghost small',
-          onclick: () => { s.log = []; store.set(key + '.log', []); redraw(); },
-        }, tr('stuckpipe.log_clear')),
-        h('button', {
-          type: 'button', class: 'sp-btn small',
-          onclick: () => {
-            const rpt = buildReport({ input: s.input, result: diagnose(s.input), log: s.log, system: s.sys });
-            navigator.clipboard && navigator.clipboard.writeText(rpt);
-            showToast('Report copied to clipboard');
-          },
-        }, tr('stuckpipe.log_export'))
-      );
-      card.append(list, row);
-    }
     panel.append(card);
   }
 
