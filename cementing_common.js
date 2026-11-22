@@ -16,9 +16,31 @@
     root.getCasingOptions = exports.getCasingOptions;
     root.getHoleOptions = exports.getHoleOptions;
     root.getDrillPipeOptions = exports.getDrillPipeOptions;
+    root.FLUID_COLORS = exports.FLUID_COLORS;
+    root.renderFluidLegendHtml = exports.renderFluidLegendHtml;
+    root.getFluidLegendItems = exports.getFluidLegendItems;
+    root.relaxSchematicMarkers = exports.relaxSchematicMarkers;
+    root.renderSchematicCallouts = exports.renderSchematicCallouts;
+    root.formatVol = exports.formatVol;
+    root.formatDensity = exports.formatDensity;
+    root.formatPressure = exports.formatPressure;
+    root.formatPumpOutput = exports.formatPumpOutput;
+    root.getUnitSystem = exports.getUnitSystem;
+    root.getActiveUnit = exports.getActiveUnit;
   }
 }(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
+
+  // 7 Distinct, Non-Overlapping Schematic Fluid Colors
+  const FLUID_COLORS = Object.freeze({
+    holeFluid: '#C9D6DF',      // Cool Slate Gray (Original Well Mud in Annulus)
+    displacement: '#F2D388',   // Warm Amber Gold (Displacement inside Casing / DP)
+    mud1: '#E07B39',           // Burnt Orange (1st Pumping Mud)
+    mud2: '#9B59B6',           // Royal Purple (2nd Pumping Mud)
+    spacer: '#4A90D9',         // Cobalt Blue (Spacer)
+    lead: '#B5D99C',           // Light Sage Green (Lead Slurry)
+    tail: '#3E7D3A'            // Deep Forest Green (Tail Slurry)
+  });
 
   const M_PER_FT = 0.3048;
   const FT_PER_M = 1 / 0.3048;
@@ -158,12 +180,27 @@
       .sort((a, b) => (a.od_in - b.od_in) || (a.weight_ppf - b.weight_ppf));
   }
 
+  function getUnitSystem() {
+    if (typeof window !== 'undefined' && window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function') {
+      return window.UnitsEngine.getUnitSystem();
+    }
+    return 'mixed';
+  }
+
+  function getActiveUnit(quantityType, fallbackUnit) {
+    if (typeof window !== 'undefined' && window.UnitsEngine && typeof window.UnitsEngine.getUnit === 'function') {
+      return window.UnitsEngine.getUnit(quantityType, fallbackUnit);
+    }
+    return fallbackUnit;
+  }
+
   function formatCapValue(valBblFt, unit) {
     const v = Number(valBblFt) || 0;
-    if (unit === 'BBL/FT') {
+    const u = (unit || getActiveUnit('capacity', 'bbl/m')).toUpperCase();
+    if (u === 'BBL/FT') {
       return v.toFixed(5);
     }
-    if (unit === 'L/M' || unit === 'LTR/M') {
+    if (u === 'L/M' || u === 'LTR/M') {
       return (v * 158.9873 / M_PER_FT).toFixed(2);
     }
     // Default: BBL/M
@@ -172,14 +209,53 @@
 
   function parseCapValue(rawVal, unit) {
     const parsed = parseFloat(String(rawVal).replace(',', '.')) || 0;
-    if (unit === 'BBL/FT') {
+    const u = (unit || getActiveUnit('capacity', 'bbl/m')).toUpperCase();
+    if (u === 'BBL/FT') {
       return parsed;
     }
-    if (unit === 'L/M' || unit === 'LTR/M') {
+    if (u === 'L/M' || u === 'LTR/M') {
       return (parsed * M_PER_FT) / 158.9873;
     }
     // Default: BBL/M -> BBL/FT
     return parsed * M_PER_FT;
+  }
+
+  function formatVol(volBbl) {
+    const v = Number(volBbl) || 0;
+    const sys = getUnitSystem();
+    if (sys === 'si') {
+      return { val: (v * 0.158987294928).toFixed(2), unit: 'm³', full: (v * 0.158987294928).toFixed(2) + ' m³' };
+    }
+    return { val: v.toFixed(1), unit: 'bbl', full: v.toFixed(1) + ' bbl' };
+  }
+
+  function formatDensity(mwPpg) {
+    if (mwPpg === undefined || mwPpg === null || isNaN(Number(mwPpg))) return { val: '-', unit: '', full: '-' };
+    const v = Number(mwPpg);
+    const sys = getUnitSystem();
+    if (sys === 'si') {
+      return { val: (v * 0.119826427317).toFixed(2), unit: 'SG', full: (v * 0.119826427317).toFixed(2) + ' SG' };
+    }
+    return { val: v.toFixed(2), unit: 'ppg', full: v.toFixed(2) + ' ppg' };
+  }
+
+  function formatPressure(psiVal) {
+    if (psiVal === undefined || psiVal === null || isNaN(Number(psiVal))) return { val: '-', unit: '', full: '-' };
+    const v = Number(psiVal);
+    const sys = getUnitSystem();
+    if (sys === 'si') {
+      return { val: (v * 0.06894757293168).toFixed(1), unit: 'bar', full: (v * 0.06894757293168).toFixed(1) + ' bar' };
+    }
+    return { val: v.toFixed(0), unit: 'psi', full: v.toFixed(0) + ' psi' };
+  }
+
+  function formatPumpOutput(bblStk) {
+    const v = Number(bblStk) || 0;
+    const sys = getUnitSystem();
+    if (sys === 'si') {
+      return { val: (v * 158.987294928).toFixed(1), unit: 'L/stk', full: (v * 158.987294928).toFixed(1) + ' L/stk' };
+    }
+    return { val: v.toFixed(3), unit: 'bbl/stk', full: v.toFixed(3) + ' bbl/stk' };
   }
 
   function formatMetricDepth(ftVal, isMetric) {
@@ -531,8 +607,8 @@
       <tr class="cement-pumping-row">
         <td class="step-num" style="font-weight:700; color:var(--text-secondary); width:40px;">${step.step}</td>
         <td class="step-name" style="font-weight:600; color:var(--text-primary);">${t(step.name)}</td>
-        <td class="step-vol" style="text-align:right; font-family:'Roboto Mono',monospace; font-weight:700;">${step.volume.toFixed(1)} <span style="font-size:0.75rem; color:var(--text-secondary);">bbl</span></td>
-        <td class="step-mw" style="text-align:right; font-family:'Roboto Mono',monospace; color:var(--text-secondary);">${step.density > 0 ? step.density.toFixed(2) + ' ppg' : '—'}</td>
+        <td class="step-vol" style="text-align:right; font-family:'Roboto Mono',monospace; font-weight:700;">${formatVol(step.volume).val} <span style="font-size:0.75rem; color:var(--text-secondary);">${formatVol(step.volume).unit}</span></td>
+        <td class="step-mw" style="text-align:right; font-family:'Roboto Mono',monospace; color:var(--text-secondary);">${step.density > 0 ? formatDensity(step.density).full : '—'}</td>
       </tr>
     `).join('');
 
@@ -553,7 +629,7 @@
           <tfoot>
             <tr style="border-top:2px solid var(--border-subtle); font-weight:700;">
               <td colspan="2" style="padding:8px 8px; color:var(--text-primary);">${t('Total Pumped')}</td>
-              <td style="padding:8px 8px; text-align:right; font-family:'Roboto Mono',monospace; color:var(--primary); font-size:0.95rem;">${totalPumped.toFixed(1)} <span style="font-size:0.75rem;">bbl</span></td>
+              <td style="padding:8px 8px; text-align:right; font-family:'Roboto Mono',monospace; color:var(--primary); font-size:0.95rem;">${formatVol(totalPumped).val} <span style="font-size:0.75rem;">${formatVol(totalPumped).unit}</span></td>
               <td style="padding:8px 8px; text-align:right; color:var(--text-secondary);">—</td>
             </tr>
           </tfoot>
@@ -562,11 +638,279 @@
     `;
   }
 
+  /**
+   * Fluid Legend Model & Items Generator
+   */
+  function getFluidLegendItems(inp, res, isSurface) {
+    inp = inp || {};
+    res = res || {};
+
+    const holeMw = Number(inp.hole_fluid_mw || inp.mw) || 0;
+    const dispMw = Number(inp.disp_mw || inp.mw) || 0;
+    const dispVol = Number(res.disp_tot) || 0;
+
+    const f1Mw = Number(inp.f1_mw) || 0;
+    const f1Vol = Number(inp.f1_vol) || 0;
+
+    const f2Mw = Number(inp.f2_mw) || 0;
+    const f2Vol = Number(inp.f2_vol) || 0;
+
+    const spMw = Number(inp.sp_mw) || 0;
+    const spVol = Number(inp.sp_vol) || 0;
+
+    const leadMw = Number(inp.lead_mw) || 0;
+    const leadVol = Number(inp.lead_vol) || 0;
+
+    const tailMw = Number(inp.tail_mw) || 0;
+    const tailVol = Number(inp.tail_vol) || 0;
+
+    return [
+      {
+        id: 'hole_fluid',
+        name: 'Hole Fluid',
+        color: FLUID_COLORS.holeFluid,
+        density: holeMw > 0 ? formatDensity(holeMw).full : '—',
+        volume: 'In Hole',
+        active: true
+      },
+      {
+        id: 'displacement',
+        name: 'Displacement Fluid',
+        color: FLUID_COLORS.displacement,
+        density: dispMw > 0 ? formatDensity(dispMw).full : '—',
+        volume: dispVol > 0 ? formatVol(dispVol).full : '—',
+        active: dispVol > 0
+      },
+      {
+        id: 'mud1',
+        name: '1st Mud',
+        color: FLUID_COLORS.mud1,
+        density: f1Mw > 0 ? formatDensity(f1Mw).full : '—',
+        volume: f1Vol > 0 ? formatVol(f1Vol).full : formatVol(0).full,
+        active: f1Vol > 0
+      },
+      {
+        id: 'mud2',
+        name: '2nd Mud',
+        color: FLUID_COLORS.mud2,
+        density: f2Mw > 0 ? formatDensity(f2Mw).full : '—',
+        volume: f2Vol > 0 ? formatVol(f2Vol).full : formatVol(0).full,
+        active: f2Vol > 0
+      },
+      {
+        id: 'spacer',
+        name: 'Spacer',
+        color: FLUID_COLORS.spacer,
+        density: spMw > 0 ? formatDensity(spMw).full : '—',
+        volume: spVol > 0 ? formatVol(spVol).full : formatVol(0).full,
+        active: spVol > 0
+      },
+      {
+        id: 'lead',
+        name: 'Lead Slurry',
+        color: FLUID_COLORS.lead,
+        density: leadMw > 0 ? formatDensity(leadMw).full : '—',
+        volume: leadVol > 0 ? formatVol(leadVol).full : formatVol(0).full,
+        active: leadVol > 0
+      },
+      {
+        id: 'tail',
+        name: 'Tail Slurry',
+        color: FLUID_COLORS.tail,
+        density: tailMw > 0 ? formatDensity(tailMw).full : '—',
+        volume: tailVol > 0 ? formatVol(tailVol).full : formatVol(0).full,
+        active: tailVol > 0
+      }
+    ];
+  }
+
+  /**
+   * Render Responsive Color-Coded Fluid Legend Component
+   */
+  function renderFluidLegendHtml(inp, res, isSurface) {
+    const items = getFluidLegendItems(inp, res, isSurface);
+
+    const itemsHtml = items.map(item => `
+      <div class="cement-fluid-legend-item" style="display:flex; align-items:center; gap:8px; min-width:0; padding:3px 0;">
+        <span class="cement-fluid-legend-swatch" style="width:12px; height:12px; min-width:12px; border-radius:3px; background-color:${item.color}; border:1px solid rgba(0,0,0,0.15); box-sizing:border-box; flex-shrink:0;"></span>
+        <div class="cement-fluid-legend-info" style="min-width:0; flex:1; line-height:1.25;">
+          <div class="cement-fluid-legend-name" style="font-size:0.75rem; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${t(item.name)}
+          </div>
+          <div class="cement-fluid-legend-meta" style="font-size:0.68rem; color:var(--text-secondary); font-family:'Roboto Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${(typeof item.volume === 'string' && item.volume === 'In Hole') ? t('In Hole') : item.volume} · ${item.density}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="cement-fluid-legend-card" style="margin-top:14px; padding:12px 14px; background:var(--card-bg, #FFFFFF); border:1px solid var(--border-subtle); border-radius:10px;">
+        <div class="cement-fluid-legend-header" style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+          <span>${t('Fluid Placement Color Key')}</span>
+          <span style="font-size:0.68rem; font-weight:500; text-transform:none;">${t('7 Layers')}</span>
+        </div>
+        <div class="cement-fluid-legend-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:6px 12px;">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Automatic Vertical Collision Avoidance (Label De-Overlapping)
+   * Enforces minimum vertical spacing (minGap, default 18px) between adjacent markers.
+   * Handles identical depths via symmetrical cluster pre-centering.
+   */
+  function relaxSchematicMarkers(markers, minGap = 18, minY = 40, maxY = 765) {
+    if (!markers || markers.length === 0) return [];
+
+    // Make a shallow copy with mutable displayY
+    const list = markers.map(m => ({ ...m, displayY: m.targetY }));
+
+    // Sort ascending by true target depth Y
+    list.sort((a, b) => a.targetY - b.targetY);
+
+    // 1. Symmetrical cluster pre-centering for identical or near-identical depths (<= 4px)
+    let i = 0;
+    while (i < list.length) {
+      let j = i;
+      while (j + 1 < list.length && Math.abs(list[j + 1].targetY - list[j].targetY) <= 4) {
+        j++;
+      }
+      const count = j - i + 1;
+      if (count > 1) {
+        const clusterTargetY = list[i].targetY;
+        const startOffset = -((count - 1) / 2) * minGap;
+        for (let k = 0; k < count; k++) {
+          list[i + k].displayY = clusterTargetY + startOffset + k * minGap;
+        }
+      } else {
+        list[i].displayY = list[i].targetY;
+      }
+      i = j + 1;
+    }
+
+    // 2. Forward pass: ensure >= minGap separation
+    for (let k = 1; k < list.length; k++) {
+      if (list[k].displayY < list[k - 1].displayY + minGap) {
+        list[k].displayY = list[k - 1].displayY + minGap;
+      }
+    }
+
+    // 3. Backward pass: pull back if bottom exceeds maxY
+    if (list[list.length - 1].displayY > maxY) {
+      list[list.length - 1].displayY = maxY;
+      for (let k = list.length - 2; k >= 0; k--) {
+        if (list[k].displayY > list[k + 1].displayY - minGap) {
+          list[k].displayY = list[k + 1].displayY - minGap;
+        }
+      }
+    }
+
+    // 4. Top clamp pass: push forward if top exceeds minY
+    if (list[0].displayY < minY) {
+      list[0].displayY = minY;
+      for (let k = 1; k < list.length; k++) {
+        if (list[k].displayY < list[k - 1].displayY + minGap) {
+          list[k].displayY = list[k - 1].displayY + minGap;
+        }
+      }
+    }
+
+    return list;
+  }
+
+  /**
+   * Render Schematic Depth Callouts (Balanced Left and Right sides)
+   * Renders high-contrast rounded pill badges with crisp angled leader lines.
+   */
+  function renderSchematicCallouts(opts) {
+    const {
+      leftMarkers = [],
+      rightMarkers = [],
+      ohLeft = 195,
+      ohRight = 305,
+      leftTagRight = 135,
+      rightTagX = 365,
+      minGap = 18,
+      minY = 40,
+      maxY = 765
+    } = opts;
+
+    let svg = '';
+
+    // 1. Process and relax left markers (Structural / Geometry)
+    const relaxedLeft = relaxSchematicMarkers(leftMarkers, minGap, minY, maxY);
+    relaxedLeft.forEach(m => {
+      const tagW = Math.max(104, Math.min(145, Math.round(m.label.length * 5.6 + 10)));
+      const tagX = leftTagRight - tagW;
+      const tagH = 16;
+      const cy = Math.round(m.displayY * 10) / 10;
+      const ty = Math.round(m.targetY * 10) / 10;
+      const bg = m.bg || '#1E293B';
+      const text = m.text || '#FFFFFF';
+
+      svg += `<g class="schematic-callout-pill schematic-callout-left" data-side="left" data-target-y="${ty}" data-relaxed-y="${cy}">`;
+      // Angled or direct leader line
+      if (Math.abs(cy - ty) > 1.5) {
+        svg += `
+          <path class="schematic-leader-line" d="M ${leftTagRight} ${cy} L ${leftTagRight + 12} ${cy} L ${leftTagRight + 26} ${ty} L ${ohLeft} ${ty}" fill="none" stroke="#94A3B8" stroke-dasharray="2,2" stroke-width="1.2"/>
+        `;
+      } else {
+        svg += `
+          <line class="schematic-leader-direct" x1="${leftTagRight}" y1="${ty}" x2="${ohLeft}" y2="${ty}" stroke="#94A3B8" stroke-dasharray="2,2" stroke-width="1.2"/>
+        `;
+      }
+      // Tick mark dot at wellbore edge
+      svg += `<circle class="schematic-tick-dot" cx="${ohLeft}" cy="${ty}" r="2" fill="${bg}"/>`;
+      // Pill badge rect & text
+      svg += `
+        <rect x="${tagX}" y="${cy - tagH / 2}" width="${tagW}" height="${tagH}" rx="4" ry="4" fill="${bg}" opacity="0.95" stroke="#FFFFFF" stroke-width="0.5"/>
+        <text x="${tagX + tagW / 2}" y="${cy + 3.5}" font-size="${m.label.length > 20 ? '8' : '8.8'}" font-weight="700" fill="${text}" text-anchor="middle" font-family="'Outfit', sans-serif">${m.label}</text>
+      </g>`;
+    });
+
+    // 2. Process and relax right markers (Environmental & Fluid Tops)
+    const relaxedRight = relaxSchematicMarkers(rightMarkers, minGap, minY, maxY);
+    relaxedRight.forEach(m => {
+      const tagW = Math.max(104, Math.min(145, Math.round(m.label.length * 5.6 + 10)));
+      const tagX = rightTagX;
+      const tagH = 16;
+      const cy = Math.round(m.displayY * 10) / 10;
+      const ty = Math.round(m.targetY * 10) / 10;
+      const bg = m.bg || '#1E293B';
+      const text = m.text || '#FFFFFF';
+
+      svg += `<g class="schematic-callout-pill schematic-callout-right" data-side="right" data-target-y="${ty}" data-relaxed-y="${cy}">`;
+      // Angled or direct leader line
+      if (Math.abs(cy - ty) > 1.5) {
+        svg += `
+          <path class="schematic-leader-line" d="M ${ohRight} ${ty} L ${tagX - 26} ${ty} L ${tagX - 12} ${cy} L ${tagX} ${cy}" fill="none" stroke="#94A3B8" stroke-dasharray="2,2" stroke-width="1.2"/>
+        `;
+      } else {
+        svg += `
+          <line class="schematic-leader-direct" x1="${ohRight}" y1="${ty}" x2="${tagX}" y2="${ty}" stroke="#94A3B8" stroke-dasharray="2,2" stroke-width="1.2"/>
+        `;
+      }
+      // Tick mark dot at wellbore edge
+      svg += `<circle class="schematic-tick-dot" cx="${ohRight}" cy="${ty}" r="2" fill="${bg}"/>`;
+      // Pill badge rect & text
+      svg += `
+        <rect x="${tagX}" y="${cy - tagH / 2}" width="${tagW}" height="${tagH}" rx="4" ry="4" fill="${bg}" opacity="0.95" stroke="#FFFFFF" stroke-width="0.5"/>
+        <text x="${tagX + tagW / 2}" y="${cy + 3.5}" font-size="${m.label.length > 20 ? '8' : '8.8'}" font-weight="700" fill="${text}" text-anchor="middle" font-family="'Outfit', sans-serif">${m.label}</text>
+      </g>`;
+    });
+
+    return svg;
+  }
+
   return {
     M_PER_FT,
     FT_PER_M,
     CAPACITY_DATA,
     CASING_OD_LIST,
+    FLUID_COLORS,
     normalizeOd,
     getCasingOptions,
     getHoleOptions,
@@ -582,6 +926,16 @@
     openSchematicFullscreenModal,
     closeSchematicFullscreenModal,
     bindSchematicLayerClicks,
-    renderPumpingSequenceTable
+    renderPumpingSequenceTable,
+    getFluidLegendItems,
+    renderFluidLegendHtml,
+    getUnitSystem,
+    getActiveUnit,
+    formatVol,
+    formatDensity,
+    formatPressure,
+    formatPumpOutput,
+    relaxSchematicMarkers,
+    renderSchematicCallouts
   };
 }));

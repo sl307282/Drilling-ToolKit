@@ -106,6 +106,12 @@
 
   function fmtCap(capFtVal, isMetric, dec = 5) {
     if (capFtVal === undefined || capFtVal === null || capFtVal === '' || isNaN(capFtVal)) return '-';
+    if (typeof UnitsEngine !== 'undefined' && typeof UnitsEngine.toDisplay === 'function') {
+      const converted = UnitsEngine.toDisplay(Number(capFtVal), 'capacity');
+      const targetUnit = UnitsEngine.getUnit('capacity');
+      const precision = targetUnit === 'L/m' ? 3 : dec;
+      return Number(converted).toFixed(precision);
+    }
     const val = isMetric ? (Number(capFtVal) / M_PER_FT) : Number(capFtVal);
     return Number(val).toFixed(dec);
   }
@@ -150,14 +156,62 @@
     const unit = cementingState.unit || 'm';
     const isMetric = unit === 'm';
     const depthUnit = isMetric ? 'm' : 'ft';
-    const capUnit = isMetric ? 'bbl/m' : 'bbl/ft';
+
+    const activeSys = (typeof UnitsEngine !== 'undefined' && typeof UnitsEngine.getUnitSystem === 'function')
+      ? UnitsEngine.getUnitSystem()
+      : (isMetric ? 'si' : 'api');
+    let unitSystemLabel;
+    if (activeSys === 'api') {
+      unitSystemLabel = 'OILFIELD UNITS (API)';
+    } else if (activeSys === 'si') {
+      unitSystemLabel = 'METRIC UNITS (SI)';
+    } else {
+      unitSystemLabel = isMetric ? 'MIXED UNITS (m, bbl, ppg)' : 'OILFIELD (ft, bbl, ppg)';
+    }
+
+    const fmtV = (val, dec = 1) => {
+      if (window.CementingCommon && typeof window.CementingCommon.formatVol === 'function') {
+        return window.CementingCommon.formatVol(val, false);
+      }
+      return { val: fmtNum(val, dec), unit: 'bbl', full: `${fmtNum(val, dec)} bbl` };
+    };
+    const fmtMW = (val, dec = 2) => {
+      if (window.CementingCommon && typeof window.CementingCommon.formatDensity === 'function') {
+        return window.CementingCommon.formatDensity(val);
+      }
+      return { val: fmtNum(val, dec), unit: 'ppg', full: `${fmtNum(val, dec)} ppg` };
+    };
+    const fmtP = (val, dec = 0) => {
+      if (window.CementingCommon && typeof window.CementingCommon.formatPressure === 'function') {
+        return window.CementingCommon.formatPressure(val);
+      }
+      return { val: fmtNum(val, dec), unit: 'psi', full: `${fmtNum(val, dec)} psi` };
+    };
+    const fmtPO = (val, dec = 3) => {
+      if (window.CementingCommon && typeof window.CementingCommon.formatPumpOutput === 'function') {
+        return window.CementingCommon.formatPumpOutput(val);
+      }
+      return { val: fmtNum(val, dec), unit: 'bbl/stk', full: `${fmtNum(val, dec)} bbl/stk` };
+    };
+
+    const volUnit = fmtV(0).unit;
+    const mwUnit = fmtMW(0).unit;
+    const pressUnit = fmtP(0).unit;
+    const pumpOutUnit = fmtPO(0).unit;
+    const capUnit = (typeof UnitsEngine !== 'undefined' && typeof UnitsEngine.getUnit === 'function')
+      ? UnitsEngine.getUnit('capacity')
+      : (isMetric ? 'bbl/m' : 'bbl/ft');
 
     const sectionName = (inp && inp.name) || cementingState.jobName || 'Well Cementing Job';
     const presetLabel = (cementingState.sectionPresets && cementingState.sectionPresets[cementingState.section] && cementingState.sectionPresets[cementingState.section].label)
       || (inp && inp.sectionLabel) || cementingState.section || 'Subsea Wellhead';
     const model = (inp && inp.model) || (result && result.model) || 'subsea';
-    const modelLabel = model === 'riserless' ? 'RISERLESS CASING' : 'SUBSEA WELLHEAD';
-    const unitSystemLabel = isMetric ? 'METRIC (m, bbl, ppg)' : 'OILFIELD (ft, bbl, ppg)';
+    const isSurface = Boolean(options.isSurface || cementingState.isSurface || model === 'conductor' || model === 'surface_casing' || model === 'surface_conductor');
+    const modelLabel = isSurface
+      ? (model === 'conductor' || model === 'surface_conductor' ? 'CONDUCTOR CASING' : (model === 'surface_casing' ? 'SURFACE WELLHEAD' : 'CUSTOM SECTION'))
+      : (model === 'riserless' ? 'RISERLESS CASING' : 'SUBSEA WELLHEAD');
+    const reportTitle = isSurface ? t('Surface Cementing Job Plan') : t('Subsea Cementing Job Plan');
+    const runningHeaderTitle = isSurface ? t('DRILLING TOOLKIT · SURFACE WELLHEAD CEMENTING PLAN') : t('DRILLING TOOLKIT · SUBSEA WELLHEAD CEMENTING PLAN');
     const dateStr = new Date().toLocaleString();
 
     // Palette
@@ -184,7 +238,7 @@
       doc.setFont(primaryFont, 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(cNavy[0], cNavy[1], cNavy[2]);
-      doc.text(t('DRILLING TOOLKIT · SUBSEA WELLHEAD CEMENTING PLAN'), margin, 10);
+      doc.text(runningHeaderTitle, margin, 10);
 
       doc.setFont(primaryFont, 'normal');
       doc.setFontSize(7);
@@ -211,7 +265,7 @@
     doc.setTextColor(255, 255, 255);
     doc.setFont(primaryFont, 'bold');
     doc.setFontSize(14);
-    doc.text(t('Subsea Cementing Job Plan'), margin + 6, yPos + 8);
+    doc.text(reportTitle, margin + 6, yPos + 8);
 
     doc.setFont(primaryFont, 'normal');
     doc.setFontSize(9);
@@ -232,13 +286,13 @@
     yPos += 3;
 
     const shoeDisp = fmtDepth(inp.shoe, unit);
-    const totSlurryDisp = fmtNum(result.total_slurry, 1) + ' bbl';
-    const totPumpDisp = fmtNum(result.total_pumped, 1) + ' bbl';
-    const emwShoeDisp = result.emw_shoe !== undefined ? fmtNum(result.emw_shoe, 2) + ' ppg' : '-';
-    const diffPressDisp = fmtNum(result.diff_press, 0) + ' psi';
-    const annFcDisp = fmtNum(result.p_ann_fc, 0) + ' psi';
+    const totSlurryDisp = fmtV(result.total_slurry).full;
+    const totPumpDisp = fmtV(result.total_pumped).full;
+    const emwShoeDisp = result.emw_shoe !== undefined ? fmtMW(result.emw_shoe).full : '-';
+    const diffPressDisp = fmtP(result.diff_press).full;
+    const annFcDisp = fmtP(result.p_ann_fc).full;
     const colSfDisp = (result.collapse_sf !== undefined && result.collapse_sf !== null) ? fmtNum(result.collapse_sf, 2) : '-';
-    const pumpPressDisp = (model === 'subsea' ? fmtNum(result.bump_pressure, 0) : fmtNum(inp.max_pump_pressure, 0)) + ' psi';
+    const pumpPressDisp = ((model === 'subsea' || model === 'surface_casing') ? fmtP(result.bump_pressure).full : fmtP(inp.max_pump_pressure).full);
 
     const kpiData = [
       [
@@ -258,7 +312,7 @@
         font: primaryFont, halign: 'center' } },
         { content: 'Collapse SF\n' + colSfDisp, styles: {
         font: primaryFont, halign: 'center' } },
-        { content: (model === 'subsea' ? 'Bump Pressure\n' : 'Max Pump Press\n') + pumpPressDisp, styles: {
+        { content: ((model === 'subsea' || model === 'surface_casing') ? 'Bump Pressure\n' : 'Max Pump Press\n') + pumpPressDisp, styles: {
         font: primaryFont, halign: 'center' } }
       ]
     ];
@@ -292,8 +346,12 @@
     const hangerOrMudlineVal = model === 'riserless' ? fmtDepth(inp.mudline, unit) : fmtDepth(inp.hanger, unit);
 
     let caps = null;
-    if (typeof window !== 'undefined' && typeof window.computeJobCapacities === 'function') {
-      caps = window.computeJobCapacities(inp, cementingState.overrides);
+    if (typeof window !== 'undefined') {
+      if (isSurface && typeof window.computeSurfaceCapacities === 'function') {
+        caps = window.computeSurfaceCapacities(inp, cementingState.overrides);
+      } else if (typeof window.computeJobCapacities === 'function') {
+        caps = window.computeJobCapacities(inp, cementingState.overrides);
+      }
     }
     const csg = caps ? caps.csg : null;
     const dp = caps ? caps.dp : null;
@@ -309,18 +367,45 @@
 
     const effectiveCaps = (caps && caps.effective) ? caps.effective : inp;
 
-    const wellGeoData = [
-      [t('Air Gap'), `${fmtDepth(inp.air_gap, unit)} ${depthUnit}`, t('Hole Size OD'), `${holeSizeDisplay} (${fmtNum(inp.excess_pct, 0)}% excess)`],
-      [t('Water Depth'), `${fmtDepth(inp.water_depth, unit)} ${depthUnit}`, t('Casing OD / Weight'), `${csgOdDisplay} / ${csgWtDisplay}`],
-      [hangerOrMudlineLabel, `${hangerOrMudlineVal} ${depthUnit}`, t('Casing ID / Grade'), `${csgIdDisplay} / ${csgGradeDisplay}`],
-      [t('Previous Shoe'), inp.prev_shoe > 0 ? `${fmtDepth(inp.prev_shoe, unit)} ${depthUnit}` : 'N/A (Conductor)', t('Casing Capacity'), `${fmtCap(effectiveCaps.cap_csg, isMetric)} ${capUnit}`],
-      [t('Casing Shoe Depth'), `${fmtDepth(inp.shoe, unit)} ${depthUnit}`, t('Open Hole Annulus Cap'), `${fmtCap(effectiveCaps.cap_ann_oh, isMetric)} ${capUnit}`],
-      [t('Shoe Track Length'), `${fmtDepth(inp.shoe_track_len, unit)} ${depthUnit}`, t('Cased Annulus Cap'), `${fmtCap(effectiveCaps.cap_ann_c, isMetric)} ${capUnit}`],
-      [t('Total Depth (TD)'), `${fmtDepth(inp.td, unit)} ${depthUnit}`, t('Inner String / DP OD'), `${dpOdDisplay} (${fmtCap(effectiveCaps.cap_dp, isMetric)} ${capUnit})`]
-    ];
+    let wellGeoData = [];
+    if (isSurface) {
+      if (model === 'conductor' || model === 'surface_conductor') {
+        const datumLabel = inp.rig_type === 'land' ? t('Ground Level (RKB)') : t('Seabed Depth (RKB)');
+        wellGeoData = [
+          [t('Rig Type'), inp.rig_type === 'land' ? 'Land Rig' : 'Jack-up Rig', t('Hole Size OD'), `${holeSizeDisplay} (${fmtNum(inp.excess_pct, 0)}% excess)`],
+          [datumLabel, `${fmtDepth(inp.seabed, unit)} ${depthUnit}`, t('Casing OD / Weight'), `${csgOdDisplay} / ${csgWtDisplay}`],
+          [t('Previous Shoe'), 'N/A (Conductor)', t('Casing ID / Grade'), `${csgIdDisplay} / ${csgGradeDisplay}`],
+          [t('Casing Shoe Depth'), `${fmtDepth(inp.shoe, unit)} ${depthUnit}`, t('Casing Capacity'), `${fmtCap(effectiveCaps.cap_csg, isMetric)} ${capUnit}`],
+          [t('Shoe Track Length'), `${fmtDepth(inp.shoe_track_len, unit)} ${depthUnit}`, t('Open Hole Annulus Cap'), `${fmtCap(effectiveCaps.cap_ann_oh, isMetric)} ${capUnit}`],
+          [t('Hole Depth (MD)'), `${fmtDepth(inp.td, unit)} ${depthUnit}`, t('Inner String / DP OD'), `${dpOdDisplay} (${fmtCap(effectiveCaps.cap_dp, isMetric)} ${capUnit})`]
+        ];
+        if (inp.rig_type === 'jack-up') {
+          wellGeoData.push([t('Seawater MW'), `${fmtMW(inp.seawater_mw).val} ${mwUnit}`, t('Open Hole Capacity'), `${fmtCap(effectiveCaps.cap_oh, isMetric)} ${capUnit}`]);
+        }
+      } else {
+        wellGeoData = [
+          [t('Previous Shoe'), inp.prev_shoe > 0 ? `${fmtDepth(inp.prev_shoe, unit)} ${depthUnit}` : 'N/A', t('Hole Size OD'), `${holeSizeDisplay} (${fmtNum(inp.excess_pct, 0)}% excess)`],
+          [t('Planned TOC'), `${fmtDepth(inp.planned_toc, unit)} ${depthUnit}`, t('Casing OD / Weight'), `${csgOdDisplay} / ${csgWtDisplay}`],
+          [t('Casing Shoe Depth'), `${fmtDepth(inp.shoe, unit)} ${depthUnit}`, t('Casing ID / Grade'), `${csgIdDisplay} / ${csgGradeDisplay}`],
+          [t('Shoe Track Length'), `${fmtDepth(inp.shoe_track_len, unit)} ${depthUnit}`, t('Casing Capacity'), `${fmtCap(effectiveCaps.cap_csg, isMetric)} ${capUnit}`],
+          [t('Hole Depth (MD)'), `${fmtDepth(inp.td, unit)} ${depthUnit}`, t('Open Hole Annulus Cap'), `${fmtCap(effectiveCaps.cap_ann_oh, isMetric)} ${capUnit}`],
+          [t('Float Collar Depth'), `${fmtDepth(Math.max(0, (Number(inp.shoe) || 0) - (Number(inp.shoe_track_len) || 0)), unit)} ${depthUnit}`, t('Cased Annulus Cap'), `${fmtCap(effectiveCaps.cap_ann_c, isMetric)} ${capUnit}`]
+        ];
+      }
+    } else {
+      wellGeoData = [
+        [t('Air Gap'), `${fmtDepth(inp.air_gap, unit)} ${depthUnit}`, t('Hole Size OD'), `${holeSizeDisplay} (${fmtNum(inp.excess_pct, 0)}% excess)`],
+        [t('Water Depth'), `${fmtDepth(inp.water_depth, unit)} ${depthUnit}`, t('Casing OD / Weight'), `${csgOdDisplay} / ${csgWtDisplay}`],
+        [hangerOrMudlineLabel, `${hangerOrMudlineVal} ${depthUnit}`, t('Casing ID / Grade'), `${csgIdDisplay} / ${csgGradeDisplay}`],
+        [t('Previous Shoe'), inp.prev_shoe > 0 ? `${fmtDepth(inp.prev_shoe, unit)} ${depthUnit}` : 'N/A (Conductor)', t('Casing Capacity'), `${fmtCap(effectiveCaps.cap_csg, isMetric)} ${capUnit}`],
+        [t('Casing Shoe Depth'), `${fmtDepth(inp.shoe, unit)} ${depthUnit}`, t('Open Hole Annulus Cap'), `${fmtCap(effectiveCaps.cap_ann_oh, isMetric)} ${capUnit}`],
+        [t('Shoe Track Length'), `${fmtDepth(inp.shoe_track_len, unit)} ${depthUnit}`, t('Cased Annulus Cap'), `${fmtCap(effectiveCaps.cap_ann_c, isMetric)} ${capUnit}`],
+        [t('Hole Depth (MD)'), `${fmtDepth(inp.td, unit)} ${depthUnit}`, t('Inner String / DP OD'), `${dpOdDisplay} (${fmtCap(effectiveCaps.cap_dp, isMetric)} ${capUnit})`]
+      ];
 
-    if (model === 'subsea') {
-      wellGeoData.push([t('Marine Riser ID'), `${riserIdDisplay}`, t('Marine Riser Cap'), `${fmtCap(effectiveCaps.cap_riser, isMetric)} ${capUnit}`]);
+      if (model === 'subsea') {
+        wellGeoData.push([t('Marine Riser ID'), `${riserIdDisplay}`, t('Marine Riser Cap'), `${fmtCap(effectiveCaps.cap_riser, isMetric)} ${capUnit}`]);
+      }
     }
 
     doc.autoTable({
@@ -365,10 +450,10 @@
 
     const pumpSeq = result.pumping_sequence || [];
     const pumpSeqRows = pumpSeq.map(s => {
-      const vol = Number(s.volume || 0).toFixed(1);
-      const mw = Number(s.density || 0).toFixed(1);
+      const vol = fmtV(s.volume || 0).val;
+      const mw = fmtMW(s.density || 0).val;
       const stks = Number(inp.pump_output) > 0 ? (s.volume / Number(inp.pump_output)).toFixed(0) : '-';
-      return [s.step, s.name, `${vol} bbl`, `${mw} ppg`, stks];
+      return [s.step, s.name, `${vol} ${volUnit}`, `${mw} ${mwUnit}`, stks];
     });
 
     // Total row
@@ -378,7 +463,7 @@
         font: primaryFont, fontStyle: 'bold' } },
       { content: t('Total Pumped Volume'), styles: {
         font: primaryFont, fontStyle: 'bold' } },
-      { content: `${fmtNum(result.total_pumped, 1)} bbl`, styles: {
+      { content: `${fmtV(result.total_pumped || 0).val} ${volUnit}`, styles: {
         font: primaryFont, fontStyle: 'bold' } },
       { content: '-', styles: {
         font: primaryFont, fontStyle: 'bold', halign: 'center' } },
@@ -390,7 +475,7 @@
       startY: yPos,
       margin: { left: margin, right: margin },
       theme: 'grid',
-      head: [['Step #', 'Fluid Description', 'Volume (bbl)', 'Density (ppg)', 'Pump Strokes (stk)']],
+      head: [['Step #', 'Fluid Description', `Volume (${volUnit})`, `Density (${mwUnit})`, 'Pump Strokes (stk)']],
       body: pumpSeqRows,
       headStyles: {
         font: primaryFont,
@@ -425,14 +510,14 @@
     doc.setFontSize(6.8);
     doc.setTextColor(cMuted[0], cMuted[1], cMuted[2]);
     const dispNotes = [
-      `Displacement: ${fmtNum(result.disp_tot, 1)} bbl (${fmtNum(result.strokes, 0)} stk @ ${fmtNum(inp.pump_output, 3)} bbl/stk)`
+      `Displacement: ${fmtV(result.disp_tot).full} (${fmtNum(result.strokes, 0)} stk @ ${fmtPO(inp.pump_output).full})`
     ];
     if (model === 'subsea') {
-      dispNotes.push(`Max Disp No Bump: ${fmtNum(result.max_disp_no_bump, 1)} bbl`);
-      dispNotes.push(`Bottom Plug Lands: ${fmtNum(result.bottom_plug_lands, 1)} bbl`);
+      dispNotes.push(`Max Disp No Bump: ${fmtV(result.max_disp_no_bump).full}`);
+      dispNotes.push(`Bottom Plug Lands: ${fmtV(result.bottom_plug_lands).full}`);
     } else {
-      dispNotes.push(`Shoe Track Vol: ${fmtNum(result.st_vol, 1)} bbl`);
-      dispNotes.push(`Rathole Vol: ${fmtNum(result.rat_vol, 1)} bbl`);
+      dispNotes.push(`Shoe Track Vol: ${fmtV(result.st_vol).full}`);
+      dispNotes.push(`Rathole Vol: ${fmtV(result.rat_vol).full}`);
     }
     doc.text(dispNotes.join('   |   '), margin, yPos + 3);
 
@@ -456,9 +541,13 @@
     const tocVal = fmtEngineDepth(result.toc, isMetric) + ' ' + depthUnit;
     const tailTopVal = fmtEngineDepth(result.tail_top, isMetric) + ' ' + depthUnit;
     const spTopVal = fmtEngineDepth(result.sp_top, isMetric) + ' ' + depthUnit;
-    const subseaOrRiserlessPlacement = model === 'riserless'
-      ? `TOC Below Mudline: ${fmtEngineDepth(result.toc_below_mudline, isMetric)} ${depthUnit}   |   Seabed Cement Returns: ${fmtNum(result.cement_returns_seabed, 1)} bbl`
-      : `Cement in Riser: ${fmtEngineDepth(result.cement_in_riser, isMetric)} ${depthUnit}   |   Returns at Surface: ${fmtNum(result.returns_surface, 1)} bbl`;
+    const subseaOrRiserlessPlacement = isSurface
+      ? (model === 'conductor' || model === 'surface_conductor'
+          ? (inp.rig_type === 'land' ? `Ground Level Cement Returns: ${fmtV(result.returns_surface || 0).full}` : `Seabed Cement Returns: ${fmtV(result.cement_returns_seabed || 0).full}`)
+          : `Cement Returns at Surface: ${fmtV(result.returns_surface || result.cement_returns_surface || 0).full}   |   TOC Above Plan: ${fmtEngineDepth(result.toc_above_plan || 0, isMetric)} ${depthUnit}`)
+      : (model === 'riserless'
+          ? `TOC Below Mudline: ${fmtEngineDepth(result.toc_below_mudline, isMetric)} ${depthUnit}   |   Seabed Cement Returns: ${fmtV(result.cement_returns_seabed || 0).full}`
+          : `Cement in Riser: ${fmtEngineDepth(result.cement_in_riser, isMetric)} ${depthUnit}   |   Returns at Surface: ${fmtV(result.returns_surface || 0).full}`);
 
     const placementMetrics = [
       [
@@ -468,7 +557,7 @@
         font: primaryFont, halign: 'center' } },
         { content: 'Spacer Top\n' + spTopVal, styles: {
         font: primaryFont, halign: 'center' } },
-        { content: 'Total Slurry Vol\n' + fmtNum(result.total_slurry, 1) + ' bbl', styles: {
+        { content: 'Total Slurry Vol\n' + fmtV(result.total_slurry).full, styles: {
         font: primaryFont, halign: 'center', fontStyle: 'bold' } }
       ]
     ];
@@ -500,20 +589,20 @@
     // Rise Breakdown Table
     const riseTableRows = [];
     if (Number(inp.tail_vol || 0) > 0 || (result.rise_tail || 0) > 0) {
-      riseTableRows.push([t('Tail Slurry'), `${fmtNum(inp.tail_vol, 1)} bbl`, `${fmtEngineDepth(result.rise_tail, isMetric)} ${depthUnit}`]);
+      riseTableRows.push([t('Tail Slurry'), `${fmtV(inp.tail_vol || 0).val} ${volUnit}`, `${fmtEngineDepth(result.rise_tail, isMetric)} ${depthUnit}`]);
     }
-    riseTableRows.push([t('Lead Slurry'), `${fmtNum(inp.lead_vol, 1)} bbl`, `${fmtEngineDepth(result.rise_lead, isMetric)} ${depthUnit}`]);
-    riseTableRows.push([t('Spacer'), `${fmtNum(inp.sp_vol, 1)} bbl`, `${fmtEngineDepth(result.rise_sp, isMetric)} ${depthUnit}`]);
+    riseTableRows.push([t('Lead Slurry'), `${fmtV(inp.lead_vol || 0).val} ${volUnit}`, `${fmtEngineDepth(result.rise_lead, isMetric)} ${depthUnit}`]);
+    riseTableRows.push([t('Spacer'), `${fmtV(inp.sp_vol || 0).val} ${volUnit}`, `${fmtEngineDepth(result.rise_sp, isMetric)} ${depthUnit}`]);
     if (Number(inp.f2_vol || 0) > 0) {
-      riseTableRows.push([t('2nd Mud Wash'), `${fmtNum(inp.f2_vol, 1)} bbl`, `${fmtEngineDepth(result.rise_f2, isMetric)} ${depthUnit}`]);
+      riseTableRows.push([t('2nd Mud Wash'), `${fmtV(inp.f2_vol).val} ${volUnit}`, `${fmtEngineDepth(result.rise_f2, isMetric)} ${depthUnit}`]);
     }
     if (Number(inp.f1_vol || 0) > 0) {
-      riseTableRows.push([t('1st Mud Wash'), `${fmtNum(inp.f1_vol, 1)} bbl`, `${fmtEngineDepth(result.rise_f1, isMetric)} ${depthUnit}`]);
+      riseTableRows.push([t('1st Mud Wash'), `${fmtV(inp.f1_vol).val} ${volUnit}`, `${fmtEngineDepth(result.rise_f1, isMetric)} ${depthUnit}`]);
     }
     riseTableRows.push([
       { content: t('Total Cement Rise in Annulus'), styles: {
         font: primaryFont, fontStyle: 'bold' } },
-      { content: `${fmtNum(result.total_slurry, 1)} bbl`, styles: {
+      { content: `${fmtV(result.total_slurry || 0).val} ${volUnit}`, styles: {
         font: primaryFont, fontStyle: 'bold' } },
       { content: `${fmtEngineDepth(result.rise_tot, isMetric)} ${depthUnit}`, styles: {
         font: primaryFont, fontStyle: 'bold', textColor: cNavy } }
@@ -523,7 +612,7 @@
       startY: yPos,
       margin: { left: margin, right: margin },
       theme: 'grid',
-      head: [['Annular Interval', 'Pumped Volume (bbl)', 'Rise Height']],
+      head: [['Annular Interval', `Pumped Volume (${volUnit})`, 'Rise Height']],
       body: riseTableRows,
       headStyles: {
         font: primaryFont,
@@ -559,27 +648,27 @@
     yPos += 3;
 
     const hydRows = [
-      [t('Float Collar'), `${fmtNum(result.p_ann_fc, 0)} psi`, `${fmtNum(result.emw_fc, 2)} ppg`, '-'],
-      [t('Casing Shoe'), `${fmtNum(result.p_ann_shoe, 0)} psi`, `${fmtNum(result.emw_shoe, 2)} ppg`, '-']
+      [t('Float Collar'), fmtP(result.p_ann_fc || 0).full, fmtMW(result.emw_fc || 0).full, '-'],
+      [t('Casing Shoe'), fmtP(result.p_ann_shoe || 0).full, fmtMW(result.emw_shoe || 0).full, '-']
     ];
 
     if (result.emw_prev_shoe !== undefined) {
       const lotMarginStr = result.lot_margin !== undefined
-        ? `${result.lot_margin >= 0 ? '+' : ''}${fmtNum(result.lot_margin, 2)} ppg (LOT ${fmtNum(inp.lot, 1)} ppg)`
+        ? `${result.lot_margin >= 0 ? '+' : ''}${fmtMW(result.lot_margin).full} (LOT ${fmtMW(inp.lot).full})`
         : '-';
-      hydRows.push([t('Previous Shoe'), `${fmtNum(result.p_prev_shoe, 0)} psi`, `${fmtNum(result.emw_prev_shoe, 2)} ppg`, lotMarginStr]);
+      hydRows.push([t('Previous Shoe'), (result.p_prev_shoe !== undefined ? fmtP(result.p_prev_shoe).full : '-'), fmtMW(result.emw_prev_shoe).full, lotMarginStr]);
     }
 
-    const pumpOrBumpLimit = model === 'subsea'
-      ? [`Bump Pressure`, `${fmtNum(result.bump_pressure, 0)} psi`, '-', `<= ${fmtNum(result.burst_limit, 0)} psi (80% burst)`]
-      : [`Max Pump Pressure`, `${fmtNum(inp.max_pump_pressure, 0)} psi`, '-', `<= ${fmtNum(result.burst_limit, 0)} psi (80% burst)`];
+    const pumpOrBumpLimit = (model === 'subsea' || model === 'surface_casing')
+      ? [`Bump Pressure`, fmtP(result.bump_pressure || 0).full, '-', `<= ${fmtP(result.burst_limit || 0).full} (80% burst)`]
+      : [`Max Pump Pressure`, fmtP(inp.max_pump_pressure || 0).full, '-', `<= ${fmtP(result.burst_limit || 0).full} (80% burst)`];
     hydRows.push(pumpOrBumpLimit);
 
     doc.autoTable({
       startY: yPos,
       margin: { left: margin, right: margin },
       theme: 'grid',
-      head: [['Pressure Datum', 'Hydrostatic / Annulus Pressure', 'Equivalent Mud Weight (EMW)', 'Safety Limit / LOT Margin']],
+      head: [['Pressure Datum', `Hydrostatic / Annulus Pressure (${pressUnit})`, `Equivalent Mud Weight (${mwUnit})`, 'Safety Limit / LOT Margin']],
       body: hydRows,
       headStyles: {
         font: primaryFont,
@@ -612,7 +701,7 @@
     doc.setFont(primaryFont, 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(cMuted[0], cMuted[1], cMuted[2]);
-    const floatStatusNote = `Float Status: ${result.diff_meaning || '-'}   |   Diff Press: ${fmtNum(result.diff_press, 0)} psi   |   Collapse SF: ${fmtNum(result.collapse_sf, 2)}`;
+    const floatStatusNote = `Float Status: ${result.diff_meaning || '-'}   |   Diff Press: ${fmtP(result.diff_press || 0).full}   |   Collapse SF: ${fmtNum(result.collapse_sf, 2)}`;
     doc.text(floatStatusNote, margin, yPos + 2);
     yPos += 6;
 
@@ -702,9 +791,13 @@
       }
     }
 
-    if (!svgMarkup && typeof window !== 'undefined' && typeof window.renderWellCementingSchematic === 'function') {
-      const engineInp = (typeof window.getEngineInputs === 'function') ? window.getEngineInputs() : inp;
-      svgMarkup = window.renderWellCementingSchematic(result, engineInp, unit);
+    if (!svgMarkup && typeof window !== 'undefined') {
+      if (isSurface && typeof window.renderSurfaceSchematicSvg === 'function') {
+        svgMarkup = window.renderSurfaceSchematicSvg(result, inp, unit);
+      } else if (typeof window.renderWellCementingSchematic === 'function') {
+        const engineInp = (typeof window.getEngineInputs === 'function') ? window.getEngineInputs() : inp;
+        svgMarkup = window.renderWellCementingSchematic(result, engineInp, unit);
+      }
     }
 
     let pngDataUrl = null;
@@ -740,7 +833,7 @@
           `TOC: ${tocVal}`,
           `Tail Top: ${tailTopVal}`,
           `Shoe: ${shoeDisp} ${depthUnit}`,
-          `TD: ${fmtDepth(inp.td, unit)} ${depthUnit}`
+          `Hole Depth (MD): ${fmtDepth(inp.td, unit)} ${depthUnit}`
         ]
       ];
 
@@ -767,6 +860,79 @@
       doc.setTextColor(cMuted[0], cMuted[1], cMuted[2]);
       doc.text(t('Schematic preview available in interactive viewer on device.'), margin + 10, yPos + 40);
     }
+
+    // Fluid Placement & Color Key Table below Schematic
+    const fluidItems = (typeof window !== 'undefined' && window.CementingCommon && typeof window.CementingCommon.getFluidLegendItems === 'function')
+      ? window.CementingCommon.getFluidLegendItems(inp, result, isSurface)
+      : [
+          { name: 'Hole Fluid', color: '#C9D6DF', density: fmtMW(inp.hole_fluid_mw || inp.mw || 0).full, volume: 'In Hole' },
+          { name: 'Displacement Fluid', color: '#F2D388', density: fmtMW(inp.disp_mw || inp.mw || 0).full, volume: fmtV(result.disp_tot || 0).full },
+          { name: '1st Mud', color: '#E07B39', density: Number(inp.f1_mw) > 0 ? fmtMW(inp.f1_mw).full : '—', volume: Number(inp.f1_vol) > 0 ? fmtV(inp.f1_vol).full : `0.0 ${volUnit}` },
+          { name: '2nd Mud', color: '#9B59B6', density: Number(inp.f2_mw) > 0 ? fmtMW(inp.f2_mw).full : '—', volume: Number(inp.f2_vol) > 0 ? fmtV(inp.f2_vol).full : `0.0 ${volUnit}` },
+          { name: 'Spacer', color: '#4A90D9', density: Number(inp.sp_mw) > 0 ? fmtMW(inp.sp_mw).full : '—', volume: Number(inp.sp_vol) > 0 ? fmtV(inp.sp_vol).full : `0.0 ${volUnit}` },
+          { name: 'Lead Slurry', color: '#B5D99C', density: Number(inp.lead_mw) > 0 ? fmtMW(inp.lead_mw).full : '—', volume: Number(inp.lead_vol) > 0 ? fmtV(inp.lead_vol).full : `0.0 ${volUnit}` },
+          { name: 'Tail Slurry', color: '#3E7D3A', density: Number(inp.tail_mw) > 0 ? fmtMW(inp.tail_mw).full : '—', volume: Number(inp.tail_vol) > 0 ? fmtV(inp.tail_vol).full : `0.0 ${volUnit}` }
+        ];
+
+    const legendStartY = doc.lastAutoTable ? (doc.lastAutoTable.finalY + 4) : (yPos + 85);
+    doc.setFont(primaryFont, 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(cNavy[0], cNavy[1], cNavy[2]);
+    doc.text(t('FLUID PLACEMENT & COLOR KEY'), margin, legendStartY);
+
+    const tableData = fluidItems.map(item => [
+      '',
+      t(item.name),
+      item.density,
+      item.volume
+    ]);
+
+    doc.autoTable({
+      startY: legendStartY + 1.8,
+      margin: { left: margin, right: margin },
+      head: [[t('Color'), t('Fluid Layer'), t('Density'), t('Volume')]],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: cNavy,
+        textColor: [255, 255, 255],
+        font: primaryFont,
+        fontStyle: 'bold',
+        fontSize: 7,
+        cellPadding: 1.5
+      },
+      styles: {
+        font: primaryFont,
+        fontSize: 6.8,
+        cellPadding: 1.2,
+        textColor: cDark,
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { cellWidth: 14, halign: 'center' },
+        1: { fontStyle: 'bold' },
+        2: { halign: 'center' },
+        3: { halign: 'right' }
+      },
+      didDrawCell: function (data) {
+        if (data.section === 'body' && data.column.index === 0) {
+          const item = fluidItems[data.row.index];
+          if (item && item.color) {
+            const hex = item.color.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            doc.setFillColor(r, g, b);
+            doc.setDrawColor(180, 180, 180);
+            doc.setLineWidth(0.15);
+            const size = 3.2;
+            const x = data.cell.x + (data.cell.width - size) / 2;
+            const y = data.cell.y + (data.cell.height - size) / 2;
+            doc.roundedRect(x, y, size, size, 0.6, 0.6, 'FD');
+          }
+        }
+      }
+    });
 
     /**
      * ==========================================

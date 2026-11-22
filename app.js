@@ -1791,6 +1791,46 @@ const initApp = () => {
       });
     });
 
+    // Global listener for reactive unit system switching
+    window.addEventListener('unitSystemChanged', (e) => {
+      const newSys = e.detail && e.detail.unitSystem;
+      const prevSys = e.detail && e.detail.prevSystem;
+      if (!newSys || newSys === prevSys) return;
+
+      const oldCapUnit = state.globalUnit;
+      const newCapUnit = window.UnitsEngine ? window.UnitsEngine.getUnit('capacity') : (newSys === 'api' ? 'bbl/ft' : (newSys === 'si' ? 'L/m' : 'bbl/m'));
+      state.globalUnit = newCapUnit;
+      localStorage.setItem('globalUnit', newCapUnit);
+
+      // Convert stack calcInputs depth scale if changed between bbl/ft (ft) and other (m)
+      if (state.calcInputs) {
+        if (oldCapUnit !== 'bbl/ft' && newCapUnit === 'bbl/ft') {
+          ['holeMD', 'holeTVD', 'shoeMD', 'shoeTVD', 'dcLength', 'dcLength2', 'dcLength3', 'hwdpLength', 'dpLength', 'dpLength2', 'dpLength3', 'riserLength', 'chokeLength'].forEach(k => {
+            if (state.calcInputs[k] && !isNaN(parseFloat(state.calcInputs[k]))) {
+              state.calcInputs[k] = (parseFloat(state.calcInputs[k]) * 3.28084).toFixed(1);
+            }
+          });
+        } else if (oldCapUnit === 'bbl/ft' && newCapUnit !== 'bbl/ft') {
+          ['holeMD', 'holeTVD', 'shoeMD', 'shoeTVD', 'dcLength', 'dcLength2', 'dcLength3', 'hwdpLength', 'dpLength', 'dpLength2', 'dpLength3', 'riserLength', 'chokeLength'].forEach(k => {
+            if (state.calcInputs[k] && !isNaN(parseFloat(state.calcInputs[k]))) {
+              state.calcInputs[k] = (parseFloat(state.calcInputs[k]) / 3.28084).toFixed(1);
+            }
+          });
+        }
+      }
+
+      // Refresh active screen if relevant
+      if (state.currentScreen === 'api-tubular') {
+        renderAPITubularScreen();
+      } else if (state.currentScreen === 'surface-ref-values' || state.currentScreen === 'subsea-ref-values') {
+        renderReferenceValues();
+      } else if (state.currentScreen === 'surface-calculations' || state.currentScreen === 'subsea-calculations') {
+        renderCalculations();
+      } else if (state.currentScreen === 'drilling-calc' && typeof adaptActiveCalculatorView === 'function') {
+        adaptActiveCalculatorView(newSys, prevSys);
+      }
+    });
+
     // Initial render (DO IMMEDIATELY SO IT'S READY UNDER THE SPLASH SCREEN)
     renderScreen();
     CardOverrideManager.apply();
@@ -5663,118 +5703,154 @@ function renderAPITubularScreen() {
         }
       }
 
+      const isSI = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed') === 'si';
+
       if (viewType === 'drillpipe') {
+        const idVal = isSI ? (parseFloat(matchedItem.id) * 25.4).toFixed(1) : matchedItem.id;
+        const tjOdVal = isSI ? (parseFloat(matchedItem.toolJointOd) * 25.4).toFixed(1) : matchedItem.toolJointOd;
+        const tjIdVal = isSI ? (parseFloat(matchedItem.toolJointId) * 25.4).toFixed(1) : matchedItem.toolJointId;
+        const torqueVal = matchedItem.makeupTorque !== 'N/A' && !isNaN(parseFloat(matchedItem.makeupTorque)) ?
+          (isSI ? Math.round(parseFloat(matchedItem.makeupTorque) * 1.355818).toLocaleString() : parseFloat(matchedItem.makeupTorque).toLocaleString()) : 'N/A';
+        const tensileVal = matchedItem.tensile !== 'N/A' && !isNaN(parseFloat(matchedItem.tensile)) ?
+          (isSI ? (parseFloat(matchedItem.tensile) * 0.00444822).toFixed(1).toLocaleString() : parseFloat(matchedItem.tensile).toLocaleString()) : 'N/A';
+        const torsionalVal = matchedItem.torsional !== 'N/A' && !isNaN(parseFloat(matchedItem.torsional)) ?
+          (isSI ? Math.round(parseFloat(matchedItem.torsional) * 1.355818).toLocaleString() : parseFloat(matchedItem.torsional).toLocaleString()) : 'N/A';
+        const burstVal = matchedItem.burst !== 'N/A' && !isNaN(parseFloat(matchedItem.burst)) ?
+          (isSI ? Math.round(parseFloat(matchedItem.burst) * 0.0689476).toLocaleString() : parseFloat(matchedItem.burst).toLocaleString()) : 'N/A';
+        const collapseVal = matchedItem.collapse !== 'N/A' && !isNaN(parseFloat(matchedItem.collapse)) ?
+          (isSI ? Math.round(parseFloat(matchedItem.collapse) * 0.0689476).toLocaleString() : parseFloat(matchedItem.collapse).toLocaleString()) : 'N/A';
+        const capVal = isSI ? (parseFloat(matchedItem.capacity) * 521.61186).toFixed(2) : matchedItem.capacity;
+
         resultPanel.innerHTML = `
           <div class="content-card" style="border-left: 4px solid var(--accent-green); animation: fadeIn 0.3s ease;">
             <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:700; color:var(--accent-green);">Specifications Panel</h3>
             <div class="tubular-results-grid">
               <div class="tubular-result-card">
-                <span class="tubular-result-label">ID (in)</span>
-                <span class="tubular-result-value">${matchedItem.id}</span>
+                <span class="tubular-result-label">ID (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${idVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Tool Joint OD (in)</span>
-                <span class="tubular-result-value">${matchedItem.toolJointOd}</span>
+                <span class="tubular-result-label">Tool Joint OD (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${tjOdVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Tool Joint ID (in)</span>
-                <span class="tubular-result-value">${matchedItem.toolJointId}</span>
+                <span class="tubular-result-label">Tool Joint ID (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${tjIdVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Make-up Torque (ft-lbs)</span>
-                <span class="tubular-result-value">${matchedItem.makeupTorque !== 'N/A' && !isNaN(parseFloat(matchedItem.makeupTorque)) ? parseFloat(matchedItem.makeupTorque).toLocaleString() : 'N/A'}</span>
+                <span class="tubular-result-label">Make-up Torque (${isSI ? 'N·m' : 'ft-lbs'})</span>
+                <span class="tubular-result-value">${torqueVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Tensile Yield Strength (lbs)</span>
-                <span class="tubular-result-value">${matchedItem.tensile !== 'N/A' && !isNaN(parseFloat(matchedItem.tensile)) ? parseFloat(matchedItem.tensile).toLocaleString() : 'N/A'}</span>
+                <span class="tubular-result-label">Tensile Yield Strength (${isSI ? 'kN' : 'lbs'})</span>
+                <span class="tubular-result-value">${tensileVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Torsional Yield Strength (ft-lbs)</span>
-                <span class="tubular-result-value">${matchedItem.torsional !== 'N/A' && !isNaN(parseFloat(matchedItem.torsional)) ? parseFloat(matchedItem.torsional).toLocaleString() : 'N/A'}</span>
+                <span class="tubular-result-label">Torsional Yield Strength (${isSI ? 'N·m' : 'ft-lbs'})</span>
+                <span class="tubular-result-value">${torsionalVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Burst Pressure (psi)</span>
-                <span class="tubular-result-value">${matchedItem.burst !== 'N/A' && !isNaN(parseFloat(matchedItem.burst)) ? parseFloat(matchedItem.burst).toLocaleString() : 'N/A'}</span>
+                <span class="tubular-result-label">Burst Pressure (${isSI ? 'bar' : 'psi'})</span>
+                <span class="tubular-result-value">${burstVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Collapse Pressure (psi)</span>
-                <span class="tubular-result-value">${matchedItem.collapse !== 'N/A' && !isNaN(parseFloat(matchedItem.collapse)) ? parseFloat(matchedItem.collapse).toLocaleString() : 'N/A'}</span>
+                <span class="tubular-result-label">Collapse Pressure (${isSI ? 'bar' : 'psi'})</span>
+                <span class="tubular-result-value">${collapseVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Capacity (bbl/ft)</span>
-                <span class="tubular-result-value">${matchedItem.capacity}</span>
+                <span class="tubular-result-label">Capacity (${isSI ? 'L/m' : 'bbl/ft'})</span>
+                <span class="tubular-result-value">${capVal}</span>
               </div>
             </div>
           </div>
         `;
       } else if (viewType === 'casing') {
+        const idVal = isSI ? (parseFloat(matchedItem.id_inch) * 25.4).toFixed(1) : matchedItem.id_inch;
+        const driftVal = isSI ? (parseFloat(matchedItem.drift_diameter_inch) * 25.4).toFixed(1) : matchedItem.drift_diameter_inch;
+        const wallVal = isSI ? (parseFloat(matchedItem.wall_inch) * 25.4).toFixed(2) : matchedItem.wall_inch;
+        const burstVal = isSI ? Math.round(matchedItem.burst_pressure_psi * 0.0689476).toLocaleString() : matchedItem.burst_pressure_psi.toLocaleString();
+        const collapseVal = isSI ? Math.round(matchedItem.collapse_pressure_psi * 0.0689476).toLocaleString() : matchedItem.collapse_pressure_psi.toLocaleString();
+        const bodyYieldVal = isSI ? ((matchedItem.body_yield_1000_lbs * 1000) * 0.00444822).toFixed(1).toLocaleString() : (matchedItem.body_yield_1000_lbs * 1000).toLocaleString();
+        const capVal = isSI ? (matchedItem.capacity_bbl_ft * 521.61186).toFixed(2) : matchedItem.capacity_bbl_ft;
+        const dispVal = isSI ? (matchedItem.displacement_bbl_ft * 521.61186).toFixed(2) : matchedItem.displacement_bbl_ft;
+
         resultPanel.innerHTML = `
           <div class="content-card" style="border-left: 4px solid var(--accent-green); animation: fadeIn 0.3s ease;">
             <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:700; color:var(--accent-green);">Specifications Panel</h3>
             <div class="tubular-results-grid">
               <div class="tubular-result-card">
-                <span class="tubular-result-label">ID (in)</span>
-                <span class="tubular-result-value">${matchedItem.id_inch}</span>
+                <span class="tubular-result-label">ID (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${idVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Drift (in)</span>
-                <span class="tubular-result-value">${matchedItem.drift_diameter_inch}</span>
+                <span class="tubular-result-label">Drift (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${driftVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Wall Thickness (in)</span>
-                <span class="tubular-result-value">${matchedItem.wall_inch}</span>
+                <span class="tubular-result-label">Wall Thickness (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${wallVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Burst (psi)</span>
-                <span class="tubular-result-value">${matchedItem.burst_pressure_psi.toLocaleString()}</span>
+                <span class="tubular-result-label">Burst (${isSI ? 'bar' : 'psi'})</span>
+                <span class="tubular-result-value">${burstVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Collapse (psi)</span>
-                <span class="tubular-result-value">${matchedItem.collapse_pressure_psi.toLocaleString()}</span>
+                <span class="tubular-result-label">Collapse (${isSI ? 'bar' : 'psi'})</span>
+                <span class="tubular-result-value">${collapseVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Body Yield (lbs)</span>
-                <span class="tubular-result-value">${(matchedItem.body_yield_1000_lbs * 1000).toLocaleString()}</span>
+                <span class="tubular-result-label">Body Yield (${isSI ? 'kN' : 'lbs'})</span>
+                <span class="tubular-result-value">${bodyYieldVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Capacity (bbl/ft)</span>
-                <span class="tubular-result-value">${matchedItem.capacity_bbl_ft}</span>
+                <span class="tubular-result-label">Capacity (${isSI ? 'L/m' : 'bbl/ft'})</span>
+                <span class="tubular-result-value">${capVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Displacement (bbl/ft)</span>
-                <span class="tubular-result-value">${matchedItem.displacement_bbl_ft}</span>
+                <span class="tubular-result-label">Displacement (${isSI ? 'L/m' : 'bbl/ft'})</span>
+                <span class="tubular-result-value">${dispVal}</span>
               </div>
             </div>
           </div>
         `;
       } else {
+        const idVal = isSI ? (parseFloat(matchedItem.id) * 25.4).toFixed(1) : matchedItem.id;
+        const driftVal = isSI ? (parseFloat(matchedItem.drift) * 25.4).toFixed(1) : matchedItem.drift;
+        const burstVal = !isNaN(parseFloat(matchedItem.burst)) ?
+          (isSI ? Math.round(parseFloat(matchedItem.burst) * 0.0689476).toLocaleString() : parseFloat(matchedItem.burst).toLocaleString()) : 'N/A';
+        const collapseVal = !isNaN(parseFloat(matchedItem.collapse)) ?
+          (isSI ? Math.round(parseFloat(matchedItem.collapse) * 0.0689476).toLocaleString() : parseFloat(matchedItem.collapse).toLocaleString()) : 'N/A';
+        const tensileVal = !isNaN(parseFloat(matchedItem.tensile)) ?
+          (isSI ? (parseFloat(matchedItem.tensile) * 0.00444822).toFixed(1).toLocaleString() : parseFloat(matchedItem.tensile).toLocaleString()) : 'N/A';
+        const capVal = isSI ? (parseFloat(matchedItem.capacity) * 521.61186).toFixed(2) : matchedItem.capacity;
+
         resultPanel.innerHTML = `
           <div class="content-card" style="border-left: 4px solid var(--accent-green); animation: fadeIn 0.3s ease;">
             <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:700; color:var(--accent-green);">Specifications Panel</h3>
             <div class="tubular-results-grid">
               <div class="tubular-result-card">
-                <span class="tubular-result-label">ID (in)</span>
-                <span class="tubular-result-value">${matchedItem.id}</span>
+                <span class="tubular-result-label">ID (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${idVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Drift (in)</span>
-                <span class="tubular-result-value">${matchedItem.drift}</span>
+                <span class="tubular-result-label">Drift (${isSI ? 'mm' : 'in'})</span>
+                <span class="tubular-result-value">${driftVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Burst (psi)</span>
-                <span class="tubular-result-value">${parseFloat(matchedItem.burst).toLocaleString()}</span>
+                <span class="tubular-result-label">Burst (${isSI ? 'bar' : 'psi'})</span>
+                <span class="tubular-result-value">${burstVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Collapse (psi)</span>
-                <span class="tubular-result-value">${parseFloat(matchedItem.collapse).toLocaleString()}</span>
+                <span class="tubular-result-label">Collapse (${isSI ? 'bar' : 'psi'})</span>
+                <span class="tubular-result-value">${collapseVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Tensile (lbs)</span>
-                <span class="tubular-result-value">${parseFloat(matchedItem.tensile).toLocaleString()}</span>
+                <span class="tubular-result-label">Tensile (${isSI ? 'kN' : 'lbs'})</span>
+                <span class="tubular-result-value">${tensileVal}</span>
               </div>
               <div class="tubular-result-card">
-                <span class="tubular-result-label">Capacity (bbl/ft)</span>
-                <span class="tubular-result-value">${matchedItem.capacity}</span>
+                <span class="tubular-result-label">Capacity (${isSI ? 'L/m' : 'bbl/ft'})</span>
+                <span class="tubular-result-value">${capVal}</span>
               </div>
             </div>
           </div>
@@ -8185,6 +8261,7 @@ function openFormulaDirectly(formulaId, optCategory) {
     renderDrillingCalcScreen();
   }
 }
+window.openFormulaDirectly = openFormulaDirectly;
 
 function toggleFormulaFavorite(id, e) {
   if (e && e.stopPropagation) e.stopPropagation();
@@ -8196,6 +8273,167 @@ function toggleFormulaFavorite(id, e) {
   }
   localStorage.setItem('calcFavorites', JSON.stringify(favs));
   renderDrillingCalcScreen();
+}
+
+/**
+ * Calculation Hub Dynamic Unit Adapter Helpers
+ */
+function detectCalcQuantity(labelOrUnit) {
+  const s = String(labelOrUnit || '').toLowerCase().trim();
+  if (s.includes('1/32 in') || s.includes('/ 32 inch')) return { type: 'nozzle', native: '1/32 in', si: 'mm' };
+  if (s.includes('psi/ft') || s.includes('influx gradient')) return { type: 'gradient', native: 'psi/ft', si: 'bar/m' };
+  if (s.includes('psi/hr')) return { type: 'pressure_rate', native: 'psi/hr', si: 'bar/hr' };
+  if (s.includes('lb/100ft') || s.includes('lbf/100ft')) return { type: 'yield_point', native: 'lbf/100ft2', si: 'Pa' };
+  if (s.includes('lb/ft3') || s.includes('lb/ft³')) return { type: 'density', native: 'lbft3', si: 'kgm3' };
+  if (s.includes('lb/ft') || s.includes('lbs/ft') || s.includes('ppf')) return { type: 'weight_per_length', native: 'lb/ft', si: 'kg/m' };
+  if (s.includes('bbl/ft')) return { type: 'capacity', native: 'bbl/ft', si: 'L/m' };
+  if (s.includes('bbl/stk') || s.includes('bbl/stroke')) return { type: 'pump_output', native: 'bbl/stk', si: 'L/stk' };
+  if (s.includes('bbl/min') || s.includes('bpm')) return { type: 'flow_rate', native: 'bbl/min', si: 'L/min' };
+  if (s.includes('bbl/hr')) return { type: 'flow_rate', native: 'bbl/hr', si: 'm3/hr' };
+  if (s.includes('gal/min') || s.includes('gpm')) return { type: 'flow_rate', native: 'gpm', si: 'L/min' };
+  if (s.includes('gal/hr')) return { type: 'flow_rate', native: 'gal/hr', si: 'L/min' };
+  if (s.includes('ft/min')) return { type: 'velocity', native: 'ft/min', si: 'm/min' };
+  if (s.includes('ft/sec') || s.includes('ft/s')) return { type: 'velocity', native: 'ft/s', si: 'm/s' };
+  if (s.includes('ft/hr')) return { type: 'velocity', native: 'ft/hr', si: 'm/hr' };
+  if (s.includes('ft-lb') || s.includes('ft-lbs')) return { type: 'torque', native: 'ft-lbs', si: 'N·m' };
+  if (s.includes('sq in') || s.includes('in2') || s.includes('in²')) return { type: 'area', native: 'in2', si: 'mm2' };
+  if (s.includes('hhp') || s.includes('hp')) return { type: 'power', native: 'hp', si: 'kW' };
+  if (s.includes('°f') || s.includes('deg f')) return { type: 'temperature', native: '°F', si: '°C' };
+  if (s.includes('ppg')) return { type: 'density', native: 'ppg', si: 'SG' };
+  if (s.includes('psi')) return { type: 'pressure', native: 'psi', si: 'bar' };
+  if (s.includes('tvd - ft') || s.includes('md - ft') || /\bft\b/.test(s) || s.includes('(ft)') || s.includes('feet')) return { type: 'length', native: 'ft', si: 'm' };
+  if (/\bin\b/.test(s) || s.includes('(in)') || s.includes('inches')) return { type: 'diameter', native: 'in', si: 'mm' };
+  if (s.includes('bbl')) return { type: 'volume', native: 'bbl', si: 'm3' };
+  if (s.includes('gal')) return { type: 'volume', native: 'gal', si: 'L' };
+  if (s.includes('klbs')) return { type: 'force', native: 'klbs', si: 'kN' };
+  if (/\blb\b/.test(s) || /\blbs\b/.test(s) || /\blbf\b/.test(s)) return { type: 'force', native: 'lbs', si: 'kN' };
+  return null;
+}
+
+function adaptLabelToSI(label) {
+  let s = String(label || '');
+  s = s.replace(/ppg\s+EMW/gi, 'SG EMW');
+  s = s.replace(/KMW\s*-\s*ppg/gi, 'KMW - SG');
+  s = s.replace(/\bppg\b/gi, 'SG');
+  s = s.replace(/SIDPP\s*-\s*psi/gi, 'SIDPP - bar');
+  s = s.replace(/SICP\s*-\s*psi/gi, 'SICP - bar');
+  s = s.replace(/SCR\s*-\s*psi/gi, 'SCR - bar');
+  s = s.replace(/psi\/ft/gi, 'bar/m');
+  s = s.replace(/psi\/hr/gi, 'bar/hr');
+  s = s.replace(/\bpsi\b/gi, 'bar');
+  s = s.replace(/TVD\s*-\s*ft/gi, 'TVD - m');
+  s = s.replace(/MD\s*-\s*ft/gi, 'MD - m');
+  s = s.replace(/\bfeet\b/gi, 'm');
+  s = s.replace(/\(ft\)/gi, '(m)');
+  s = s.replace(/1\/32\s*in/gi, 'mm');
+  s = s.replace(/\binches\b/gi, 'mm');
+  s = s.replace(/\(in\)/gi, '(mm)');
+  s = s.replace(/bbl\/ft/gi, 'L/m');
+  s = s.replace(/bbl\/stk/gi, 'L/stk');
+  s = s.replace(/bbl\/stroke/gi, 'L/stk');
+  s = s.replace(/bbl\/min/gi, 'L/min');
+  s = s.replace(/bbl\/hr/gi, 'm³/hr');
+  s = s.replace(/gal\/min/gi, 'L/min');
+  s = s.replace(/gal\/hr/gi, 'L/min');
+  s = s.replace(/\bgpm\b/gi, 'L/min');
+  s = s.replace(/\(bbl\)/gi, '(m³)');
+  s = s.replace(/\(gal\)/gi, '(L)');
+  s = s.replace(/\bklbs\b/gi, 'kN');
+  s = s.replace(/lb\/100ft[²2]/gi, 'Pa');
+  s = s.replace(/lbf\/100ft[²2]/gi, 'Pa');
+  s = s.replace(/lb\/ft[³3]/gi, 'kg/m³');
+  s = s.replace(/lb\/ft/gi, 'kg/m');
+  s = s.replace(/lbs\/ft/gi, 'kg/m');
+  s = s.replace(/\(lbs\)/gi, '(kN)');
+  s = s.replace(/\(lb\)/gi, '(kN)');
+  s = s.replace(/ft-lbs?/gi, 'N·m');
+  s = s.replace(/°F/gi, '°C');
+  s = s.replace(/ft\/min/gi, 'm/min');
+  s = s.replace(/ft\/sec/gi, 'm/s');
+  s = s.replace(/ft\/s\b/gi, 'm/s');
+  s = s.replace(/ft\/hr/gi, 'm/hr');
+  s = s.replace(/sq\s*in/gi, 'mm²');
+  s = s.replace(/\(hp\)/gi, '(kW)');
+  s = s.replace(/\(HHP\)/gi, '(kW)');
+  return s;
+}
+
+function adaptUnitToSI(unit) {
+  const u = String(unit || '').trim();
+  if (u === 'ppg') return 'SG';
+  if (u === 'psi') return 'bar';
+  if (u === 'psi (Margin)') return 'bar (Margin)';
+  if (u === 'psi/ft') return 'bar/m';
+  if (u === 'Influx Gradient') return 'bar/m';
+  if (u === 'ft') return 'm';
+  if (u === 'ft (Free Pipe Length)') return 'm (Free Pipe Length)';
+  if (u === 'inches') return 'mm';
+  if (u === '/ 32 inch') return 'mm';
+  if (u === 'bbl') return 'm³';
+  if (u === 'bbl/ft') return 'L/m';
+  if (u === 'bbl/stroke') return 'L/stk';
+  if (u === 'bbl/min') return 'L/min';
+  if (u === 'bbl/hr') return 'm³/hr';
+  if (u === 'gal/min') return 'L/min';
+  if (u === 'gal/hr') return 'L/min';
+  if (u === 'gal') return 'L';
+  if (u === 'lb' || u === 'lbf') return 'kN';
+  if (u === 'lb/ft³') return 'kg/m³';
+  if (u === 'ft-lb') return 'N·m';
+  if (u === 'ft/hr') return 'm/hr';
+  if (u === 'ft/min') return 'm/min';
+  if (u === 'sq in') return 'mm²';
+  if (u === 'HHP') return 'kW';
+  return u;
+}
+
+function formatConverted(val) {
+  if (!Number.isFinite(val)) return '0';
+  if (Math.abs(val) >= 1000) return String(parseFloat(val.toFixed(1)));
+  if (Math.abs(val) >= 100) return String(parseFloat(val.toFixed(2)));
+  if (Math.abs(val) >= 1) return String(parseFloat(val.toFixed(2)));
+  return String(parseFloat(val.toFixed(4)));
+}
+
+function adaptActiveCalculatorView(newSys, prevSys) {
+  if (!calcSubState || calcSubState.view !== 'formula' || !calcSubState.formulaId) return;
+  const found = findCalculator(calcSubState.formulaId, calcSubState.category);
+  if (!found || !found.formula) return;
+  const f = found.formula;
+
+  f.inputs.forEach(inp => {
+    const el = document.getElementById(`inp-${inp.key}`);
+    const lbl = document.getElementById(`lbl-inp-${inp.key}`);
+    const q = detectCalcQuantity(inp.label);
+
+    if (lbl) {
+      lbl.textContent = (newSys === 'si') ? adaptLabelToSI(inp.label) : inp.label;
+    }
+
+    if (el && q && window.UnitsEngine) {
+      const curVal = parseFloat(String(el.value).replace(',', '.'));
+      if (!isNaN(curVal)) {
+        let converted = curVal;
+        if (prevSys !== 'si' && newSys === 'si') {
+          converted = window.UnitsEngine.convert(q.type, curVal, q.native, q.si);
+        } else if (prevSys === 'si' && newSys !== 'si') {
+          converted = window.UnitsEngine.convert(q.type, curVal, q.si, q.native);
+        }
+        el.value = formatConverted(converted);
+      }
+    }
+  });
+
+  const outUnitEl = document.getElementById('calc-output-unit');
+  if (outUnitEl) {
+    outUnitEl.textContent = (newSys === 'si') ? adaptUnitToSI(f.unit) : f.unit;
+  }
+
+  // Trigger recalculation with new units
+  const runCalcFn = window._currentRunCalc;
+  if (typeof runCalcFn === 'function') {
+    runCalcFn();
+  }
 }
 
 function renderDrillingCalcScreen() {
@@ -8406,6 +8644,8 @@ function renderDrillingCalcScreen() {
     const f = found.formula;
     const favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
     const isFav = favs.includes(f.id);
+    const activeSys = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed');
+    const displayOutputUnit = (activeSys === 'si') ? adaptUnitToSI(f.unit) : f.unit;
 
     container.innerHTML = `
       <div class="content-card">
@@ -8424,7 +8664,7 @@ function renderDrillingCalcScreen() {
         
         <div class="result-card" style="margin-top:20px; border-left:4px solid var(--accent-color);">
           <span class="result-label">Calculated Output</span>
-          <span class="result-value" id="calc-output-val">- <span class="unit-lbl">${f.unit}</span></span>
+          <span class="result-value" id="calc-output-val">- <span class="unit-lbl" id="calc-output-unit">${displayOutputUnit}</span></span>
         </div>
       </div>
     `;
@@ -8435,39 +8675,70 @@ function renderDrillingCalcScreen() {
 
     const inputsCont = document.getElementById('dynamic-inputs-container');
     f.inputs.forEach(inp => {
+      if (inp.defaultVal === undefined) {
+        inp.defaultVal = inp.val;
+      }
+      const q = detectCalcQuantity(inp.label);
+      let initialVal = inp.defaultVal;
+      if (activeSys === 'si' && q && window.UnitsEngine) {
+        const num = parseFloat(String(inp.defaultVal).replace(',', '.'));
+        if (!isNaN(num)) {
+          const converted = window.UnitsEngine.convert(q.type, num, q.native, q.si);
+          initialVal = formatConverted(converted);
+        }
+      }
+      const displayLabel = (activeSys === 'si') ? adaptLabelToSI(inp.label) : inp.label;
+
       const group = document.createElement('div');
       group.className = 'form-group';
       group.innerHTML = `
-        <label>${inp.label}</label>
-        <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input table-input" id="inp-${inp.key}" value="${inp.val}" style="text-align:left; width:100%; border-radius:var(--border-radius-pill); padding:14px 20px;">
+        <label id="lbl-inp-${inp.key}">${displayLabel}</label>
+        <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input table-input" id="inp-${inp.key}" value="${initialVal}" style="text-align:left; width:100%; border-radius:var(--border-radius-pill); padding:14px 20px;">
       `;
       inputsCont.appendChild(group);
     });
 
     const runCalc = () => {
+      const currentSys = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed');
       const arg = {};
       f.inputs.forEach(inp => {
         const el = document.getElementById(`inp-${inp.key}`);
-        if (el) {
-          inp.val = el.value;
-          arg[inp.key] = parseFloat(String(el.value).replace(',', '.')) || 0;
+        const q = detectCalcQuantity(inp.label);
+        let rawVal = el ? parseFloat(String(el.value).replace(',', '.')) : 0;
+        if (isNaN(rawVal)) rawVal = 0;
+
+        if (currentSys === 'si' && q && window.UnitsEngine) {
+          arg[inp.key] = window.UnitsEngine.convert(q.type, rawVal, q.si, q.native);
         } else {
-          arg[inp.key] = 0;
+          arg[inp.key] = rawVal;
         }
       });
+
       try {
         const result = f.calc(arg);
-        const outVal = typeof result === 'number' ?
-          result.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) :
-          result;
-        document.getElementById('calc-output-val').innerHTML = `${outVal} <span class="unit-lbl">${f.unit}</span>`;
+        const outQ = detectCalcQuantity(f.unit);
+        let finalVal = result;
+        const outUnit = (currentSys === 'si') ? adaptUnitToSI(f.unit) : f.unit;
+        if (typeof result === 'number' && Number.isFinite(result)) {
+          if (currentSys === 'si' && outQ && window.UnitsEngine) {
+            finalVal = window.UnitsEngine.convert(outQ.type, result, outQ.native, outQ.si);
+          }
+          const outVal = finalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+          document.getElementById('calc-output-val').innerHTML = `${outVal} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+        } else {
+          document.getElementById('calc-output-val').innerHTML = `${result} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+        }
       } catch (err) {
-        document.getElementById('calc-output-val').innerHTML = `Error <span class="unit-lbl">${f.unit}</span>`;
+        const outUnit = (currentSys === 'si') ? adaptUnitToSI(f.unit) : f.unit;
+        document.getElementById('calc-output-val').innerHTML = `Error <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
       }
     };
 
+    window._currentRunCalc = runCalc;
+
     f.inputs.forEach(inp => {
-      document.getElementById(`inp-${inp.key}`).addEventListener('input', runCalc);
+      const el = document.getElementById(`inp-${inp.key}`);
+      if (el) el.addEventListener('input', runCalc);
     });
 
     runCalc();

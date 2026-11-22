@@ -76,7 +76,7 @@ export function mountStuckPipe(root, options = {}) {
   const key = options.storageKey || 'stuckpipe';
   const state = {
     tab: 'diagnose',
-    sys: store.get(key + '.sys', 'field'),
+    sys: (typeof window !== 'undefined' && window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function' && window.UnitsEngine.getUnitSystem() === 'si') ? 'metric' : store.get(key + '.sys', 'field'),
     input: { ...DEFAULT_INPUT() },
     planId: null,
     calcTab: 'diff',

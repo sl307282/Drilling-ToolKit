@@ -1,32 +1,33 @@
 /**
  * Surface Wellhead Cementing Planner Controller & UI (Land Rig & Jack-up Rig)
  * Drilling Toolkit Web Runtime
+ * Fully aligned with Subsea Wellhead architecture, components, and layout contracts.
  */
 (function (root) {
   'use strict';
 
   const M_PER_FT = 0.3048;
-  const SAVED_JOBS_KEY = 'surface_cement_saved_jobs_v1';
+  const SAVED_JOBS_KEY = 'drilling_toolkit_surface_cementing_jobs';
   const WELLDATA_DRAFT_PREFIX = 'surface_cementing_welldata_draft_';
-  const CAPACITY_REF_PREFIX = 'surface_cementing_cap_ref_';
-  const UNIT_STORAGE_KEY = 'surface_cementing_unit';
-  const CAP_UNIT_STORAGE_KEY = 'surface_cementing_cap_unit';
+  const CAPACITY_REF_PREFIX = 'surface_capacityRef_';
+  const UNIT_STORAGE_KEY = 'drilling_toolkit_cementing_unit';
+  const CAP_UNIT_STORAGE_KEY = 'drilling_toolkit_cementing_cap_unit';
 
   const DEPTH_KEYS = ['seabed', 'prev_shoe', 'td', 'shoe', 'shoe_track_len', 'planned_toc'];
 
-  // Default section presets (stored in ft, matching T1, T2, T3, T4 specifications)
+  // Default section presets (stored in canonical metres)
   const SURFACE_SECTION_PRESETS = {
     'conductor': {
       section: 'conductor',
       name: '30" Conductor',
       label: '30" Conductor',
-      subtitle: 'Inner-string (stab-in) · Jack-up / Land',
+      subtitle: '36" Hole · 30" Casing · Conductor Inner String',
       model: 'conductor',
       rig_type: 'jack-up',
-      seabed: 420,
-      td: 660,
-      shoe: 650,
-      shoe_track_len: 40,
+      seabed: 130,
+      td: 205,
+      shoe: 200,
+      shoe_track_len: 12,
       seawater_mw: 8.6,
       hole_fluid_mw: 8.6,
       disp_mw: 8.6,
@@ -55,14 +56,15 @@
       section: 'surface',
       name: '20" Surface Casing',
       label: '20" Surface Casing',
-      subtitle: '26" Hole · Inside 30" Casing',
+      subtitle: '26" Hole · 20" Casing · Surface Casing Model',
       model: 'surface_casing',
-      prev_shoe: 650,
-      td: 1820,
-      shoe: 1800,
-      shoe_track_len: 80,
+      prev_shoe: 200,
+      td: 555,
+      shoe: 550,
+      shoe_track_len: 24,
       planned_toc: 0,
       mw: 9.0,
+      disp_mw: 9.0,
       f1_vol: 0,
       f1_mw: 10.2,
       f2_vol: 0,
@@ -89,14 +91,15 @@
       section: 'intermediate',
       name: '13-3/8" Intermediate Casing',
       label: '13-3/8" Intermediate Casing',
-      subtitle: '17½" Hole · Inside 20" Casing',
+      subtitle: '17½" Hole · 13-3/8" Casing · Intermediate Casing',
       model: 'surface_casing',
-      prev_shoe: 1800,
-      td: 5020,
-      shoe: 5000,
-      shoe_track_len: 80,
-      planned_toc: 1300,
+      prev_shoe: 550,
+      td: 1525,
+      shoe: 1520,
+      shoe_track_len: 24,
+      planned_toc: 400,
       mw: 10.0,
+      disp_mw: 10.0,
       f1_vol: 0,
       f1_mw: 10.2,
       f2_vol: 0,
@@ -123,21 +126,22 @@
       section: 'production',
       name: '9-5/8" Production Casing',
       label: '9-5/8" Production Casing',
-      subtitle: '12¼" Hole · Inside 13-3/8" Casing',
+      subtitle: '12¼" Hole · 9-5/8" Casing · Production Casing',
       model: 'surface_casing',
-      prev_shoe: 5000,
-      td: 10020,
-      shoe: 10000,
-      shoe_track_len: 80,
-      planned_toc: 4500,
+      prev_shoe: 1520,
+      td: 3055,
+      shoe: 3050,
+      shoe_track_len: 24,
+      planned_toc: 1400,
       mw: 11.5,
+      disp_mw: 11.5,
       f1_vol: 0,
       f1_mw: 10.2,
       f2_vol: 0,
       f2_mw: 6.9,
       sp_vol: 60,
       sp_mw: 12.3,
-      lead_vol: 308,
+      lead_vol: 320,
       lead_mw: 13.5,
       tail_vol: 79,
       tail_mw: 15.8,
@@ -156,16 +160,18 @@
     'custom': {
       section: 'custom',
       name: 'Custom Surface Section',
-      label: 'Custom Surface Section',
-      subtitle: 'User-defined casing, hole & job model',
+      label: 'Custom Section',
+      subtitle: 'User-defined casing, hole & model',
       model: 'surface_casing',
       custom_model: 'surface_casing',
-      prev_shoe: 1800,
-      td: 5000,
-      shoe: 4900,
-      shoe_track_len: 80,
-      planned_toc: 1200,
+      prev_shoe: 550,
+      td: 1525,
+      shoe: 1500,
+      shoe_track_len: 24,
+      planned_toc: 365,
       mw: 10.0,
+      disp_mw: 10.0,
+      hole_fluid_mw: 10.0,
       f1_vol: 0,
       f1_mw: 10.2,
       f2_vol: 0,
@@ -193,43 +199,24 @@
     }
   };
 
-  // State Management
-  const surfaceCementingState = {
-    view: 'chooser', // 'chooser' | 'capacities' | 'welldata' | 'results'
-    section: 'conductor',
-    unit: 'ft',
-    capUnit: 'BBL/FT',
-    inputs: {},
-    overrides: {},
-    results: null,
-    jobName: '',
-    collapsed: {
-      placement: false,
-      displacement: false,
-      pressures: false,
-      checks: false,
-      schematic: false
-    }
+  SURFACE_SECTION_PRESETS['30'] = SURFACE_SECTION_PRESETS['conductor'];
+  SURFACE_SECTION_PRESETS['20'] = SURFACE_SECTION_PRESETS['surface'];
+  SURFACE_SECTION_PRESETS['13.375'] = SURFACE_SECTION_PRESETS['intermediate'];
+  SURFACE_SECTION_PRESETS['9.625'] = SURFACE_SECTION_PRESETS['production'];
+
+  const SECTION_SUBTITLES = {
+    'conductor': '30" Conductor Casing',
+    '30': '30" Conductor Casing',
+    'surface': '20" Surface Casing',
+    '20': '20" Surface Casing',
+    'intermediate': '13-3/8" Intermediate Casing',
+    '13.375': '13-3/8" Intermediate Casing',
+    'production': '9-5/8" Production Casing',
+    '9.625': '9-5/8" Production Casing',
+    'custom': 'Custom Section'
   };
-  root.surfaceCementingState = surfaceCementingState;
 
   // Persistence Helpers
-  function loadPersistedUnit() {
-    try {
-      const u = localStorage.getItem(UNIT_STORAGE_KEY);
-      if (u === 'm' || u === 'ft') surfaceCementingState.unit = u;
-      const cu = localStorage.getItem(CAP_UNIT_STORAGE_KEY);
-      if (cu) surfaceCementingState.capUnit = cu;
-    } catch (_) {}
-  }
-
-  function savePersistedUnit() {
-    try {
-      localStorage.setItem(UNIT_STORAGE_KEY, surfaceCementingState.unit);
-      localStorage.setItem(CAP_UNIT_STORAGE_KEY, surfaceCementingState.capUnit);
-    } catch (_) {}
-  }
-
   function getSavedJobsList() {
     try {
       const data = localStorage.getItem(SAVED_JOBS_KEY);
@@ -241,8 +228,137 @@
 
   function saveJobsList(list) {
     try {
-      localStorage.setItem(SAVED_JOBS_KEY, JSON.stringify(list));
+      const json = JSON.stringify(list);
+      localStorage.setItem(SAVED_JOBS_KEY, json);
+      if (typeof surfaceCementingState !== 'undefined' && surfaceCementingState) {
+        surfaceCementingState.savedJobs = list;
+      }
+      if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
+        window.Capacitor.Plugins.Preferences.set({ key: SAVED_JOBS_KEY, value: json }).catch(function () {});
+      }
     } catch (_) {}
+  }
+
+  // State Management
+  const surfaceCementingState = {
+    view: 'chooser', // 'chooser' | 'capacities' | 'welldata' | 'results'
+    section: 'conductor',
+    unit: 'm',
+    capUnit: 'BBL/M',
+    inputs: {},
+    overrides: {},
+    results: null,
+    jobName: '',
+    activeReference: null,
+    referenceIsDirty: false,
+    wellDataSubmitted: false,
+    collapsedSections: {
+      depths: false,
+      fluids: false,
+      limits: false
+    },
+    collapsed: {
+      placement: false,
+      displacement: false,
+      pressures: false,
+      checks: false,
+      schematic: false
+    },
+    savedJobs: getSavedJobsList()
+  };
+
+  const surfaceCementingStore = surfaceCementingState;
+  root.surfaceCementingStore = surfaceCementingStore;
+  root.surfaceCementingState = surfaceCementingState;
+
+  function loadPersistedUnit() {
+    try {
+      const sys = (window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function')
+        ? window.UnitsEngine.getUnitSystem()
+        : 'mixed';
+
+      if (sys === 'api') {
+        surfaceCementingState.unit = 'ft';
+        surfaceCementingState.capUnit = 'BBL/FT';
+        return;
+      }
+      if (sys === 'si') {
+        surfaceCementingState.unit = 'm';
+        surfaceCementingState.capUnit = 'L/M';
+        return;
+      }
+
+      const u = localStorage.getItem(UNIT_STORAGE_KEY);
+      if (u === 'm' || u === 'ft') {
+        surfaceCementingState.unit = u;
+      } else {
+        surfaceCementingState.unit = 'm';
+      }
+      const cu = localStorage.getItem(CAP_UNIT_STORAGE_KEY);
+      if (cu) {
+        surfaceCementingState.capUnit = cu;
+      } else {
+        surfaceCementingState.capUnit = (surfaceCementingState.unit === 'ft') ? 'BBL/FT' : 'BBL/M';
+      }
+    } catch (_) {
+      surfaceCementingState.unit = 'm';
+      surfaceCementingState.capUnit = 'BBL/M';
+    }
+  }
+
+  function savePersistedUnit() {
+    try {
+      localStorage.setItem(UNIT_STORAGE_KEY, surfaceCementingState.unit);
+      localStorage.setItem(CAP_UNIT_STORAGE_KEY, surfaceCementingState.capUnit);
+    } catch (_) {}
+  }
+
+  function toggleSurfaceUnit(newUnit) {
+    const sys = (window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function')
+      ? window.UnitsEngine.getUnitSystem()
+      : 'mixed';
+
+    if (sys !== 'mixed') {
+      if (typeof showToast === 'function') {
+        const sysLabel = sys === 'api' ? t('Oilfield Units (API)') : t('Metric Units (SI)');
+        showToast(t('Unit System') + ': ' + sysLabel);
+      }
+      return;
+    }
+
+    if (newUnit === surfaceCementingState.unit) return;
+    surfaceCementingState.unit = newUnit;
+    surfaceCementingState.capUnit = newUnit === 'm' ? 'BBL/M' : 'BBL/FT';
+    savePersistedUnit();
+
+    if (surfaceCementingState.view === 'capacities') {
+      const isM = newUnit === 'm';
+      const btnM = document.getElementById('surface-top-unit-m');
+      const btnFt = document.getElementById('surface-top-unit-ft');
+      const pill = document.getElementById('surface-unit-pill-desc');
+      const unitSelect = document.getElementById('surface-cap-unit-select');
+      if (btnM && btnFt) {
+        btnM.classList.toggle('active', isM);
+        btnFt.classList.toggle('active', !isM);
+      }
+      if (pill) {
+        pill.textContent = isM ? t('Metric (m, bbl/m)') : t('Imperial (ft, bbl/ft)');
+        pill.className = `cement-unit-mode-pill ${isM ? 'mode-metric' : 'mode-imperial'}`;
+      }
+      if (unitSelect) {
+        unitSelect.value = surfaceCementingState.capUnit;
+      }
+      document.querySelectorAll('#cementing-surface-container input.cement-cap-input').forEach(inpEl => {
+        const canonical = parseFloat(inpEl.getAttribute('data-canonical')) || 0;
+        inpEl.value = window.CementingCommon.formatCapValue(canonical, surfaceCementingState.capUnit);
+      });
+    } else {
+      renderSurfaceCementingScreen();
+    }
+
+    if (typeof showToast === 'function') {
+      showToast(t('Units switched to {0}', newUnit.toUpperCase()));
+    }
   }
 
   function getDraftInputs(section) {
@@ -269,7 +385,7 @@
     }
   }
 
-  function setSavedCapacityRef(id, refData) {
+  function persistCapacityRef(id, refData) {
     try {
       localStorage.setItem(CAPACITY_REF_PREFIX + id, JSON.stringify(refData));
     } catch (_) {}
@@ -281,9 +397,15 @@
     } catch (_) {}
   }
 
-  // Translation & formatting helpers from CementingCommon
-  function t(key) {
-    return (window.CementingCommon && window.CementingCommon.t) ? window.CementingCommon.t(key) : key;
+  // Translation & formatting helpers
+  function t(key, ...args) {
+    let str = (window.CementingCommon && window.CementingCommon.t) ? window.CementingCommon.t(key) : ((window.I18n && typeof window.I18n.translate === 'function') ? window.I18n.translate(key) : key);
+    if (args.length > 0 && typeof str === 'string') {
+      args.forEach((val, i) => {
+        str = str.replace(new RegExp('\\{' + i + '\\}', 'g'), val);
+      });
+    }
+    return str;
   }
   function escapeHtml(str) {
     return (window.CementingCommon && window.CementingCommon.escapeHtml) ? window.CementingCommon.escapeHtml(str) : String(str || '');
@@ -293,11 +415,19 @@
   }
   function formatMetricDepth(ftVal, isMetric) {
     const v = Number(ftVal) || 0;
-    return isMetric ? (v * M_PER_FT).toFixed(1) : v.toFixed(1);
+    return isMetric ? (v * M_PER_FT).toFixed(1) : v.toFixed(0);
   }
   function formatMetricDist(ftVal, isMetric) {
     const v = Number(ftVal) || 0;
     return isMetric ? (v * M_PER_FT).toFixed(1) : v.toFixed(1);
+  }
+  function formatDepthDisplay(canonicalMeters) {
+    if (canonicalMeters === undefined || canonicalMeters === null || canonicalMeters === '' || isNaN(Number(canonicalMeters))) return '';
+    const v = Number(canonicalMeters);
+    if (surfaceCementingState.unit === 'ft') {
+      return (v / M_PER_FT).toFixed(0);
+    }
+    return Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
   }
 
   // Capacity Computation for Surface Wellhead
@@ -305,10 +435,10 @@
     const tubulars = inp.tubulars || {};
     const capData = (window.CementingCommon && window.CementingCommon.CAPACITY_DATA) || [];
 
-    const csg = capData.find(t => t.id === tubulars.csg_id) || null;
-    const dp = capData.find(t => t.id === tubulars.dp_id) || null;
-    const prevCsg = capData.find(t => t.id === tubulars.prev_csg_id) || null;
-    const hole = capData.find(t => t.id === tubulars.hole_id) || null;
+    const csg = capData.find(tub => tub.id === tubulars.csg_id) || null;
+    const dp = capData.find(tub => tub.id === tubulars.dp_id) || null;
+    const prevCsg = capData.find(tub => tub.id === tubulars.prev_csg_id) || null;
+    const hole = capData.find(tub => tub.id === tubulars.hole_id) || null;
 
     const table_cap_csg = csg ? csg.cap_bbl_ft : (Number(inp.cap_csg) || 0);
     const csg_disp = csg ? csg.disp_bbl_ft : (Number(inp.csg_disp) || 0);
@@ -355,7 +485,7 @@
     return { tableVals, effective, labels, csg, dp, prevCsg, hole, savedRef, csg_closed_disp };
   }
 
-  // Master Render Function
+  // Master Render Entry Function (Single CollapsingPage Header Pattern)
   function renderSurfaceCementingScreen() {
     loadPersistedUnit();
     const wrapper = document.getElementById('screen-cement-planner-surface');
@@ -364,183 +494,296 @@
     const fixedHeaderWrapper = document.getElementById('cementing-surface-fixed-header-wrapper');
     const headerSlot = document.getElementById('cementing-surface-job-header-slot');
     const container = document.getElementById('cementing-surface-container');
+    const titleEl = document.getElementById('cementing-surface-screen-title');
+    const compactTitleEl = document.getElementById('cementing-surface-screen-title-compact');
+    const subtitleEl = document.getElementById('cementing-surface-screen-subtitle');
     const headerBadge = document.getElementById('cementing-surface-header-badge');
-    const compactTitle = document.getElementById('cementing-surface-screen-title-compact');
+    const appContainer = document.querySelector('.app-container');
 
     if (!container) return;
 
-    // View routing
-    switch (surfaceCementingState.view) {
-      case 'chooser':
-        if (fixedHeaderWrapper) fixedHeaderWrapper.style.display = 'none';
-        if (headerBadge) headerBadge.style.display = 'none';
-        if (compactTitle) compactTitle.textContent = t('Surface Wellhead');
-        renderSurfaceChooser(container);
-        break;
+    // Fixed header wrapper is kept hidden to enforce the single CollapsingPage header flow
+    if (fixedHeaderWrapper) fixedHeaderWrapper.style.display = 'none';
+    if (headerSlot) headerSlot.innerHTML = '';
 
-      case 'capacities':
-        if (fixedHeaderWrapper) {
-          fixedHeaderWrapper.style.display = 'block';
-          renderSurfaceJobHeader(headerSlot);
-        }
-        if (headerBadge) {
-          headerBadge.style.display = 'inline-block';
-          headerBadge.textContent = t(surfaceCementingState.inputs.model === 'conductor' ? 'Conductor' : 'Surface Casing');
-        }
-        renderSurfaceCapacities(container);
-        break;
+    // Scroll to top
+    const currentScrollY = window.pageYOffset || document.documentElement.scrollTop || (appContainer ? appContainer.scrollTop : 0) || 0;
+    if (currentScrollY > 0) {
+      window.scrollTo(0, 0);
+      if (document.body) document.body.scrollTop = 0;
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (appContainer) appContainer.scrollTop = 0;
+    }
 
-      case 'welldata':
-        if (fixedHeaderWrapper) {
-          fixedHeaderWrapper.style.display = 'block';
-          renderSurfaceJobHeader(headerSlot);
-        }
-        if (headerBadge) {
-          headerBadge.style.display = 'inline-block';
-          headerBadge.textContent = t(surfaceCementingState.inputs.model === 'conductor' ? 'Conductor' : 'Surface Casing');
-        }
-        renderSurfaceWellData(container);
-        break;
+    if (surfaceCementingState.view === 'chooser') {
+      wrapper.classList.remove('job-active');
+      if (appContainer) {
+        appContainer.classList.add('cementing-active');
+        appContainer.classList.remove('cementing-job-active');
+      }
+      container.style.paddingTop = '0px';
 
-      case 'results':
-        if (fixedHeaderWrapper) {
-          fixedHeaderWrapper.style.display = 'block';
-          renderSurfaceJobHeader(headerSlot, true);
-        }
-        if (headerBadge) {
-          headerBadge.style.display = 'inline-block';
-          headerBadge.textContent = t(surfaceCementingState.inputs.model === 'conductor' ? 'Conductor' : 'Surface Casing');
-        }
-        renderSurfaceResults(container);
-        break;
+      if (titleEl) titleEl.textContent = t('Surface Wellhead');
+      if (compactTitleEl) compactTitleEl.textContent = t('Surface Wellhead');
+      if (headerBadge) headerBadge.style.display = 'none';
+      if (subtitleEl) {
+        subtitleEl.textContent = t('Land Rig & Jack-up Rig · Casing strings to surface');
+        subtitleEl.style.display = '';
+      }
 
-      default:
-        surfaceCementingState.view = 'chooser';
-        renderSurfaceChooser(container);
-        break;
+      renderSurfaceChooser(container);
+    } else {
+      wrapper.classList.add('job-active');
+      if (appContainer) {
+        appContainer.classList.add('cementing-active', 'cementing-job-active');
+      }
+
+      const preset = SURFACE_SECTION_PRESETS[surfaceCementingState.section] || SURFACE_SECTION_PRESETS['custom'];
+
+      if (titleEl) titleEl.textContent = t('Surface Wellhead');
+      if (compactTitleEl) compactTitleEl.textContent = t('Surface Wellhead');
+
+      const isConductor = surfaceCementingState.inputs.model === 'conductor';
+      const isCustom = surfaceCementingState.section === 'custom';
+      const badgeText = isCustom ? 'CUSTOM' : (isConductor ? 'CONDUCTOR' : 'SURFACE');
+      const badgeClass = isConductor ? 'cement-badge-riserless' : 'cement-badge-subsea';
+      const secSubtitle = SECTION_SUBTITLES[surfaceCementingState.section] || preset.label || preset.name || 'Custom Section';
+
+      if (subtitleEl) {
+        subtitleEl.innerHTML = `<span class="cement-subtitle-text">${t(secSubtitle)}</span> <span class="cement-badge-model ${badgeClass}">${t(badgeText)}</span>`;
+        subtitleEl.style.display = 'inline-flex';
+        subtitleEl.style.alignItems = 'center';
+        subtitleEl.style.gap = '8px';
+      }
+
+      // Hide headerBadge in top bar to keep only one clean row beneath Surface Wellhead showing section title and badge
+      if (headerBadge) {
+        headerBadge.style.display = 'none';
+      }
+
+      // Route through Wizard steps
+      switch (surfaceCementingState.view) {
+        case 'capacities':
+          renderSurfaceCapacities(container);
+          break;
+        case 'welldata':
+          renderSurfaceWellData(container);
+          break;
+        case 'results':
+          renderSurfaceResults(container);
+          break;
+        default:
+          renderSurfaceCapacities(container);
+          break;
+      }
     }
   }
   root.renderSurfaceCementingScreen = renderSurfaceCementingScreen;
 
-  // View 1: Section Chooser
+  // View 1: Section Chooser Screen
   function renderSurfaceChooser(container) {
-    const savedJobs = getSavedJobsList();
+    if (!container) return;
+    container.innerHTML = '';
 
-    container.innerHTML = `
-      <div class="cement-chooser-wrapper" style="display:flex; flex-direction:column; gap:20px; padding:8px 0 24px;">
-        <div class="cement-section-header" style="margin-bottom:4px;">
-          <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-primary); margin:0 0 4px;">${t('Select Casing String')}</h2>
-          <p style="font-size:0.85rem; color:var(--text-secondary); margin:0;">${t('Surface wellhead casing string setup, slurry volumes, and displacement calculations.')}</p>
-        </div>
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cement-view-animate';
 
-        <div class="selection-card-list" style="display:flex; flex-direction:column; gap:12px;">
-          ${renderSectionCard('conductor', '30" Conductor', '36" Hole · 30" Casing', 'Conductor Model (Stab-in)', 'icon-subsea')}
-          ${renderSectionCard('surface', '20" Surface Casing', '26" Hole · 20" Casing', 'Surface-casing Model', 'icon-surface')}
-          ${renderSectionCard('intermediate', '13-3/8" Intermediate Casing', '17½" Hole · 13-3/8" Casing', 'Surface-casing Model', 'icon-intermediate')}
-          ${renderSectionCard('production', '9-5/8" Production Casing', '12¼" Hole · 9-5/8" Casing', 'Surface-casing Model', 'icon-production')}
-          ${renderSectionCard('custom', 'Custom Section', 'User-defined casing, hole & model', 'Flexible Model', 'icon-custom')}
-        </div>
+    const sections = [
+      {
+        id: 'conductor',
+        title: '30" Conductor',
+        sub: '36" Hole · 30" Casing · Conductor Inner String',
+        badge: 'CONDUCTOR',
+        badgeClass: 'cement-badge-riserless',
+        icon: '30"'
+      },
+      {
+        id: 'surface',
+        title: '20" Surface Casing',
+        sub: '26" Hole · 20" Casing · Surface Casing Model',
+        badge: 'SURFACE',
+        badgeClass: 'cement-badge-subsea',
+        icon: '20"'
+      },
+      {
+        id: 'intermediate',
+        title: '13-3/8" Intermediate Casing',
+        sub: '17½" Hole · 13-3/8" Casing · Intermediate Casing',
+        badge: 'SURFACE',
+        badgeClass: 'cement-badge-subsea',
+        icon: '13⅜"'
+      },
+      {
+        id: 'production',
+        title: '9-5/8" Production Casing',
+        sub: '12¼" Hole · 9-5/8" Casing · Production Casing',
+        badge: 'SURFACE',
+        badgeClass: 'cement-badge-subsea',
+        icon: '9⅝"'
+      },
+      {
+        id: 'custom',
+        title: 'Custom Section',
+        sub: 'User-defined casing, hole & model',
+        badge: 'CUSTOM',
+        badgeClass: 'cement-badge-subsea',
+        icon: 'O'
+      }
+    ];
 
-        ${savedJobs.length > 0 ? `
-          <div class="cement-saved-jobs-section" style="margin-top:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <h3 style="font-size:1rem; font-weight:700; color:var(--text-primary); margin:0;">${t('Saved Surface Jobs')}</h3>
-              <span class="cement-badge-count" style="background:var(--bg-subtle-track); color:var(--text-secondary); font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:600;">${savedJobs.length}</span>
-            </div>
-            <div class="saved-jobs-list" style="display:flex; flex-direction:column; gap:10px;">
-              ${savedJobs.map((job, idx) => `
-                <div class="card selection-card saved-job-card" data-job-id="${escapeAttr(job.id)}" style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-radius:12px; background:var(--card-bg); border:1px solid var(--border-subtle); cursor:pointer;">
-                  <div style="min-width:0;">
-                    <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem; margin-bottom:2px;">${escapeHtml(job.name || job.label)}</div>
-                    <div style="font-size:0.75rem; color:var(--text-secondary);">${job.model === 'conductor' ? t('Conductor Model') : t('Surface Casing Model')} · ${new Date(job.updatedAt || Date.now()).toLocaleDateString()}</div>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <button type="button" class="btn-delete-saved-job" data-delete-idx="${idx}" title="${t('Delete Job')}" aria-label="${t('Delete Job')}" style="background:none; border:none; padding:6px; color:var(--text-secondary); cursor:pointer;">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                    </button>
-                    <span class="card-chevron" style="color:var(--text-secondary);">&rsaquo;</span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
-      </div>
+    let gridHtml = `
+      <div style="display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:18px;">
     `;
 
-    // Bind section card clicks
-    container.querySelectorAll('.selection-card[data-section]').forEach(card => {
+    sections.forEach(sec => {
+      gridHtml += `
+        <div class="cement-section-card" data-section="${sec.id}" style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:var(--card-bg); border:1px solid var(--border-subtle); border-radius:14px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="width:44px; height:44px; border-radius:10px; background:linear-gradient(135deg, #0369a1 0%, #0284c7 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; letter-spacing:-0.02em; flex-shrink:0;">
+              ${sec.icon}
+            </div>
+            <div>
+              <div style="font-weight:700; font-size:0.95rem; color:var(--text-primary); margin-bottom:2px;">
+                ${t(sec.title)}
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.3;">
+                ${t(sec.sub)}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="cement-badge-model ${sec.badgeClass}">${t(sec.badge)}</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-secondary);"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+        </div>
+      `;
+    });
+
+    gridHtml += `</div>`;
+
+    // Saved Jobs Section
+    const savedJobs = getSavedJobsList();
+    let savedHtml = `
+      <div class="content-card" style="margin-top:24px; padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:0.92rem; font-weight:700; color:var(--text-primary); margin:0;">${t('Saved Cementing Jobs')}</h3>
+          <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">${savedJobs.length} ${t('saved')}</span>
+        </div>
+    `;
+
+    if (savedJobs.length === 0) {
+      savedHtml += `
+        <p style="font-size:0.75rem; color:var(--text-secondary); margin:0; line-height:1.4;">
+          ${t('No saved jobs yet. Configure any section and click "Save Job" to keep your well parameters for later.')}
+        </p>
+      `;
+    } else {
+      savedHtml += `<div style="display:flex; flex-direction:column; gap:8px;">`;
+      savedJobs.forEach((job, idx) => {
+        const jobId = job.id || idx;
+        const jobTitle = escapeAttr(job.name || job.jobName || 'Saved Job');
+        const jobDate = escapeAttr(job.calendarDate || job.date || new Date(job.updatedAt || Date.now()).toLocaleDateString());
+        const sectionPreset = SURFACE_SECTION_PRESETS[job.section] || SURFACE_SECTION_PRESETS['custom'];
+        const sectionTitle = escapeAttr(job.casingType || SECTION_SUBTITLES[job.section] || sectionPreset?.label || job.section);
+        const modelBadge = escapeAttr((job.model === 'conductor' ? 'CONDUCTOR' : (job.section === 'custom' ? 'CUSTOM' : 'SURFACE')));
+
+        savedHtml += `
+          <div class="cement-saved-job-card" data-load-id="${jobId}" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-subtle); border-radius:12px; border:1px solid var(--border-subtle); cursor:pointer;">
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${jobTitle}</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary);">${jobDate} · ${sectionTitle} (${modelBadge})</div>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center; margin-left:8px;">
+              <button type="button" class="btn btn-primary" data-load-id="${jobId}" style="padding:6px 12px; font-size:0.75rem; margin:0;">${t('Load')}</button>
+              <button type="button" class="btn btn-secondary" data-del-id="${jobId}" style="padding:6px 10px; font-size:0.75rem; margin:0; color:#EF4444;">✕</button>
+            </div>
+          </div>
+        `;
+      });
+      savedHtml += `</div>`;
+    }
+
+    savedHtml += `</div>`;
+
+    wrapper.innerHTML = gridHtml + savedHtml;
+    container.appendChild(wrapper);
+
+    // Section card click handler
+    wrapper.querySelectorAll('.cement-section-card').forEach(card => {
       card.onclick = () => {
-        const sec = card.getAttribute('data-section');
-        selectSection(sec);
+        const secId = card.getAttribute('data-section');
+        card.classList.add('active');
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            selectSection(secId);
+          }, 35);
+        });
       };
     });
 
-    // Bind saved job clicks & deletes
-    container.querySelectorAll('.saved-job-card').forEach(card => {
-      card.onclick = (e) => {
-        if (e.target.closest('.btn-delete-saved-job')) return;
-        const jId = card.getAttribute('data-job-id');
-        loadSavedJob(jId);
+    // Saved job click & load handlers
+    wrapper.querySelectorAll('[data-load-id]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.getAttribute('data-load-id');
+        el.classList.add('active');
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            loadSavedJob(id);
+          }, 35);
+        });
       };
     });
 
-    container.querySelectorAll('.btn-delete-saved-job').forEach(btn => {
+    wrapper.querySelectorAll('[data-del-id]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
-        const idx = parseInt(btn.getAttribute('data-delete-idx'), 10);
-        const list = getSavedJobsList();
-        if (idx >= 0 && idx < list.length) {
-          list.splice(idx, 1);
-          saveJobsList(list);
-          renderSurfaceChooser(container);
-          if (typeof showToast === 'function') showToast(t('Saved job deleted'));
-        }
+        const id = btn.getAttribute('data-del-id');
+        deleteSavedJob(id);
       };
     });
-  }
-
-  function renderSectionCard(secKey, title, sub, modelTag, iconClass) {
-    return `
-      <div class="card selection-card" data-section="${secKey}" style="display:flex; align-items:center; gap:16px; padding:16px; border-radius:14px; background:var(--card-bg); border:1px solid var(--border-subtle); cursor:pointer; transition:transform 0.15s, border-color 0.15s;">
-        <div class="card-icon-container ${iconClass}" style="width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-        </div>
-        <div style="flex:1; min-width:0;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="font-size:1rem; font-weight:700; color:var(--text-primary); margin:0;">${t(title)}</h3>
-            <span style="font-size:0.7rem; font-weight:600; padding:2px 8px; border-radius:8px; background:var(--bg-subtle-track); color:var(--text-secondary);">${t(modelTag)}</span>
-          </div>
-          <p style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0;">${t(sub)}</p>
-        </div>
-        <span class="card-chevron" style="color:var(--text-secondary);">&rsaquo;</span>
-      </div>
-    `;
   }
 
   function selectSection(secKey) {
     surfaceCementingState.section = secKey;
-    const preset = SURFACE_SECTION_PRESETS[secKey];
-    if (!preset) return;
+    const preset = SURFACE_SECTION_PRESETS[secKey] || SURFACE_SECTION_PRESETS['custom'];
 
     // Check for draft inputs
     const draft = getDraftInputs(secKey);
-    surfaceCementingState.inputs = draft ? { ...preset, ...draft } : { ...preset };
+    surfaceCementingState.inputs = draft ? { ...preset, ...draft } : JSON.parse(JSON.stringify(preset));
+    if (!surfaceCementingState.inputs.tubulars) {
+      surfaceCementingState.inputs.tubulars = Object.assign({}, preset.tubulars);
+    }
     surfaceCementingState.overrides = {};
     surfaceCementingState.results = null;
     surfaceCementingState.jobName = preset.name;
+    surfaceCementingState.wellDataSubmitted = false;
+    surfaceCementingState.collapsedSections = { depths: false, fluids: false, limits: false };
+
+    const savedRef = getSavedCapacityRef(secKey);
+    if (savedRef) {
+      surfaceCementingState.activeReference = savedRef;
+      if (savedRef.tubulars) {
+        surfaceCementingState.inputs.tubulars = Object.assign({}, savedRef.tubulars);
+      }
+      if (savedRef.unit) {
+        surfaceCementingState.capUnit = savedRef.unit;
+      }
+      if (savedRef.unitSystem) {
+        surfaceCementingState.unit = savedRef.unitSystem;
+      }
+      if (savedRef.overrides) {
+        surfaceCementingState.overrides = Object.assign({}, savedRef.overrides);
+      }
+    } else {
+      surfaceCementingState.activeReference = null;
+    }
+    surfaceCementingState.referenceIsDirty = true;
+
     surfaceCementingState.view = 'capacities';
     renderSurfaceCementingScreen();
   }
-
-  function surfaceGoToView(viewName) {
-    if (['chooser', 'capacities', 'welldata', 'results'].includes(viewName)) {
-      surfaceCementingState.view = viewName;
-      renderSurfaceCementingScreen();
-    }
-  }
+  root.selectSurfaceSection = selectSection;
 
   function openSurfaceCementingModule(sectionKey) {
     if (sectionKey && SURFACE_SECTION_PRESETS[sectionKey]) {
@@ -550,456 +793,823 @@
       renderSurfaceCementingScreen();
     }
   }
+  root.openSurfaceCementingModule = openSurfaceCementingModule;
 
   function loadSavedJob(jobId) {
     const list = getSavedJobsList();
-    const job = list.find(j => j.id === jobId);
+    const job = list.find((j, idx) => String(j.id || idx) === String(jobId));
     if (!job) return;
 
-    surfaceCementingState.section = job.section || 'custom';
-    surfaceCementingState.inputs = { ...job.inputs };
-    surfaceCementingState.overrides = { ...(job.overrides || {}) };
-    surfaceCementingState.unit = job.unit || 'ft';
-    surfaceCementingState.jobName = job.name || job.label;
-    surfaceCementingState.view = 'results';
-    renderSurfaceCementingScreen();
-    if (typeof showToast === 'function') showToast(t('Job loaded'));
+    surfaceCementingState.section = job.sectionId || job.section || 'conductor';
+    surfaceCementingState.inputs = JSON.parse(JSON.stringify(job.inputs || job.wellData || {}));
+    surfaceCementingState.overrides = Object.assign({}, job.overrides || {});
+    surfaceCementingState.unit = job.unit || job.unitSystem || 'm';
+    surfaceCementingState.jobName = job.name || job.jobName || '';
+    surfaceCementingState.inputs.name = surfaceCementingState.jobName;
+
+    if (job.reference) {
+      surfaceCementingState.activeReference = JSON.parse(JSON.stringify(job.reference));
+      surfaceCementingState.referenceIsDirty = false;
+      if (job.reference.tubulars) {
+        surfaceCementingState.inputs.tubulars = Object.assign({}, job.reference.tubulars);
+      }
+      if (job.reference.unit) {
+        surfaceCementingState.capUnit = job.reference.unit;
+      }
+    } else {
+      const savedRef = getSavedCapacityRef(surfaceCementingState.section);
+      if (savedRef) {
+        surfaceCementingState.activeReference = savedRef;
+        surfaceCementingState.referenceIsDirty = false;
+        if (savedRef.tubulars) surfaceCementingState.inputs.tubulars = Object.assign({}, savedRef.tubulars);
+        if (savedRef.unit) surfaceCementingState.capUnit = savedRef.unit;
+      }
+    }
+
+    // Direct calculation to show results
+    executeSurfaceCalculation(true);
   }
 
-  // Job Top Bar
-  function renderSurfaceJobHeader(slot, isResults = false) {
-    if (!slot) return;
-    const isMetric = surfaceCementingState.unit === 'm';
-    const sectionName = surfaceCementingState.jobName || SURFACE_SECTION_PRESETS[surfaceCementingState.section]?.name || 'Surface Wellhead';
+  function deleteSavedJob(jobId) {
+    let list = getSavedJobsList();
+    list = list.filter((j, idx) => String(j.id || idx) !== String(jobId));
+    saveJobsList(list);
+    const container = document.getElementById('cementing-surface-container');
+    if (container && surfaceCementingState.view === 'chooser') {
+      renderSurfaceChooser(container);
+    }
+    if (typeof showToast === 'function') showToast(t('Saved job deleted'));
+  }
 
-    slot.innerHTML = `
-      <div class="cement-job-header-bar" style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:var(--card-bg); border-bottom:1px solid var(--border-subtle);">
-        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-          <button type="button" class="btn-job-back" id="btn-surface-job-back" aria-label="${t('Back')}" style="background:none; border:none; padding:4px; color:var(--text-primary); cursor:pointer;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          </button>
-          <span style="font-weight:700; font-size:0.95rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sectionName)}</span>
+  // View 2: API Capacities & Annuli Step
+  function renderSurfaceCapacities(container) {
+    if (!container) return;
+    container.innerHTML = '';
+
+    const inp = surfaceCementingState.inputs;
+    const preset = SURFACE_SECTION_PRESETS[surfaceCementingState.section] || SURFACE_SECTION_PRESETS['custom'];
+    if (!inp.tubulars) {
+      inp.tubulars = Object.assign({}, preset.tubulars);
+    }
+
+    // Top-Level Unit Toggle Card directly above API Capacities & Annuli
+    const sys = (window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function')
+      ? window.UnitsEngine.getUnitSystem()
+      : 'mixed';
+    const isM = (surfaceCementingState.unit || 'm') === 'm';
+
+    let pillText = isM ? t('Metric (m, bbl/m)') : t('Imperial (ft, bbl/ft)');
+    if (sys === 'si') {
+      pillText = t('Metric (m, L/m)');
+    } else if (sys === 'api') {
+      pillText = t('Imperial (ft, bbl/ft)');
+    } else if (surfaceCementingState.capUnit === 'L/M' || surfaceCementingState.capUnit === 'LTR/M') {
+      pillText = t('Metric (m, L/m)');
+    }
+
+    const unitCard = document.createElement('div');
+    unitCard.className = 'content-card cement-unit-toggle-card cement-view-animate';
+    unitCard.innerHTML = `
+      <div class="cement-unit-header-left">
+        <div class="cement-unit-title-group">
+          <svg class="cement-unit-ruler-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.3 8.7 8.7 21.3c-1 1-2.5 1-3.4 0l-2.6-2.6c-1-1-1-2.5 0-3.4L15.3 2.7c1-1 2.5-1 3.4 0l2.6 2.6c1 1 1 2.5 0 3.4Z"/>
+            <path d="m14.5 3.5 2 2"/>
+            <path d="m11.5 6.5 2 2"/>
+            <path d="m8.5 9.5 2 2"/>
+            <path d="m5.5 12.5 2 2"/>
+          </svg>
+          <span class="cement-unit-caption">${t('UNIT SYSTEM')}</span>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <!-- Unit Switcher -->
-          <div class="unit-toggle-pill" id="surface-unit-toggle" style="display:flex; background:var(--bg-subtle-track); border-radius:20px; padding:2px; cursor:pointer;">
-            <span class="unit-opt ${!isMetric ? 'active' : ''}" data-unit="ft" style="padding:3px 10px; font-size:0.75rem; font-weight:700; border-radius:16px; ${!isMetric ? 'background:var(--primary); color:#fff;' : 'color:var(--text-secondary);'}">ft</span>
-            <span class="unit-opt ${isMetric ? 'active' : ''}" data-unit="m" style="padding:3px 10px; font-size:0.75rem; font-weight:700; border-radius:16px; ${isMetric ? 'background:var(--primary); color:#fff;' : 'color:var(--text-secondary);'}">m</span>
-          </div>
-          ${!isResults ? `
-            <button type="button" class="btn-reset-step" id="btn-surface-reset-step" title="${t('Reset Defaults')}" style="background:none; border:none; padding:4px; color:var(--text-secondary); cursor:pointer;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            </button>
-          ` : ''}
-        </div>
+        <span class="cement-unit-mode-pill ${isM ? 'mode-metric' : 'mode-imperial'}" id="surface-unit-pill-desc">
+          ${pillText}
+        </span>
+      </div>
+      <div class="cement-segmented-control" role="group" aria-label="Units" ${sys !== 'mixed' ? 'style="opacity:0.65; pointer-events:none;"' : ''}>
+        <button type="button" class="cement-unit-btn ${isM ? 'active' : ''}" id="surface-top-unit-m" data-unit="m">M</button>
+        <button type="button" class="cement-unit-btn ${!isM ? 'active' : ''}" id="surface-top-unit-ft" data-unit="ft">FT</button>
       </div>
     `;
+    container.appendChild(unitCard);
 
-    // Back click
-    const backBtn = slot.querySelector('#btn-surface-job-back');
-    if (backBtn) {
-      backBtn.onclick = () => {
-        if (surfaceCementingState.view === 'results') surfaceCementingState.view = 'welldata';
-        else if (surfaceCementingState.view === 'welldata') surfaceCementingState.view = 'capacities';
-        else if (surfaceCementingState.view === 'capacities') surfaceCementingState.view = 'chooser';
-        renderSurfaceCementingScreen();
-      };
-    }
+    unitCard.querySelector('#surface-top-unit-m').onclick = () => toggleSurfaceUnit('m');
+    unitCard.querySelector('#surface-top-unit-ft').onclick = () => toggleSurfaceUnit('ft');
 
-    // Unit toggle
-    const toggle = slot.querySelector('#surface-unit-toggle');
-    if (toggle) {
-      toggle.onclick = () => {
-        const newUnit = surfaceCementingState.unit === 'ft' ? 'm' : 'ft';
-        surfaceCementingState.unit = newUnit;
-        savePersistedUnit();
-        renderSurfaceCementingScreen();
-      };
-    }
+    // API Capacities & Annuli Card
+    const capCard = document.createElement('div');
+    capCard.className = 'content-card cement-view-animate';
+    capCard.style.padding = '14px 16px';
+    capCard.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <h3 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          ${t('API Capacities & Annuli')}
+        </h3>
+      </div>
+      <div style="margin-bottom:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+        ${t('All standard nominal values sourced from API Tubular Data. Values can be customized per job.')}
+      </div>
+      <div class="cement-cap-table-wrap">
+        ${renderSurfaceCapacitiesTable(inp)}
+      </div>
+    `;
+    container.appendChild(capCard);
+    bindSurfaceCapacitiesActions(capCard);
 
-    // Reset button
-    const resetBtn = slot.querySelector('#btn-surface-reset-step');
-    if (resetBtn) {
-      resetBtn.onclick = () => {
-        const sec = surfaceCementingState.section;
-        const preset = SURFACE_SECTION_PRESETS[sec];
-        if (preset) {
-          surfaceCementingState.inputs = { ...preset };
-          surfaceCementingState.overrides = {};
-          clearSavedCapacityRef(sec);
-          renderSurfaceCementingScreen();
-          if (typeof showToast === 'function') showToast(t('Reset to section defaults'));
-        }
-      };
-    }
+    // Bottom Action Buttons: Side-by-Side [ Save as Reference ] & [ Use Reference ]
+    const isSaved = Boolean(surfaceCementingState.activeReference && !surfaceCementingState.referenceIsDirty);
+    const btnRow = document.createElement('div');
+    btnRow.className = 'cement-btn-side-by-side cement-view-animate';
+    btnRow.style.cssText = 'margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:10px;';
+    btnRow.innerHTML = `
+      <button type="button" class="btn ${isSaved ? 'btn-secondary' : 'btn-primary'}" id="btn-surface-save-ref" style="width:100%; margin:0; padding:11px 6px; font-size:0.82rem; font-weight:700; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">
+        ${t('Save as Reference')}
+      </button>
+      <button type="button" class="btn ${isSaved ? 'btn-primary' : 'btn-secondary'}" id="btn-surface-use-ref" style="width:100%; margin:0; padding:11px 6px; font-size:0.82rem; font-weight:700; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; ${isSaved ? '' : 'opacity:0.45; pointer-events:none;'}" ${isSaved ? '' : 'disabled'}>
+        ${t('Use Reference')}
+      </button>
+    `;
+    container.appendChild(btnRow);
+
+    const saveBtn = btnRow.querySelector('#btn-surface-save-ref');
+    const useBtn = btnRow.querySelector('#btn-surface-use-ref');
+
+    saveBtn.onclick = () => {
+      saveActiveSurfaceReferenceFromUI(capCard, saveBtn, useBtn);
+    };
+
+    useBtn.onclick = () => {
+      if (useBtn.disabled || !surfaceCementingState.activeReference || surfaceCementingState.referenceIsDirty) return;
+      surfaceCementingState.view = 'welldata';
+      renderSurfaceCementingScreen();
+    };
   }
 
-  // View 2: Capacities Table Step
-  function renderSurfaceCapacities(container) {
-    const inp = surfaceCementingState.inputs;
+  function renderSurfaceCapacitiesTable(inp) {
     const computed = computeSurfaceCapacities(inp, surfaceCementingState.overrides);
     const tubulars = inp.tubulars || {};
+    const sectionKey = surfaceCementingState.section || 'conductor';
     const isConductor = inp.model === 'conductor';
-    const isCustom = surfaceCementingState.section === 'custom';
-    const activeCapUnit = surfaceCementingState.capUnit || 'BBL/FT';
+    const isCustom = sectionKey === 'custom';
+    const sys = (window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function')
+      ? window.UnitsEngine.getUnitSystem()
+      : 'mixed';
+    let activeCapUnit = surfaceCementingState.capUnit || (surfaceCementingState.unit === 'm' ? 'BBL/M' : 'BBL/FT');
+    if (sys === 'api') activeCapUnit = 'BBL/FT';
+    else if (sys === 'si') activeCapUnit = 'L/M';
 
-    const csgOptions = window.CementingCommon.getCasingOptions(isCustom ? (inp.custom_csg_od || 13.375) : (computed.csg?.od_in || 30.0));
-    const dpOptions = isConductor ? window.CementingCommon.getDrillPipeOptions() : [];
-    const prevCsgOptions = (!isConductor) ? window.CementingCommon.getCasingOptions(isCustom ? (inp.custom_prev_csg_od || 20.0) : (computed.prevCsg?.od_in || 30.0)) : [];
-    const holeOptions = window.CementingCommon.getHoleOptions(isCustom ? 'custom' : surfaceCementingState.section);
+    let targetCsgOd = 30.0;
+    if (sectionKey === 'surface') targetCsgOd = 20.0;
+    else if (sectionKey === 'intermediate') targetCsgOd = 13.375;
+    else if (sectionKey === 'production') targetCsgOd = 9.625;
+    else if (isCustom) targetCsgOd = Number(inp.custom_csg_od) || 13.375;
+
+    let targetPrevCsgOd = null;
+    if (sectionKey === 'surface') targetPrevCsgOd = 30.0;
+    else if (sectionKey === 'intermediate') targetPrevCsgOd = 20.0;
+    else if (sectionKey === 'production') targetPrevCsgOd = 13.375;
+    else if (isCustom && !isConductor) targetPrevCsgOd = Number(inp.custom_prev_csg_od) || 20.0;
 
     let rows = [];
 
     // Row 1: Casing Capacity
-    rows.push({
-      key: 'cap_csg',
-      title: isConductor ? 'Conductor Casing' : 'Casing Capacity',
-      sub: computed.labels.csg_label,
-      sourceField: 'csg_id',
-      selectedId: tubulars.csg_id || csgOptions[0]?.id,
-      options: csgOptions,
-      val: computed.effective.cap_csg,
-      tableVal: computed.tableVals.cap_csg,
-      isReadOnly: false
-    });
+    const csgOptions = window.CementingCommon.getCasingOptions(targetCsgOd);
+    let selectedCsg = csgOptions.find(o => o.id === tubulars.csg_id) || csgOptions[0];
+    if (selectedCsg) tubulars.csg_id = selectedCsg.id;
+    const csgOdLabel = selectedCsg ? (selectedCsg.label.replace(/\s*[0-9.]+#[^"]*/, '').trim() || `${targetCsgOd}"`) : `${targetCsgOd}"`;
 
-    // Row 2: Conductor -> Inner String (DP); Surface-casing -> Cased Annulus
+    const csgRow = {
+      key: 'cap_csg',
+      componentTitle: isConductor ? 'Conductor Casing' : `${csgOdLabel} Casing`,
+      componentSub: 'Casing Capacity',
+      sourceField: 'csg_id',
+      currentSourceVal: selectedCsg?.id,
+      sourceLabel: selectedCsg?.label,
+      options: csgOptions,
+      canonicalVal: computed.effective.cap_csg,
+      isReadOnlySource: false
+    };
+
+    if (isCustom) {
+      csgRow.customOdSelect = {
+        options: window.CementingCommon.CASING_OD_LIST,
+        selectedOd: targetCsgOd
+      };
+    }
+    rows.push(csgRow);
+
+    // Row 2: Conductor -> Inner String (Drill Pipe); Surface-casing -> Cased Annulus
     if (isConductor) {
+      const dpOptions = window.CementingCommon.getDrillPipeOptions();
+      let selectedDp = dpOptions.find(o => o.id === tubulars.dp_id) || dpOptions.find(o => o.id === 'dp_5.875_23.4') || dpOptions[0];
+      if (selectedDp) tubulars.dp_id = selectedDp.id;
+
       rows.push({
         key: 'cap_dp',
-        title: 'Inner String',
-        sub: computed.labels.dp_label,
+        componentTitle: 'Inner String',
+        componentSub: 'Inner String Capacity',
         sourceField: 'dp_id',
-        selectedId: tubulars.dp_id || dpOptions[0]?.id,
+        currentSourceVal: selectedDp?.id,
+        sourceLabel: selectedDp?.label,
         options: dpOptions,
-        val: computed.effective.cap_dp,
-        tableVal: computed.tableVals.cap_dp,
-        isReadOnly: false
+        canonicalVal: computed.effective.cap_dp,
+        isReadOnlySource: false
       });
-    } else {
-      rows.push({
+    } else if (targetPrevCsgOd) {
+      const prevCsgOptions = window.CementingCommon.getCasingOptions(targetPrevCsgOd);
+      let selectedPrevCsg = prevCsgOptions.find(o => o.id === tubulars.prev_csg_id) || prevCsgOptions[0];
+      if (selectedPrevCsg) tubulars.prev_csg_id = selectedPrevCsg.id;
+      const prevCsgOdLabel = selectedPrevCsg ? (selectedPrevCsg.label.replace(/\s*[0-9.]+#[^"]*/, '').trim() || `${targetPrevCsgOd}"`) : `${targetPrevCsgOd}"`;
+
+      const prevRow = {
         key: 'cap_ann_c',
-        title: 'Cased Annulus',
-        sub: `${computed.labels.prev_csg_label} × ${computed.labels.csg_label}`,
+        componentTitle: 'Cased Annulus',
+        componentSub: `${prevCsgOdLabel} × ${csgOdLabel}`,
         sourceField: 'prev_csg_id',
-        selectedId: tubulars.prev_csg_id || prevCsgOptions[0]?.id,
+        currentSourceVal: selectedPrevCsg?.id,
+        sourceLabel: selectedPrevCsg?.label,
         options: prevCsgOptions,
-        val: computed.effective.cap_ann_c,
-        tableVal: computed.tableVals.cap_ann_c,
-        isReadOnly: false
-      });
+        canonicalVal: computed.effective.cap_ann_c,
+        isReadOnlySource: false
+      };
+
+      if (isCustom) {
+        const availablePrevOds = window.CementingCommon.CASING_OD_LIST.filter(item => item.od > targetCsgOd);
+        prevRow.customOdSelect = {
+          options: availablePrevOds.length ? availablePrevOds : window.CementingCommon.CASING_OD_LIST,
+          selectedOd: targetPrevCsgOd
+        };
+      }
+      rows.push(prevRow);
     }
 
     // Row 3: Open Hole Annulus
+    const holeOptions = window.CementingCommon.getHoleOptions(isCustom ? 'custom' : sectionKey);
+    let selectedHole = holeOptions.find(o => o.id === tubulars.hole_id) || holeOptions[0];
+    if (selectedHole) tubulars.hole_id = selectedHole.id;
+    const holeLabelShort = selectedHole?.label.replace(' Open Hole', '').trim() || 'Hole';
+
     rows.push({
       key: 'cap_ann_oh',
-      title: 'Open Hole Annulus',
-      sub: `${computed.labels.oh_label} × ${computed.labels.csg_label}`,
+      componentTitle: 'Open Hole Annulus',
+      componentSub: `${holeLabelShort} × ${csgOdLabel}`,
       sourceField: 'hole_id',
-      selectedId: tubulars.hole_id || holeOptions[0]?.id,
+      currentSourceVal: selectedHole?.id,
+      sourceLabel: selectedHole?.label,
       options: holeOptions,
-      val: computed.effective.cap_ann_oh,
-      tableVal: computed.tableVals.cap_ann_oh,
-      isReadOnly: false
+      canonicalVal: computed.effective.cap_ann_oh,
+      isReadOnlySource: false
     });
 
-    // Row 4: Open Hole Rathole
+    // Row 4: Open Hole Rathole (Read-only source)
     rows.push({
       key: 'cap_oh',
-      title: 'Open Hole Rathole',
-      sub: computed.labels.oh_label,
-      selectedId: tubulars.hole_id,
+      componentTitle: 'Open Hole Rathole',
+      componentSub: selectedHole?.label || 'Open Hole',
+      sourceField: 'hole_id',
+      currentSourceVal: selectedHole?.id,
+      sourceLabel: selectedHole?.label,
+      readOnlyText: selectedHole?.label || 'Open Hole',
       options: [],
-      val: computed.effective.cap_oh,
-      tableVal: computed.tableVals.cap_oh,
-      isReadOnly: true
+      canonicalVal: computed.effective.cap_oh,
+      isReadOnlySource: true
     });
 
-    container.innerHTML = `
-      <div class="cement-step-wrapper" style="display:flex; flex-direction:column; gap:20px; padding:12px 0 32px;">
-        <div class="cement-step-intro">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-primary); margin:0 0 2px;">${t('Tubular Capacities')}</h2>
-              <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">${t('Sourced from API Tubular Data with job override support')}</p>
-            </div>
-            <span class="cement-badge-model">${isConductor ? t('Inner String') : t('Surface Casing')}</span>
-          </div>
-        </div>
-
-        <!-- Capacities Table Card -->
-        <div class="card" style="padding:0; overflow:hidden; border-radius:14px; border:1px solid var(--border-subtle); background:var(--card-bg);">
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border-subtle); background:var(--bg-subtle-track);">
-            <span style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">${t('Capacities & Annular Volumes')}</span>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <label style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">${t('UNIT')}:</label>
-              <select id="surface-cap-unit-select" class="cement-cap-header-unit-select" style="padding:2px 8px; font-size:0.75rem; border-radius:6px; background:var(--card-bg); border:1px solid var(--border-subtle); color:var(--text-primary); font-weight:600;">
-                <option value="BBL/FT" ${activeCapUnit === 'BBL/FT' ? 'selected' : ''}>bbl/ft</option>
-                <option value="BBL/M" ${activeCapUnit === 'BBL/M' ? 'selected' : ''}>bbl/m</option>
-                <option value="L/M" ${(activeCapUnit === 'L/M' || activeCapUnit === 'LTR/M') ? 'selected' : ''}>L/m</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="overflow-x:auto;">
-            <table class="cement-cap-table-simplified" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-              <tbody>
-                ${rows.map(r => {
-                  const hasOverride = surfaceCementingState.overrides[r.key] !== undefined;
-                  const displayVal = window.CementingCommon.formatCapValue(r.val, activeCapUnit);
-                  return `
-                    <tr style="border-bottom:1px solid var(--border-subtle);">
-                      <td style="padding:12px 14px; width:40%;">
-                        <div style="font-weight:700; color:var(--text-primary); font-size:0.88rem;">${t(r.title)}</div>
-                        <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">${escapeHtml(r.sub)}</div>
-                      </td>
-                      <td style="padding:12px 10px; width:36%;">
-                        ${r.isReadOnly ? `
-                          <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">${escapeHtml(r.sub)}</span>
-                        ` : `
-                          <select class="surface-cap-source-select" data-row-key="${r.key}" data-source-field="${r.sourceField}" style="width:100%; padding:6px 8px; font-size:0.75rem; border-radius:8px; background:var(--bg-subtle-track); border:1px solid var(--border-subtle); color:var(--text-primary); font-weight:600;">
-                            ${r.options.map(o => `
-                              <option value="${escapeAttr(o.id)}" ${o.id === r.selectedId ? 'selected' : ''}>${escapeHtml(o.label)}</option>
-                            `).join('')}
-                          </select>
-                        `}
-                      </td>
-                      <td style="padding:12px 14px; width:24%; text-align:right;">
-                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
-                          <input type="text"
-                                 class="surface-cap-override-input ${hasOverride ? 'is-overridden' : ''}"
-                                 data-row-key="${r.key}"
-                                 value="${displayVal}"
-                                 inputmode="decimal"
-                                 style="width:90px; text-align:right; font-family:'Roboto Mono',monospace; font-weight:700; font-size:0.85rem; padding:4px 6px; border-radius:6px; border:1px solid ${hasOverride ? 'var(--primary)' : 'var(--border-subtle)'}; background:${hasOverride ? 'rgba(var(--primary-rgb), 0.08)' : 'var(--card-bg)'}; color:var(--text-primary);">
-                          ${hasOverride ? `
-                            <div style="display:flex; align-items:center; gap:4px;">
-                              <span style="font-size:0.65rem; color:var(--primary); font-weight:700;">${t('edited')}</span>
-                              <button type="button" class="btn-restore-cap" data-row-key="${r.key}" title="${t('Restore API Default')}" style="background:none; border:none; padding:1px; color:var(--text-secondary); cursor:pointer; font-size:0.65rem; text-decoration:underline;">${t('restore')}</button>
-                            </div>
-                          ` : ''}
-                        </div>
-                      </td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Next Action Button -->
-        <button type="button" class="btn btn-primary" id="btn-goto-welldata" style="width:100%; padding:14px; font-size:0.95rem; font-weight:700; border-radius:12px;">
-          ${t('Continue to Well Data')} &rsaquo;
-        </button>
-      </div>
+    let html = `
+      <table class="cement-cap-table-simplified">
+        <colgroup>
+          <col style="width: 38%;">
+          <col style="width: 32%;">
+          <col style="width: 30%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th style="text-align:left;">${t('COMPONENT')}</th>
+            <th style="text-align:left;">${t('SOURCE')}</th>
+            <th style="text-align:right;">
+              <div class="cement-cap-header-wrap">
+                <span class="cement-cap-header-title">${t('CAPACITY')}</span>
+                <select class="cement-cap-header-unit-select" id="surface-cap-unit-select" aria-label="Capacity Unit" ${sys !== 'mixed' ? 'disabled style="opacity:0.75; cursor:default;"' : ''}>
+                  <option value="BBL/M" ${activeCapUnit === 'BBL/M' ? 'selected' : ''}>BBL/M</option>
+                  <option value="BBL/FT" ${activeCapUnit === 'BBL/FT' ? 'selected' : ''}>BBL/FT</option>
+                  <option value="L/M" ${(activeCapUnit === 'L/M' || activeCapUnit === 'LTR/M') ? 'selected' : ''}>L/M</option>
+                </select>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
     `;
 
-    // Capacity unit switcher
-    const unitSelect = container.querySelector('#surface-cap-unit-select');
+    rows.forEach(r => {
+      const displayVal = window.CementingCommon.formatCapValue(r.canonicalVal, activeCapUnit);
+      let sourceHtml = '';
+
+      if (r.isReadOnlySource) {
+        sourceHtml = `
+          <span class="cement-cap-source-readonly" title="${escapeAttr(t(r.readOnlyText))}">
+            ${escapeAttr(t(r.readOnlyText))}
+          </span>
+        `;
+      } else if (r.customOdSelect) {
+        sourceHtml = `
+          <div class="cement-cap-source-stack" style="display:flex; flex-direction:column; gap:4px;">
+            <select class="cement-cap-select cement-custom-od-select" data-custom-od-target="${r.sourceField}" aria-label="Select Casing OD" style="font-weight:600; font-size:0.75rem;">
+              ${r.customOdSelect.options.map(opt => `
+                <option value="${opt.od}" ${Math.abs(opt.od - r.customOdSelect.selectedOd) < 0.05 ? 'selected' : ''}>
+                  ${escapeAttr(opt.label)}
+                </option>
+              `).join('')}
+            </select>
+            <select class="cement-cap-select" data-cap-source="${r.sourceField}" data-row-key="${r.key}" aria-label="${escapeAttr(r.componentTitle)} Weight">
+              ${r.options.map(opt => `
+                <option value="${escapeAttr(opt.id)}" ${opt.id === r.currentSourceVal ? 'selected' : ''}>
+                  ${escapeAttr(opt.label)}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        `;
+      } else {
+        sourceHtml = `
+          <select class="cement-cap-select" data-cap-source="${r.sourceField}" data-row-key="${r.key}" aria-label="${escapeAttr(r.componentTitle)} Source">
+            ${r.options.map(opt => `
+              <option value="${escapeAttr(opt.id)}" ${opt.id === r.currentSourceVal ? 'selected' : ''}>
+                ${escapeAttr(opt.label)}
+              </option>
+            `).join('')}
+          </select>
+        `;
+      }
+
+      html += `
+        <tr>
+          <td>
+            <div class="cement-cap-comp-title">${escapeAttr(t(r.componentTitle))}</div>
+            <div class="cement-cap-comp-sub">${escapeAttr(t(r.componentSub))}</div>
+          </td>
+          <td>
+            ${sourceHtml}
+          </td>
+          <td>
+            <input type="number" step="any" class="cement-cap-input" data-cap-key="${r.key}" data-canonical="${r.canonicalVal}" value="${displayVal}" placeholder="0.00000" aria-label="${escapeAttr(r.componentTitle)} Capacity">
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `
+        </tbody>
+      </table>
+    `;
+
+    return html;
+  }
+
+  function bindSurfaceCapacitiesActions(cardEl) {
+    const inp = surfaceCementingState.inputs;
+
+    function markReferenceDirty() {
+      surfaceCementingState.referenceIsDirty = true;
+      const saveBtn = document.getElementById('btn-surface-save-ref');
+      const useBtn = document.getElementById('btn-surface-use-ref');
+      if (saveBtn) saveBtn.className = 'btn btn-primary';
+      if (useBtn) {
+        useBtn.className = 'btn btn-secondary';
+        useBtn.disabled = true;
+        useBtn.setAttribute('disabled', 'true');
+        useBtn.style.opacity = '0.45';
+        useBtn.style.pointerEvents = 'none';
+      }
+    }
+
+    // Capacity Unit Dropdown Selector
+    const unitSelect = cardEl.querySelector('#surface-cap-unit-select');
     if (unitSelect) {
       unitSelect.onchange = () => {
-        surfaceCementingState.capUnit = unitSelect.value;
+        const val = unitSelect.value;
+        surfaceCementingState.capUnit = val;
+        if (val === 'BBL/M') {
+          surfaceCementingState.unit = 'm';
+        } else if (val === 'BBL/FT') {
+          surfaceCementingState.unit = 'ft';
+        }
         savePersistedUnit();
-        renderSurfaceCapacities(container);
+
+        const isM = (surfaceCementingState.unit || 'm') === 'm';
+        const btnM = document.getElementById('surface-top-unit-m');
+        const btnFt = document.getElementById('surface-top-unit-ft');
+        const pill = document.getElementById('surface-unit-pill-desc');
+        if (btnM && btnFt) {
+          btnM.classList.toggle('active', isM);
+          btnFt.classList.toggle('active', !isM);
+        }
+        if (pill) {
+          pill.textContent = isM ? t('Metric (m, bbl/m)') : t('Imperial (ft, bbl/ft)');
+          pill.className = `cement-unit-mode-pill ${isM ? 'mode-metric' : 'mode-imperial'}`;
+        }
+        cardEl.querySelectorAll('input.cement-cap-input').forEach(inpEl => {
+          const canonical = parseFloat(inpEl.getAttribute('data-canonical')) || 0;
+          inpEl.value = window.CementingCommon.formatCapValue(canonical, val);
+        });
       };
     }
 
-    // Source dropdown change
-    container.querySelectorAll('.surface-cap-source-select').forEach(sel => {
-      sel.onchange = () => {
-        const field = sel.getAttribute('data-source-field');
-        const key = sel.getAttribute('data-row-key');
+    // Source dropdowns
+    cardEl.querySelectorAll('select[data-cap-source]').forEach(select => {
+      select.onchange = () => {
+        const field = select.getAttribute('data-cap-source');
+        const rowKey = select.getAttribute('data-row-key');
         if (!inp.tubulars) inp.tubulars = {};
-        inp.tubulars[field] = sel.value;
-        // Clear any manual override on source change to load newly selected tubular
-        delete surfaceCementingState.overrides[key];
-        renderSurfaceCapacities(container);
+        inp.tubulars[field] = select.value;
+        if (rowKey && surfaceCementingState.overrides[rowKey] !== undefined) {
+          delete surfaceCementingState.overrides[rowKey];
+        }
+        markReferenceDirty();
+        renderSurfaceCapacities(document.getElementById('cementing-surface-container'));
       };
     });
 
-    // Override input blur
-    container.querySelectorAll('.surface-cap-override-input').forEach(input => {
+    // Custom OD selectors
+    cardEl.querySelectorAll('select.cement-custom-od-select').forEach(select => {
+      select.onchange = () => {
+        const targetField = select.getAttribute('data-custom-od-target');
+        const od = parseFloat(select.value);
+        if (targetField === 'csg_id') {
+          inp.custom_csg_od = od;
+          const opts = window.CementingCommon.getCasingOptions(od);
+          if (opts.length) inp.tubulars.csg_id = opts[0].id;
+        } else if (targetField === 'prev_csg_id') {
+          inp.custom_prev_csg_od = od;
+          const opts = window.CementingCommon.getCasingOptions(od);
+          if (opts.length) inp.tubulars.prev_csg_id = opts[0].id;
+        }
+        markReferenceDirty();
+        renderSurfaceCapacities(document.getElementById('cementing-surface-container'));
+      };
+    });
+
+    // Capacity manual overrides
+    cardEl.querySelectorAll('input.cement-cap-input').forEach(input => {
+      input.oninput = () => {
+        markReferenceDirty();
+      };
       input.onchange = () => {
-        const key = input.getAttribute('data-row-key');
-        const canonicalVal = window.CementingCommon.parseCapValue(input.value, activeCapUnit);
-        if (canonicalVal > 0) {
-          surfaceCementingState.overrides[key] = canonicalVal;
+        const key = input.getAttribute('data-cap-key');
+        const activeUnit = surfaceCementingState.capUnit || 'BBL/FT';
+        const parsed = window.CementingCommon.parseCapValue(input.value, activeUnit);
+        if (parsed > 0) {
+          surfaceCementingState.overrides[key] = parsed;
+          input.setAttribute('data-canonical', parsed);
         } else {
           delete surfaceCementingState.overrides[key];
+          const comp = computeSurfaceCapacities(surfaceCementingState.inputs, surfaceCementingState.overrides);
+          input.setAttribute('data-canonical', comp.effective[key] || 0);
         }
-        renderSurfaceCapacities(container);
+        markReferenceDirty();
       };
     });
+  }
 
-    // Restore button
-    container.querySelectorAll('.btn-restore-cap').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const key = btn.getAttribute('data-row-key');
-        delete surfaceCementingState.overrides[key];
-        renderSurfaceCapacities(container);
-      };
+  function saveActiveSurfaceReferenceFromUI(cardEl, saveBtn, useBtn) {
+    const inp = surfaceCementingState.inputs;
+    const sectionKey = surfaceCementingState.section || 'conductor';
+    const computed = computeSurfaceCapacities(inp, surfaceCementingState.overrides);
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const activeUnit = surfaceCementingState.capUnit || 'BBL/FT';
+
+    const rowsData = [];
+    cardEl.querySelectorAll('tbody tr').forEach(tr => {
+      const compTitle = tr.querySelector('.cement-cap-comp-title')?.textContent?.trim() || '';
+      const compSub = tr.querySelector('.cement-cap-comp-sub')?.textContent?.trim() || '';
+      const capInput = tr.querySelector('input.cement-cap-input');
+      const capVal = capInput ? capInput.value : '';
+      const canonicalVal = capInput ? parseFloat(capInput.getAttribute('data-canonical')) || 0 : 0;
+      const selectEl = tr.querySelector('select[data-cap-source]');
+      let sourceLabel = '';
+      if (selectEl && selectEl.selectedOptions && selectEl.selectedOptions[0]) {
+        sourceLabel = selectEl.selectedOptions[0].textContent.trim();
+      } else {
+        sourceLabel = tr.querySelector('.cement-cap-source-readonly')?.textContent?.trim() || '';
+      }
+      rowsData.push({
+        component: compTitle,
+        label: compSub,
+        source: sourceLabel,
+        canonicalBblFt: canonicalVal,
+        value: capVal,
+        unit: activeUnit
+      });
     });
 
-    // Continue to Well Data
-    const continueBtn = container.querySelector('#btn-goto-welldata');
-    if (continueBtn) {
-      continueBtn.onclick = () => {
-        surfaceCementingState.view = 'welldata';
-        renderSurfaceCementingScreen();
-      };
+    const refData = {
+      sectionId: sectionKey,
+      jobName: surfaceCementingState.jobName || '',
+      savedAt: `${dateStr}, ${timeStr}`,
+      timestamp: now.getTime(),
+      unit: activeUnit,
+      unitSystem: surfaceCementingState.unit,
+      overrides: Object.assign({}, surfaceCementingState.overrides),
+      tubulars: Object.assign({}, inp.tubulars),
+      canonical: {
+        cap_csg: computed.effective.cap_csg,
+        csg_disp: computed.effective.csg_disp,
+        cap_dp: computed.effective.cap_dp,
+        cap_ann_oh: computed.effective.cap_ann_oh,
+        cap_oh: computed.effective.cap_oh,
+        cap_ann_c: computed.effective.cap_ann_c || 0
+      },
+      rows: rowsData
+    };
+
+    persistCapacityRef(sectionKey, refData);
+    surfaceCementingState.activeReference = refData;
+    surfaceCementingState.referenceIsDirty = false;
+
+    if (typeof showToast === 'function') {
+      showToast(t('Reference saved'));
+    }
+    if (saveBtn) saveBtn.className = 'btn btn-secondary';
+    if (useBtn) {
+      useBtn.className = 'btn btn-primary';
+      useBtn.disabled = false;
+      useBtn.removeAttribute('disabled');
+      useBtn.style.opacity = '1';
+      useBtn.style.pointerEvents = 'auto';
     }
   }
 
   // View 3: Well Data Form Step
   function renderSurfaceWellData(container) {
+    if (!container) return;
+    container.innerHTML = '';
+
     const inp = surfaceCementingState.inputs;
     const isConductor = inp.model === 'conductor';
     const isMetric = surfaceCementingState.unit === 'm';
-    const dUnit = isMetric ? 'm' : 'ft';
+    const depthUnit = isMetric ? 'm' : 'ft';
+
+    const isSubmitted = Boolean(surfaceCementingState.wellDataSubmitted);
+    const errors = isSubmitted ? getSurfaceWellDataErrors(inp) : {};
+
+    const sys = (window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function')
+      ? window.UnitsEngine.getUnitSystem()
+      : 'mixed';
+
+    const volUnit = sys === 'si' ? 'm³' : 'bbl';
+    const mwUnit = sys === 'si' ? 'SG' : 'ppg';
+    const pressUnit = sys === 'si' ? 'bar' : 'psi';
+    const pumpUnitLabel = sys === 'si' ? 'L/stk' : 'bbl/stk';
+
+    const VOL_KEYS = ['f1_vol', 'f2_vol', 'sp_vol', 'lead_vol', 'tail_vol'];
+    const MW_KEYS = ['seawater_mw', 'hole_fluid_mw', 'disp_mw', 'mw', 'f1_mw', 'f2_mw', 'sp_mw', 'lead_mw', 'tail_mw', 'lot'];
+    const PRESS_KEYS = ['collapse_rating', 'burst_rating', 'bump', 'max_pump_pressure'];
+
+    function formatWellDataInputVal(k, rawNativeVal) {
+      if (rawNativeVal === undefined || rawNativeVal === null || rawNativeVal === '' || isNaN(Number(rawNativeVal))) return '';
+      const v = Number(rawNativeVal);
+      if (DEPTH_KEYS.includes(k)) {
+        return formatDepthDisplay(v);
+      }
+      if (VOL_KEYS.includes(k)) {
+        if (sys === 'si') return (v * 0.1589873).toFixed(1);
+        return Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
+      }
+      if (MW_KEYS.includes(k)) {
+        if (sys === 'si') return (v * 0.1198264).toFixed(2);
+        return Number.isInteger(v) ? v.toFixed(0) : v.toFixed(2);
+      }
+      if (PRESS_KEYS.includes(k)) {
+        if (sys === 'si') return (v * 0.06894757).toFixed(0);
+        return v.toFixed(0);
+      }
+      if (k === 'pump_output') {
+        if (sys === 'si') return (v * 158.9873).toFixed(1);
+        return v.toFixed(3);
+      }
+      return String(rawNativeVal);
+    }
+
+    function parseWellDataInputVal(k, rawVal) {
+      if (rawVal === undefined || rawVal === null || rawVal === '') return '';
+      const num = parseFloat(String(rawVal).replace(',', '.'));
+      if (isNaN(num)) return '';
+
+      if (DEPTH_KEYS.includes(k)) {
+        return (surfaceCementingState.unit === 'ft') ? (num * M_PER_FT) : num;
+      }
+      if (VOL_KEYS.includes(k)) {
+        return (sys === 'si') ? (num / 0.1589873) : num;
+      }
+      if (MW_KEYS.includes(k)) {
+        return (sys === 'si') ? (num / 0.1198264) : num;
+      }
+      if (PRESS_KEYS.includes(k)) {
+        return (sys === 'si') ? (num / 0.06894757) : num;
+      }
+      if (k === 'pump_output') {
+        return (sys === 'si') ? (num / 158.9873) : num;
+      }
+      return num;
+    }
+
+    const depthFieldKeys = isConductor
+      ? (inp.rig_type === 'jack-up'
+          ? ['seabed', 'seawater_mw', 'shoe', 'shoe_track_len', 'td']
+          : ['seabed', 'shoe', 'shoe_track_len', 'td'])
+      : ['prev_shoe', 'planned_toc', 'shoe', 'shoe_track_len', 'td'];
+
+    const fluidFieldKeys = isConductor
+      ? ['hole_fluid_mw', 'disp_mw', 'f1_vol', 'f1_mw', 'f2_vol', 'f2_mw', 'sp_vol', 'sp_mw', 'lead_vol', 'lead_mw', 'tail_vol', 'tail_mw']
+      : ['mw', 'disp_mw', 'f1_vol', 'f1_mw', 'f2_vol', 'f2_mw', 'sp_vol', 'sp_mw', 'lead_vol', 'lead_mw', 'tail_vol', 'tail_mw'];
+
+    const limitFieldKeys = isConductor
+      ? ['excess_pct', 'pump_output', 'collapse_rating', 'burst_rating', 'max_pump_pressure']
+      : ['excess_pct', 'pump_output', 'lot', 'collapse_rating', 'burst_rating', 'bump'];
+
+    const isFieldFilled = (k) => {
+      const v = inp[k];
+      return v !== undefined && v !== null && v !== '' && !isNaN(Number(v)) && Number(v) > 0;
+    };
+    const countFilled = (keys) => keys.filter(isFieldFilled).length;
+
+    const collapsed = surfaceCementingState.collapsedSections;
 
     // Calculate float collar depth
     const fc = Math.max(0, (Number(inp.shoe) || 0) - (Number(inp.shoe_track_len) || 0));
 
-    container.innerHTML = `
-      <div class="cement-step-wrapper" style="display:flex; flex-direction:column; gap:20px; padding:12px 0 40px;">
-        <div class="cement-step-intro">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-primary); margin:0 0 2px;">${t('Well Data & Fluid Parameters')}</h2>
-              <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">${isConductor ? t('Conductor stab-in geometry & pumping schedule') : t('Surface casing depths, planned TOC & pumping schedule')}</p>
+    // Well Data Card
+    const inputsCard = document.createElement('div');
+    inputsCard.className = 'content-card cement-view-animate';
+    inputsCard.style.padding = '14px 16px';
+    inputsCard.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <h3 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          ${t('Well Data')}
+        </h3>
+        <button type="button" class="btn-copy-prev-job" id="btn-surface-copy-from-prev-job" title="${t('Copy inputs from a previous job')}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          <span>${t('Copy from previous job')}</span>
+        </button>
+      </div>
+
+      ${surfaceCementingState.section === 'custom' ? `
+        <div style="margin-bottom:14px; display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-subtle); border-radius:10px; border:1px solid var(--border-subtle);">
+          <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">${t('Well Model')}:</span>
+          <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px; cursor:pointer;">
+            <input type="radio" name="custom-surface-model-radio" value="conductor" ${inp.model === 'conductor' ? 'checked' : ''}> ${t('Conductor (Stab-in)')}
+          </label>
+          <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px; cursor:pointer;">
+            <input type="radio" name="custom-surface-model-radio" value="surface_casing" ${inp.model === 'surface_casing' ? 'checked' : ''}> ${t('Surface Casing')}
+          </label>
+        </div>
+      ` : ''}
+
+      <!-- Section 1: Depths & String Geometry -->
+      <div class="section-collapse-header" data-section="depths">
+        <div class="section-title-wrap">
+          <span class="section-title" style="margin:0 !important;">${t('Well Elevations & Depths')} (${depthUnit.toUpperCase()})</span>
+          <span class="section-count-chip" id="chip-depths">${countFilled(depthFieldKeys)}/${depthFieldKeys.length}</span>
+        </div>
+        <svg class="section-chevron ${collapsed.depths ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="section-collapse-body ${collapsed.depths ? 'collapsed' : ''}" id="sec-body-depths">
+        <div class="cement-well-data-grid">
+          ${isConductor ? `
+            <div class="input-group" style="display:flex; flex-direction:column; gap:4px;">
+              <label class="input-label" style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">
+                ${t('Rig Type')}
+              </label>
+              <div style="position:relative; width:100%; display:flex; align-items:center; justify-content:space-between;">
+                <select id="field-surface-rig-type" class="form-input" style="width:100%; margin-bottom:0; padding:10px 12px; padding-inline-end:36px; font-size:0.9rem; border-radius:10px; min-height:48px; background:var(--card-bg); border:1px solid var(--border-subtle); color:var(--text-primary); font-weight:600; -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;">
+                  <option value="jack-up" ${inp.rig_type === 'jack-up' ? 'selected' : ''}>Jack-up</option>
+                  <option value="land" ${inp.rig_type === 'land' ? 'selected' : ''}>Land</option>
+                </select>
+                <div style="position:absolute; right:0; top:0; bottom:0; padding-inline-end:12px; display:flex; align-items:center; justify-content:space-between; pointer-events:none; color:var(--text-secondary);">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
             </div>
-            <span class="cement-badge-model">${isConductor ? t('Conductor') : t('Surface Casing')}</span>
+            ${renderSurfaceInputField(inp.rig_type === 'land' ? 'Ground Level (RKB)' : 'Seabed Depth (RKB)', 'seabed', formatDepthDisplay(inp.seabed), depthUnit.toUpperCase(), errors['seabed'])}
+            ${inp.rig_type === 'jack-up' ? renderSurfaceInputField('Seawater MW', 'seawater_mw', inp.seawater_mw, 'ppg', errors['seawater_mw']) : ''}
+          ` : `
+            ${renderSurfaceInputField('Previous Shoe', 'prev_shoe', formatDepthDisplay(inp.prev_shoe), depthUnit.toUpperCase(), errors['prev_shoe'])}
+            ${renderSurfaceInputField('Planned TOC (0 = Surface)', 'planned_toc', formatDepthDisplay(inp.planned_toc), depthUnit.toUpperCase(), errors['planned_toc'])}
+          `}
+          ${renderSurfaceInputField('Casing Shoe', 'shoe', formatDepthDisplay(inp.shoe), depthUnit.toUpperCase(), errors['shoe'])}
+          ${renderSurfaceInputField('Hole Depth (MD)', 'td', formatDepthDisplay(inp.td), depthUnit.toUpperCase(), errors['td'])}
+          ${renderSurfaceInputField('Shoe Track Length', 'shoe_track_len', formatDepthDisplay(inp.shoe_track_len), depthUnit.toUpperCase(), errors['shoe_track_len'])}
+          <div class="input-group" style="display:flex; flex-direction:column; gap:4px;">
+            <label class="input-label" style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">
+              ${t('Float Collar Depth')} (${depthUnit.toUpperCase()})
+            </label>
+            <input type="text" class="form-input" id="surface-calculated-fc" readonly value="${formatDepthDisplay(fc)}" style="margin-bottom:0; padding:10px 12px; font-size:0.9rem; border-radius:10px; min-height:48px; background:var(--bg-subtle-track); border:1px solid var(--border-subtle); color:var(--text-primary); font-family:'Roboto Mono',monospace; font-weight:700;">
           </div>
         </div>
+      </div>
 
-        <form id="surface-welldata-form" style="display:flex; flex-direction:column; gap:16px;">
-          <!-- Card: Depths & Geometry -->
-          <div class="card" style="padding:16px; border-radius:14px; background:var(--card-bg); border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:14px;">
-            <div style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">${t('Depths & String Geometry')}</div>
+      <!-- Section 2: Fluids & Slurries -->
+      <div class="section-collapse-header" data-section="fluids">
+        <div class="section-title-wrap">
+          <span class="section-title" style="margin:0 !important;">${t('Fluids & Slurries')}</span>
+          <span class="section-count-chip" id="chip-fluids">${countFilled(fluidFieldKeys)}/${fluidFieldKeys.length}</span>
+        </div>
+        <svg class="section-chevron ${collapsed.fluids ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="section-collapse-body ${collapsed.fluids ? 'collapsed' : ''}" id="sec-body-fluids">
+        <div class="cement-well-data-grid">
+          ${isConductor ? `
+            ${renderSurfaceInputField('Hole Fluid MW', 'hole_fluid_mw', formatWellDataInputVal('hole_fluid_mw', inp.hole_fluid_mw), mwUnit, errors['hole_fluid_mw'])}
+            ${renderSurfaceInputField('Displacement MW', 'disp_mw', formatWellDataInputVal('disp_mw', inp.disp_mw), mwUnit, errors['disp_mw'])}
+          ` : `
+            ${renderSurfaceInputField('Hole Fluid MW', 'mw', formatWellDataInputVal('mw', inp.mw), mwUnit, errors['mw'])}
+            ${renderSurfaceInputField('Displacement MW', 'disp_mw', formatWellDataInputVal('disp_mw', inp.disp_mw !== undefined ? inp.disp_mw : inp.mw), mwUnit, errors['disp_mw'])}
+          `}
+          ${renderSurfaceInputField('1st Mud Vol', 'f1_vol', formatWellDataInputVal('f1_vol', inp.f1_vol), volUnit, errors['f1_vol'])}
+          ${renderSurfaceInputField('1st Mud MW', 'f1_mw', formatWellDataInputVal('f1_mw', inp.f1_mw), mwUnit, errors['f1_mw'])}
+          ${renderSurfaceInputField('2nd Mud Vol', 'f2_vol', formatWellDataInputVal('f2_vol', inp.f2_vol), volUnit, errors['f2_vol'])}
+          ${renderSurfaceInputField('2nd Mud MW', 'f2_mw', formatWellDataInputVal('f2_mw', inp.f2_mw), mwUnit, errors['f2_mw'])}
+          ${renderSurfaceInputField('Spacer Vol', 'sp_vol', formatWellDataInputVal('sp_vol', inp.sp_vol), volUnit, errors['sp_vol'])}
+          ${renderSurfaceInputField('Spacer MW', 'sp_mw', formatWellDataInputVal('sp_mw', inp.sp_mw), mwUnit, errors['sp_mw'])}
+          ${renderSurfaceInputField('Lead Slurry Vol', 'lead_vol', formatWellDataInputVal('lead_vol', inp.lead_vol), volUnit, errors['lead_vol'])}
+          ${renderSurfaceInputField('Lead Slurry MW', 'lead_mw', formatWellDataInputVal('lead_mw', inp.lead_mw), mwUnit, errors['lead_mw'])}
+          ${renderSurfaceInputField('Tail Slurry Vol', 'tail_vol', formatWellDataInputVal('tail_vol', inp.tail_vol), volUnit, errors['tail_vol'])}
+          ${renderSurfaceInputField('Tail Slurry MW', 'tail_mw', formatWellDataInputVal('tail_mw', inp.tail_mw), mwUnit, errors['tail_mw'])}
 
-            ${isConductor ? `
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                <div class="input-group">
-                  <label class="input-label" style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">${t('Rig Type')}</label>
-                  <select id="field-rig-type" class="form-input" style="padding:10px 12px; font-size:0.9rem; border-radius:10px; min-height:48px; background:var(--card-bg); border:1px solid var(--border-subtle); color:var(--text-primary); font-weight:600;">
-                    <option value="jack-up" ${inp.rig_type === 'jack-up' ? 'selected' : ''}>Jack-up</option>
-                    <option value="land" ${inp.rig_type === 'land' ? 'selected' : ''}>Land</option>
-                  </select>
-                </div>
-                ${renderFormInput(inp.rig_type === 'land' ? 'Ground Level Depth (RKB)' : 'Seabed Depth (RKB)', 'seabed', formatMetricDepth(inp.seabed, isMetric), dUnit)}
-              </div>
-            ` : `
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                ${renderFormInput('Previous Shoe Depth', 'prev_shoe', formatMetricDepth(inp.prev_shoe, isMetric), dUnit)}
-                ${renderFormInput('Planned TOC (0 = Surface)', 'planned_toc', formatMetricDepth(inp.planned_toc, isMetric), dUnit)}
-              </div>
-            `}
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('Hole TD', 'td', formatMetricDepth(inp.td, isMetric), dUnit)}
-              ${renderFormInput('Casing Shoe Depth', 'shoe', formatMetricDepth(inp.shoe, isMetric), dUnit)}
+          ${errors['slurry_pair'] ? `
+            <div id="surface-slurry-pair-error" class="cement-slurry-pair-error" style="grid-column: 1 / -1;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              <span>${escapeAttr(t(errors['slurry_pair']))}</span>
             </div>
+          ` : ''}
+        </div>
+      </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('Shoe Track Length', 'shoe_track_len', formatMetricDist(inp.shoe_track_len, isMetric), dUnit)}
-              <div class="input-group">
-                <label class="input-label" style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">${t('Float Collar (Calculated)')}</label>
-                <input type="text" class="form-input" readonly value="${formatMetricDepth(fc, isMetric)} ${dUnit}" style="padding:10px 12px; font-size:0.9rem; border-radius:10px; min-height:48px; background:var(--bg-subtle-track); border:1px solid var(--border-subtle); color:var(--text-primary); font-family:'Roboto Mono',monospace; font-weight:700;">
-              </div>
-            </div>
-          </div>
+      <!-- Section 3: Pumping & Mechanical Limits -->
+      <div class="section-collapse-header" data-section="limits">
+        <div class="section-title-wrap">
+          <span class="section-title" style="margin:0 !important;">${t('Pumping & Mechanical Limits')}</span>
+          <span class="section-count-chip" id="chip-limits">${countFilled(limitFieldKeys)}/${limitFieldKeys.length}</span>
+        </div>
+        <svg class="section-chevron ${collapsed.limits ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="section-collapse-body ${collapsed.limits ? 'collapsed' : ''}" id="sec-body-limits">
+        <div class="cement-well-data-grid">
+          ${renderSurfaceInputField('Open Hole Excess', 'excess_pct', inp.excess_pct, '%', errors['excess_pct'])}
+          ${renderSurfaceInputField('Pump Output', 'pump_output', formatWellDataInputVal('pump_output', inp.pump_output), pumpUnitLabel, errors['pump_output'])}
+          ${!isConductor ? renderSurfaceInputField('LOT at Prev Shoe', 'lot', formatWellDataInputVal('lot', inp.lot), mwUnit, errors['lot']) : ''}
+          ${renderSurfaceInputField('Collapse Rating', 'collapse_rating', formatWellDataInputVal('collapse_rating', inp.collapse_rating), pressUnit, errors['collapse_rating'])}
+          ${renderSurfaceInputField('Burst Rating', 'burst_rating', formatWellDataInputVal('burst_rating', inp.burst_rating), pressUnit, errors['burst_rating'])}
+          ${isConductor
+            ? renderSurfaceInputField('Max Pump Pressure', 'max_pump_pressure', formatWellDataInputVal('max_pump_pressure', inp.max_pump_pressure), pressUnit, errors['max_pump_pressure'], true)
+            : renderSurfaceInputField('Float Bump Over', 'bump', formatWellDataInputVal('bump', inp.bump), pressUnit, errors['bump'], true)}
+        </div>
+      </div>
 
-          <!-- Card: Drilling Mud & Pre-Flushes -->
-          <div class="card" style="padding:16px; border-radius:14px; background:var(--card-bg); border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:14px;">
-            <div style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">${t('Well Fluids & Pre-Flushes')}</div>
-
-            ${isConductor ? `
-              <div style="display:grid; grid-template-columns:${inp.rig_type === 'jack-up' ? '1fr 1fr 1fr' : '1fr 1fr'}; gap:12px;">
-                ${inp.rig_type === 'jack-up' ? renderFormInput('Seawater MW', 'seawater_mw', inp.seawater_mw, 'ppg') : ''}
-                ${renderFormInput('Hole Fluid MW', 'hole_fluid_mw', inp.hole_fluid_mw, 'ppg')}
-                ${renderFormInput('Displacement MW', 'disp_mw', inp.disp_mw, 'ppg')}
-              </div>
-            ` : `
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                ${renderFormInput('Well Mud Weight', 'mw', inp.mw, 'ppg')}
-                ${renderFormInput('LOT at Prev Shoe', 'lot', inp.lot, 'ppg')}
-              </div>
-            `}
-
-            <!-- 1st Pumping Mud -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('1st Pumping Mud Vol', 'f1_vol', inp.f1_vol, 'bbl')}
-              ${renderFormInput('1st Mud Density', 'f1_mw', inp.f1_mw, 'ppg')}
-            </div>
-
-            <!-- 2nd Pumping Mud -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('2nd Pumping Mud Vol', 'f2_vol', inp.f2_vol, 'bbl')}
-              ${renderFormInput('2nd Mud Density', 'f2_mw', inp.f2_mw, 'ppg')}
-            </div>
-
-            <!-- Spacer -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('Spacer Volume', 'sp_vol', inp.sp_vol, 'bbl')}
-              ${renderFormInput('Spacer Density', 'sp_mw', inp.sp_mw, 'ppg')}
-            </div>
-          </div>
-
-          <!-- Card: Cement Slurries -->
-          <div class="card" style="padding:16px; border-radius:14px; background:var(--card-bg); border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:14px;">
-            <div style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">${t('Cement Slurries & Excess')}</div>
-
-            <!-- Lead Slurry -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('Lead Slurry Volume', 'lead_vol', inp.lead_vol, 'bbl')}
-              ${renderFormInput('Lead Density', 'lead_mw', inp.lead_mw, 'ppg')}
-            </div>
-
-            <!-- Tail Slurry -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('Tail Slurry Volume', 'tail_vol', inp.tail_vol, 'bbl')}
-              ${renderFormInput('Tail Density', 'tail_mw', inp.tail_mw, 'ppg')}
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('Open Hole Excess', 'excess_pct', inp.excess_pct, '%')}
-              ${renderFormInput('Pump Output', 'pump_output', inp.pump_output, 'bbl/stk')}
-            </div>
-          </div>
-
-          <!-- Card: Ratings & Pressures -->
-          <div class="card" style="padding:16px; border-radius:14px; background:var(--card-bg); border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:14px;">
-            <div style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">${t('Pipe Ratings & Design Pressures')}</div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              ${renderFormInput('Collapse Rating', 'collapse_rating', inp.collapse_rating, 'psi')}
-              ${renderFormInput('Burst Rating', 'burst_rating', inp.burst_rating, 'psi')}
-            </div>
-
-            ${isConductor ? `
-              ${renderFormInput('Max Pump Pressure', 'max_pump_pressure', inp.max_pump_pressure, 'psi')}
-            ` : `
-              ${renderFormInput('Bump Pressure (above circ)', 'bump', inp.bump, 'psi')}
-            `}
-          </div>
-
-          <!-- Action Stack -->
-          <div class="cement-step-btn-stack" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-            <button type="button" class="btn btn-primary" id="btn-calculate-surface" style="width:100%; padding:14px; font-size:1rem; font-weight:700; border-radius:12px;">
-              ${t('Calculate Cement Job')}
-            </button>
-            <button type="button" class="btn btn-secondary" id="btn-back-to-capacities" style="width:100%; padding:12px; font-size:0.9rem; border-radius:12px;">
-              &lsaquo; ${t('Back to Capacities')}
-            </button>
-          </div>
-        </form>
+      <!-- Sticky Result Button -->
+      <div class="cement-submit-wrap cement-sticky-submit-wrap">
+        <button class="btn btn-primary" id="btn-surface-go-to-results" type="button">
+          ${t('Result')}
+        </button>
       </div>
     `;
+    container.appendChild(inputsCard);
 
-    // Rig type toggle
-    const rigSelect = container.querySelector('#field-rig-type');
+    // Accordion toggle handlers
+    inputsCard.querySelectorAll('.section-collapse-header').forEach(hdr => {
+      hdr.onclick = () => {
+        const sec = hdr.getAttribute('data-section');
+        collapsed[sec] = !collapsed[sec];
+        const bodyEl = inputsCard.querySelector(`#sec-body-${sec}`);
+        const chevronEl = hdr.querySelector('.section-chevron');
+        if (bodyEl) bodyEl.classList.toggle('collapsed', collapsed[sec]);
+        if (chevronEl) chevronEl.classList.toggle('collapsed', collapsed[sec]);
+      };
+    });
+
+    // Copy from previous job handler
+    const copyBtn = inputsCard.querySelector('#btn-surface-copy-from-prev-job');
+    if (copyBtn) {
+      copyBtn.onclick = () => openSurfaceCopyFromPreviousJobModal();
+    }
+
+    // Custom model radio toggle
+    if (surfaceCementingState.section === 'custom') {
+      inputsCard.querySelectorAll('input[name="custom-surface-model-radio"]').forEach(r => {
+        r.onchange = (e) => {
+          inp.model = e.target.value;
+          renderSurfaceCementingScreen();
+        };
+      });
+    }
+
+    // Rig type change handler
+    const rigSelect = inputsCard.querySelector('#field-surface-rig-type');
     if (rigSelect) {
       rigSelect.onchange = () => {
         inp.rig_type = rigSelect.value;
@@ -1008,69 +1618,280 @@
       };
     }
 
-    // Input handlers
-    container.querySelectorAll('.form-input[data-key]').forEach(input => {
-      input.oninput = () => {
-        const key = input.getAttribute('data-key');
-        let raw = input.value.trim().replace(',', '.');
-        let numVal = parseFloat(raw);
+    // Count chip updater
+    const refreshChips = () => {
+      const chipD = inputsCard.querySelector('#chip-depths');
+      const chipF = inputsCard.querySelector('#chip-fluids');
+      const chipL = inputsCard.querySelector('#chip-limits');
+      if (chipD) chipD.textContent = `${countFilled(depthFieldKeys)}/${depthFieldKeys.length}`;
+      if (chipF) chipF.textContent = `${countFilled(fluidFieldKeys)}/${fluidFieldKeys.length}`;
+      if (chipL) chipL.textContent = `${countFilled(limitFieldKeys)}/${limitFieldKeys.length}`;
+    };
 
-        if (DEPTH_KEYS.includes(key)) {
-          // Convert from metres to ft if unit is metres
-          if (isMetric && !isNaN(numVal)) {
-            numVal = numVal / M_PER_FT;
-          }
+    // Form inputs change and keyboard navigation
+    const allFormInputs = Array.from(inputsCard.querySelectorAll('input.form-input[data-key]'));
+
+    allFormInputs.forEach((input, index) => {
+      const key = input.getAttribute('data-key');
+
+      input.addEventListener('focus', () => {
+        input.classList.remove('has-error');
+        const errEl = input.parentNode.querySelector('.cement-field-error');
+        if (errEl) errEl.style.display = 'none';
+        if (key === 'lead_vol' || key === 'tail_vol') {
+          const slurryErr = inputsCard.querySelector('#surface-slurry-pair-error');
+          if (slurryErr) slurryErr.style.display = 'none';
+        }
+      });
+
+      input.addEventListener('input', () => {
+        const rawVal = input.value.trim();
+        if (rawVal === '') {
+          inp[key] = '';
+        } else {
+          inp[key] = parseWellDataInputVal(key, rawVal);
         }
 
-        inp[key] = isNaN(numVal) ? 0 : numVal;
-        saveDraftInputs(surfaceCementingState.section, inp);
-
-        // Update calculated FC live
+        // Live Float Collar depth update
         if (key === 'shoe' || key === 'shoe_track_len') {
           const liveFC = Math.max(0, (Number(inp.shoe) || 0) - (Number(inp.shoe_track_len) || 0));
-          const fcInput = container.querySelector('input[readonly]');
-          if (fcInput) fcInput.value = `${formatMetricDepth(liveFC, isMetric)} ${dUnit}`;
+          const fcEl = inputsCard.querySelector('#surface-calculated-fc');
+          if (fcEl) fcEl.value = formatDepthDisplay(liveFC);
         }
-      };
+
+        refreshChips();
+        saveDraftInputs(surfaceCementingState.section, inp);
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (index < allFormInputs.length - 1) {
+            const nextInput = allFormInputs[index + 1];
+            const parentSec = nextInput.closest('.section-collapse-body');
+            if (parentSec && parentSec.classList.contains('collapsed')) {
+              parentSec.classList.remove('collapsed');
+              const secId = parentSec.id.replace('sec-body-', '');
+              collapsed[secId] = false;
+              const chevron = inputsCard.querySelector(`.section-collapse-header[data-section="${secId}"] .section-chevron`);
+              if (chevron) chevron.classList.remove('collapsed');
+            }
+            nextInput.focus();
+            setTimeout(() => { try { nextInput.select(); } catch (_) {} }, 10);
+          } else {
+            const resBtn = inputsCard.querySelector('#btn-surface-go-to-results');
+            if (resBtn) resBtn.click();
+          }
+        }
+      });
+
+      input.addEventListener('change', () => {
+        saveDraftInputs(surfaceCementingState.section, inp);
+      });
     });
 
-    // Calculate button
-    const calcBtn = container.querySelector('#btn-calculate-surface');
-    if (calcBtn) {
-      calcBtn.onclick = () => {
-        executeSurfaceCalculation();
-      };
-    }
+    // Bottom Result Button click
+    const resultBtn = inputsCard.querySelector('#btn-surface-go-to-results');
+    resultBtn.onclick = () => {
+      surfaceCementingState.wellDataSubmitted = true;
+      const freshErrors = getSurfaceWellDataErrors(inp);
+      const errKeys = Object.keys(freshErrors);
 
-    // Back to Capacities
-    const backCapBtn = container.querySelector('#btn-back-to-capacities');
-    if (backCapBtn) {
-      backCapBtn.onclick = () => {
-        surfaceCementingState.view = 'capacities';
-        renderSurfaceCementingScreen();
-      };
-    }
+      if (errKeys.length > 0) {
+        errKeys.forEach(k => {
+          if (depthFieldKeys.includes(k)) collapsed.depths = false;
+          if (fluidFieldKeys.includes(k) || k === 'slurry_pair') collapsed.fluids = false;
+          if (limitFieldKeys.includes(k)) collapsed.limits = false;
+        });
+
+        renderSurfaceWellData(container);
+
+        setTimeout(() => {
+          const firstInvalid = container.querySelector('.form-input.has-error')
+            || (freshErrors['slurry_pair'] ? container.querySelector('[data-key="lead_vol"]') : null);
+          if (firstInvalid) {
+            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => {
+              try { firstInvalid.focus(); firstInvalid.select(); } catch (_) {}
+            }, 180);
+          }
+        }, 60);
+        return;
+      }
+
+      executeSurfaceCalculation();
+    };
   }
 
-  function renderFormInput(label, key, val, unitLabel) {
-    const displayVal = (val !== undefined && val !== null && val !== '') ? val : '0';
+  function renderSurfaceInputField(label, key, val, unitLabel, error, isLast = false) {
+    const displayVal = (val !== undefined && val !== null && val !== '') ? val : '';
     return `
       <div class="input-group" style="display:flex; flex-direction:column; gap:4px;">
-        <label class="input-label" style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">
+        <label class="input-label" style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">
           ${t(label)} ${unitLabel ? `(${unitLabel})` : ''}
         </label>
         <input type="text"
-               class="form-input"
+               inputmode="decimal"
+               pattern="[0-9]*[.,]?[0-9]*"
+               enterkeyhint="${isLast ? 'done' : 'next'}"
+               class="form-input ${error ? 'has-error' : ''}"
                data-key="${key}"
                value="${displayVal}"
-               inputmode="decimal"
-               style="padding:10px 12px; font-size:0.9rem; border-radius:10px; min-height:48px; background:var(--card-bg); border:1px solid var(--border-subtle); color:var(--text-primary); font-family:'Roboto Mono',monospace; font-weight:600;">
+               placeholder="0"
+               autocomplete="off"
+               autocorrect="off"
+               spellcheck="false"
+               style="margin-bottom:0; padding:10px 12px; font-size:0.9rem; border-radius:10px; min-height:48px;">
+        ${error ? `<div class="cement-field-error">${escapeAttr(t(error))}</div>` : ''}
       </div>
     `;
   }
 
-  // Execution Engine Bridge
-  function executeSurfaceCalculation() {
+  function getSurfaceWellDataErrors(inp) {
+    const errors = {};
+    const depthKeys = ['seabed', 'prev_shoe', 'td', 'shoe', 'shoe_track_len', 'planned_toc'];
+    depthKeys.forEach(k => {
+      const v = inp[k];
+      if (v !== undefined && v !== null && v !== '') {
+        const n = Number(v);
+        if (isNaN(n) || n < 0) {
+          errors[k] = 'Must be a valid positive number';
+        }
+      }
+    });
+
+    const shoe = Number(inp.shoe) || 0;
+    const td = Number(inp.td) || 0;
+    const prevShoe = Number(inp.prev_shoe) || 0;
+    const shoeTrack = Number(inp.shoe_track_len) || 0;
+
+    if (!inp.shoe || shoe <= 0) {
+      errors['shoe'] = 'Casing shoe depth required';
+    }
+    if (!inp.td || td <= 0) {
+      errors['td'] = 'Hole depth (MD) required';
+    } else if (shoe > 0 && td < shoe) {
+      errors['td'] = 'Hole depth (MD) cannot be shallower than casing shoe';
+    }
+
+    if (inp.model === 'surface_casing' && prevShoe > 0 && shoe > 0 && shoe <= prevShoe) {
+      errors['shoe'] = 'Shoe must be deeper than previous shoe';
+    }
+    if (shoeTrack > 0 && shoe > 0 && shoeTrack >= shoe) {
+      errors['shoe_track_len'] = 'Shoe track cannot exceed shoe depth';
+    }
+
+    const pump = Number(inp.pump_output) || 0;
+    if (!inp.pump_output || pump <= 0) {
+      errors['pump_output'] = 'Pump output required';
+    }
+
+    const leadVol = Number(inp.lead_vol) || 0;
+    const tailVol = Number(inp.tail_vol) || 0;
+    if (leadVol <= 0 && tailVol <= 0) {
+      errors['slurry_pair'] = 'Specify lead or tail slurry volume';
+    } else {
+      if (leadVol > 0 && (!inp.lead_mw || Number(inp.lead_mw) <= 0)) {
+        errors['lead_mw'] = 'Lead slurry MW required';
+      }
+      if (tailVol > 0 && (!inp.tail_mw || Number(inp.tail_mw) <= 0)) {
+        errors['tail_mw'] = 'Tail slurry MW required';
+      }
+    }
+
+    if (inp.model === 'surface_casing') {
+      const mw = Number(inp.mw) || 0;
+      if (!inp.mw || mw <= 0) {
+        errors['mw'] = 'Mud weight required';
+      }
+    }
+
+    return errors;
+  }
+
+  function openSurfaceCopyFromPreviousJobModal() {
+    const jobs = getSavedJobsList();
+    if (!jobs || jobs.length === 0) {
+      if (typeof showToast === 'function') showToast(t('No saved jobs available to copy from'));
+      return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'cement-modal-overlay';
+    overlay.innerHTML = `
+      <div class="cement-modal-card" style="max-height:85vh; display:flex; flex-direction:column;">
+        <div class="cement-modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          ${t('Copy from Previous Job')}
+        </div>
+        <p class="cement-modal-desc" style="margin-bottom:12px;">
+          ${t('Select a saved job to copy its well elevations, fluids, and mechanical limits into this form.')}
+        </p>
+        <div style="overflow-y:auto; flex:1; margin-bottom:14px; padding-right:4px;">
+          ${jobs.map((j, idx) => {
+            const name = j.name || j.jobName || `${t('Job')} #${idx + 1}`;
+            const sec = SURFACE_SECTION_PRESETS[j.section]?.label || j.section;
+            const dateStr = j.date || (j.updatedAt ? new Date(j.updatedAt).toLocaleDateString() : t('Previous'));
+            const modelBadge = (j.model === 'conductor') ? t('Conductor') : t('Surface');
+            return `
+              <div class="cement-copy-job-item" data-idx="${idx}">
+                <div style="min-width:0; flex:1;">
+                  <div style="font-weight:700; font-size:0.88rem; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">
+                    ${escapeAttr(name)}
+                  </div>
+                  <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">
+                    ${escapeAttr(sec)} · ${modelBadge} · ${dateStr}
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:6px 12px; margin:0; pointer-events:none;">
+                  ${t('Select')}
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="cement-modal-actions">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-surface-copy-modal">${t('Cancel')}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#btn-cancel-surface-copy-modal').onclick = () => {
+      document.body.removeChild(overlay);
+    };
+
+    overlay.querySelectorAll('.cement-copy-job-item').forEach(el => {
+      el.onclick = () => {
+        const idx = parseInt(el.getAttribute('data-idx'), 10);
+        const sourceJob = jobs[idx];
+        if (sourceJob) {
+          const sourceInputs = sourceJob.inputs || sourceJob.wellData || {};
+          const keysToCopy = [
+            'rig_type', 'seabed', 'prev_shoe', 'shoe', 'shoe_track_len', 'td', 'planned_toc',
+            'mw', 'seawater_mw', 'hole_fluid_mw', 'disp_mw',
+            'f1_vol', 'f1_mw', 'f2_vol', 'f2_mw', 'sp_vol', 'sp_mw',
+            'lead_vol', 'lead_mw', 'tail_vol', 'tail_mw',
+            'excess_pct', 'pump_output', 'lot', 'collapse_rating', 'burst_rating', 'bump', 'max_pump_pressure'
+          ];
+          keysToCopy.forEach(k => {
+            if (sourceInputs[k] !== undefined && sourceInputs[k] !== null) {
+              surfaceCementingState.inputs[k] = sourceInputs[k];
+            }
+          });
+          saveDraftInputs(surfaceCementingState.section, surfaceCementingState.inputs);
+          if (typeof showToast === 'function') {
+            showToast(t('Copied data from "{0}"', sourceJob.name || t('previous job')));
+          }
+          renderSurfaceCementingScreen();
+        }
+        document.body.removeChild(overlay);
+      };
+    });
+  }
+
+  // Calculation Execution Engine Bridge
+  function executeSurfaceCalculation(isDirectLoad = false) {
     const inp = surfaceCementingState.inputs;
     const computed = computeSurfaceCapacities(inp, surfaceCementingState.overrides);
     const eff = computed.effective;
@@ -1080,10 +1901,10 @@
     if (inp.model === 'conductor') {
       const engineInput = {
         rig_type: inp.rig_type || 'jack-up',
-        seabed: Number(inp.seabed) || 0,
-        td: Number(inp.td) || 0,
-        shoe: Number(inp.shoe) || 0,
-        shoe_track_len: Number(inp.shoe_track_len) || 0,
+        seabed: (Number(inp.seabed) || 0) / M_PER_FT,
+        td: (Number(inp.td) || 0) / M_PER_FT,
+        shoe: (Number(inp.shoe) || 0) / M_PER_FT,
+        shoe_track_len: (Number(inp.shoe_track_len) || 0) / M_PER_FT,
         seawater_mw: Number(inp.seawater_mw) || 8.6,
         hole_fluid_mw: Number(inp.hole_fluid_mw) || 8.6,
         disp_mw: Number(inp.disp_mw) || 8.6,
@@ -1113,12 +1934,13 @@
       }
     } else {
       const engineInput = {
-        prev_shoe: Number(inp.prev_shoe) || 0,
-        td: Number(inp.td) || 0,
-        shoe: Number(inp.shoe) || 0,
-        shoe_track_len: Number(inp.shoe_track_len) || 0,
-        planned_toc: Number(inp.planned_toc) || 0,
+        prev_shoe: (Number(inp.prev_shoe) || 0) / M_PER_FT,
+        td: (Number(inp.td) || 0) / M_PER_FT,
+        shoe: (Number(inp.shoe) || 0) / M_PER_FT,
+        shoe_track_len: (Number(inp.shoe_track_len) || 0) / M_PER_FT,
+        planned_toc: (Number(inp.planned_toc) || 0) / M_PER_FT,
         mw: Number(inp.mw) || 0,
+        disp_mw: Number(inp.disp_mw || inp.mw) || 0,
         f1_vol: Number(inp.f1_vol) || 0,
         f1_mw: Number(inp.f1_mw) || 0,
         f2_vol: Number(inp.f2_vol) || 0,
@@ -1150,16 +1972,20 @@
       surfaceCementingState.results = res;
       surfaceCementingState.view = 'results';
       renderSurfaceCementingScreen();
-      // Scroll to top of results
       const scroller = document.querySelector('#screen-cement-planner-surface .scroller');
       if (scroller) scroller.scrollTop = 0;
+      if (isDirectLoad && typeof showToast === 'function') {
+        showToast(t('Job loaded'));
+      }
     } else {
       if (typeof showToast === 'function') showToast(t('Calculation error: Engine unavailable'));
     }
   }
+  root.calculateSurfaceCementing = executeSurfaceCalculation;
 
   // View 4: Results Step
   function renderSurfaceResults(container) {
+    if (!container) return;
     const res = surfaceCementingState.results;
     const inp = surfaceCementingState.inputs;
     if (!res) {
@@ -1167,269 +1993,692 @@
       renderSurfaceWellData(container);
       return;
     }
+    container.innerHTML = '';
 
     const isConductor = res.model === 'surface_conductor';
     const isMetric = surfaceCementingState.unit === 'm';
-    const dUnit = isMetric ? 'm' : 'ft';
+    const depthUnit = isMetric ? 'm' : 'ft';
+    const preset = SURFACE_SECTION_PRESETS[surfaceCementingState.section] || SURFACE_SECTION_PRESETS['custom'];
 
     const returnsVol = isConductor ? (res.cement_returns_seabed || 0) : (res.cement_returns_surface || 0);
     const returnsLabel = isConductor ? (inp.rig_type === 'land' ? t('Returns at Ground Level') : t('Returns at Seabed')) : t('Returns at Surface');
 
-    container.innerHTML = `
-      <div class="cement-step-wrapper" style="display:flex; flex-direction:column; gap:16px; padding:8px 0 40px;">
-        <!-- Echo Summary Banner -->
-        <div class="card" style="padding:14px 16px; border-radius:14px; background:var(--card-bg); border:1px solid var(--border-subtle); display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; text-align:center;">
-          <div>
-            <div style="font-size:0.68rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">${t('Shoe')}</div>
-            <div style="font-size:1rem; font-weight:700; color:var(--text-primary); font-family:'Roboto Mono',monospace;">${formatMetricDepth(inp.shoe, isMetric)}<span style="font-size:0.75rem; font-weight:500;"> ${dUnit}</span></div>
-          </div>
-          <div>
-            <div style="font-size:0.68rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">${t('Total Slurry')}</div>
-            <div style="font-size:1rem; font-weight:700; color:var(--primary); font-family:'Roboto Mono',monospace;">${res.total_slurry.toFixed(1)}<span style="font-size:0.75rem; font-weight:500;"> bbl</span></div>
-          </div>
-          <div>
-            <div style="font-size:0.68rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">${t('Total Pumped')}</div>
-            <div style="font-size:1rem; font-weight:700; color:var(--text-primary); font-family:'Roboto Mono',monospace;">${res.total_pumped.toFixed(1)}<span style="font-size:0.75rem; font-weight:500;"> bbl</span></div>
-          </div>
-          <div>
-            <div style="font-size:0.68rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">${t('EMW at Shoe')}</div>
-            <div style="font-size:1rem; font-weight:700; color:var(--text-primary); font-family:'Roboto Mono',monospace;">${res.emw_shoe.toFixed(2)}<span style="font-size:0.75rem; font-weight:500;"> ppg</span></div>
-          </div>
-        </div>
+    const resultsWrapper = document.createElement('div');
+    resultsWrapper.className = 'cement-view-animate';
 
-        <!-- Output Card 1: Placement & Cement Rise -->
-        <div class="cement-accordion open" id="card-placement">
-          <div class="cement-accordion-header">
-            <span class="cement-accordion-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              ${t('Placement & Cement Rise')}
-            </span>
-            <span class="cement-chevron">▼</span>
-          </div>
-          <div class="cement-accordion-body">
-            <div class="cement-metrics-grid">
-              ${renderResultMetric('Tail Slurry Top', `${formatMetricDepth(res.tail_top, isMetric)} ${dUnit}`)}
-              ${renderResultMetric('Tail Rise in Annulus', `${formatMetricDist(res.rise_tail, isMetric)} ${dUnit}`)}
-              ${renderResultMetric('Top of Cement (TOC)', `${formatMetricDepth(res.toc, isMetric)} ${dUnit}`)}
-              ${renderResultMetric('Total Cement Rise', `${formatMetricDist(res.rise_tot, isMetric)} ${dUnit}`)}
-              ${res.rise_sp > 0 ? `
-                ${renderResultMetric('Spacer Top', `${formatMetricDepth(res.sp_top, isMetric)} ${dUnit}`)}
-                ${renderResultMetric('Spacer Rise', `${formatMetricDist(res.rise_sp, isMetric)} ${dUnit}`)}
-              ` : ''}
-              ${renderResultMetric(returnsLabel, `${returnsVol.toFixed(1)} bbl`)}
-              ${renderResultMetric('All Fluids Returned', `${(res.all_fluids_returned || 0).toFixed(1)} bbl`)}
-            </div>
-          </div>
-        </div>
+    const fmtV = (v) => (window.CementingCommon && window.CementingCommon.formatVol) ? window.CementingCommon.formatVol(v) : { val: Number(v || 0).toFixed(1), unit: 'bbl', full: Number(v || 0).toFixed(1) + ' bbl' };
+    const fmtMW = (v) => (window.CementingCommon && window.CementingCommon.formatDensity) ? window.CementingCommon.formatDensity(v) : { val: Number(v || 0).toFixed(2), unit: 'ppg', full: Number(v || 0).toFixed(2) + ' ppg' };
+    const fmtP = (v) => (window.CementingCommon && window.CementingCommon.formatPressure) ? window.CementingCommon.formatPressure(v) : { val: Number(v || 0).toFixed(0), unit: 'psi', full: Number(v || 0).toFixed(0) + ' psi' };
+    const volUnit = fmtV(0).unit;
+    const mwUnit = fmtMW(0).unit;
+    const pressUnit = fmtP(0).unit;
 
-        <!-- Output Card 2: Displacement & Pumping Sequence -->
-        <div class="cement-accordion open" id="card-displacement">
-          <div class="cement-accordion-header">
-            <span class="cement-accordion-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              ${t('Displacement & Pumping Sequence')}
-            </span>
-            <span class="cement-chevron">▼</span>
-          </div>
-          <div class="cement-accordion-body">
-            <div class="cement-metrics-grid">
-              ${renderResultMetric('Displacement Volume', `${res.disp_tot.toFixed(1)} bbl`)}
-              ${renderResultMetric('Pump Strokes', `${res.strokes.toFixed(1)} stk`)}
-              ${!isConductor ? `
-                ${renderResultMetric('Max Disp (no bump)', `${(res.max_disp_no_bump || 0).toFixed(1)} bbl`)}
-                ${renderResultMetric('Bottom Plug Lands', `${(res.bottom_plug_lands || 0).toFixed(1)} bbl`)}
-              ` : ''}
-            </div>
-            ${isConductor ? `
-              <div style="padding:10px 12px; margin-bottom:12px; background:rgba(var(--primary-rgb), 0.08); border-radius:10px; font-size:0.8rem; color:var(--text-primary);">
-                <strong>${t('Stab-in Advisory')}:</strong> ${t('Do not over-displace inner string; check floats; pull out of stab-in shoe.')}
-              </div>
-            ` : ''}
-            ${window.CementingCommon.renderPumpingSequenceTable(res.pumping_sequence, res.total_pumped, surfaceCementingState.unit)}
-          </div>
+    // 1. Echo Summary Strip
+    const echoStrip = document.createElement('div');
+    echoStrip.className = 'cement-results-summary-strip';
+    echoStrip.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:0.72rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">${t('Job Summary')}</span>
+        <span class="cement-badge-model ${isConductor ? 'cement-badge-riserless' : 'cement-badge-subsea'}">${(isConductor ? 'CONDUCTOR' : 'SURFACE')}</span>
+      </div>
+      <div class="cement-summary-grid">
+        <div>
+          <div class="cement-summary-cell-title">${t('Job Name')}</div>
+          <div class="cement-summary-cell-val">${escapeAttr(inp.name || surfaceCementingState.jobName || preset.label)}</div>
         </div>
-
-        <!-- Output Card 3: Pressures & EMW -->
-        <div class="cement-accordion open" id="card-pressures">
-          <div class="cement-accordion-header">
-            <span class="cement-accordion-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              ${t('Pressures & EMW (Static, End of Job)')}
-            </span>
-            <span class="cement-chevron">▼</span>
-          </div>
-          <div class="cement-accordion-body">
-            <div class="cement-metrics-grid">
-              ${renderResultMetric('P_ann at Float Collar', `${res.p_ann_fc.toFixed(0)} psi`)}
-              ${renderResultMetric('P_in at Float Collar', `${res.p_in_fc.toFixed(0)} psi`)}
-              ${renderResultMetric('Differential Pressure', `${res.diff_press.toFixed(0)} psi`)}
-              ${renderResultMetric('U-Tube Risk', res.diff_meaning, res.diff_press > 0 ? 'var(--warning)' : 'var(--text-primary)')}
-              ${renderResultMetric('P_ann at Shoe', `${res.p_ann_shoe.toFixed(0)} psi`)}
-              ${renderResultMetric('EMW at Shoe', `${res.emw_shoe.toFixed(2)} ppg`)}
-              ${renderResultMetric('EMW at Float Collar', `${res.emw_fc.toFixed(2)} ppg`)}
-              ${res.emw_prev_shoe !== undefined ? renderResultMetric('EMW at Prev Shoe', `${res.emw_prev_shoe.toFixed(2)} ppg`) : ''}
-              ${res.lot_margin !== undefined ? `
-                ${renderResultMetric('LOT Margin', `${res.lot_margin >= 0 ? '+' : ''}${res.lot_margin.toFixed(2)} ppg`, res.lot_margin >= 0 ? 'var(--success)' : 'var(--danger)')}
-                ${renderResultMetric('Bump Pressure', `${(res.bump_pressure || 0).toFixed(0)} psi`)}
-              ` : ''}
-              ${renderResultMetric('Collapse Differential', `${res.p_col.toFixed(0)} psi`)}
-              ${renderResultMetric('Collapse Safety Factor', `${res.collapse_sf >= 900 ? 'No load' : res.collapse_sf.toFixed(2)}`, res.collapse_sf >= 1.1 ? 'var(--success)' : 'var(--danger)')}
-            </div>
-          </div>
+        <div>
+          <div class="cement-summary-cell-title">${t('Section')}</div>
+          <div class="cement-summary-cell-val">${t(preset.label)}</div>
         </div>
-
-        <!-- Output Card 4: Job Checks -->
-        <div class="cement-accordion open" id="card-checks">
-          <div class="cement-accordion-header">
-            <span class="cement-accordion-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              ${t('Job Checks')}
-            </span>
-            <span class="cement-chevron">▼</span>
-          </div>
-          <div class="cement-accordion-body">
-            <div style="display:flex; flex-direction:column; gap:10px;">
-              ${(res.checks || []).map(chk => `
-                <div class="cement-check-item" style="display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:10px; background:${chk.status === 'OK' ? 'rgba(var(--success-rgb, 16, 185, 129), 0.08)' : 'rgba(var(--danger-rgb, 239, 68, 68), 0.08)'}; border:1px solid ${chk.status === 'OK' ? 'rgba(var(--success-rgb, 16, 185, 129), 0.25)' : 'rgba(var(--danger-rgb, 239, 68, 68), 0.25)'};">
-                  <span class="cement-check-chip ${chk.status === 'OK' ? 'status-ok' : 'status-check'}" style="font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px; color:#fff; background:${chk.status === 'OK' ? '#10B981' : '#EF4444'}; flex-shrink:0;">${chk.status}</span>
-                  <div style="font-size:0.85rem; color:var(--text-primary); line-height:1.4;">
-                    <strong>${t(chk.label)}:</strong> ${escapeHtml(chk.message)}
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
+        <div>
+          <div class="cement-summary-cell-title">${t('Shoe Depth')}</div>
+          <div class="cement-summary-cell-val">${formatDepthDisplay(inp.shoe)} ${depthUnit.toUpperCase()}</div>
         </div>
-
-        <!-- Output Card 5: Live Well Cementing Schematic -->
-        <div class="cement-accordion open" id="card-schematic">
-          <div class="cement-accordion-header">
-            <span class="cement-accordion-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-              ${t('Live Well Cementing Schematic')}
-            </span>
-            <span class="cement-chevron">▼</span>
-          </div>
-          <div class="cement-accordion-body">
-            <div class="schematic-toolbar-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <span class="schematic-helper-text" style="font-size:0.75rem; color:var(--text-secondary);">${t('Vertical profile to TD · scaled strictly 0 to TD')}</span>
-              <div class="schematic-toolbar-actions" style="display:flex; align-items:center; gap:6px;">
-                <button type="button" class="schematic-tb-btn" id="btn-surface-zoom-out" title="${t('Zoom Out')}" style="padding:6px; border-radius:6px; background:var(--bg-subtle-track); border:1px solid var(--border-subtle); color:var(--text-primary); cursor:pointer;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </button>
-                <button type="button" class="schematic-tb-btn schematic-zoom-reset" id="btn-surface-zoom-reset" title="${t('Fit / Reset')}" style="padding:4px 10px; font-size:0.75rem; font-weight:700; border-radius:6px; background:var(--bg-subtle-track); border:1px solid var(--border-subtle); color:var(--text-primary); cursor:pointer;">100%</button>
-                <button type="button" class="schematic-tb-btn" id="btn-surface-zoom-in" title="${t('Zoom In')}" style="padding:6px; border-radius:6px; background:var(--bg-subtle-track); border:1px solid var(--border-subtle); color:var(--text-primary); cursor:pointer;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </button>
-                <button type="button" class="schematic-tb-btn" id="btn-surface-fullscreen" title="${t('Full Screen')}" style="padding:6px; border-radius:6px; background:var(--bg-subtle-track); border:1px solid var(--border-subtle); color:var(--text-primary); cursor:pointer;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-                </button>
-              </div>
-            </div>
-            <div class="cement-schematic-viewport" id="surface-schematic-viewport" style="overflow:hidden; border-radius:10px; border:1px solid var(--border-subtle); background:#FAF8F5; position:relative; min-height:480px;">
-              <div class="cement-schematic-canvas" id="surface-schematic-canvas" style="transform-origin:top center; width:100%;">
-                ${renderSurfaceSchematicSvg(res, inp, surfaceCementingState.unit)}
-              </div>
-            </div>
-            <div class="cement-layer-tooltip" id="surface-layer-tooltip" style="display:none; margin-top:10px; padding:8px 12px; background:var(--card-bg); border:1px solid var(--border-subtle); border-radius:8px; font-size:0.8rem;"></div>
-          </div>
+        <div>
+          <div class="cement-summary-cell-title">${t('Total Slurry')}</div>
+          <div class="cement-summary-cell-val">${fmtV(res.total_slurry).full}</div>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="cement-step-btn-stack" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
-          <button type="button" class="btn btn-primary" id="btn-surface-save-job" style="width:100%; padding:14px; font-size:1rem; font-weight:700; border-radius:12px;">
-            ${t('Save Job')}
-          </button>
-          <button type="button" class="btn btn-secondary" id="btn-surface-edit-data" style="width:100%; padding:12px; font-size:0.9rem; border-radius:12px;">
-            ${t('Edit Well Data')}
-          </button>
+        <div>
+          <div class="cement-summary-cell-title">${t('Total Pumped')}</div>
+          <div class="cement-summary-cell-val">${fmtV(res.total_pumped).full}</div>
+        </div>
+        <div>
+          <div class="cement-summary-cell-title">${t('EMW at Shoe')}</div>
+          <div class="cement-summary-cell-val">${fmtMW(res.emw_shoe).full}</div>
         </div>
       </div>
     `;
+    resultsWrapper.appendChild(echoStrip);
 
-    // Initialize Schematic Zoom/Pan Viewer
-    const viewportEl = container.querySelector('#surface-schematic-viewport');
-    const canvasEl = container.querySelector('#surface-schematic-canvas');
-    const controls = {
-      zoomOutBtn: container.querySelector('#btn-surface-zoom-out'),
-      resetBtn: container.querySelector('#btn-surface-zoom-reset'),
-      zoomInBtn: container.querySelector('#btn-surface-zoom-in')
-    };
+    // 2. Output Card 1: Placement & Cement Rise
+    const placeCard = document.createElement('div');
+    placeCard.className = `cement-accordion ${surfaceCementingState.collapsed.placement ? '' : 'open'}`;
+    placeCard.innerHTML = `
+      <div class="cement-accordion-header" id="surface-accordion-hdr-placement">
+        <span class="cement-accordion-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          ${t('Placement & Cement Rise')}
+        </span>
+        <span class="cement-chevron">▼</span>
+      </div>
+      <div class="cement-accordion-body">
+        <div class="cement-metrics-grid">
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Top of Cement (TOC)')}</div>
+            <div class="cement-metric-val">${formatMetricDepth(res.toc, isMetric)}<span class="cement-metric-unit">${depthUnit}</span></div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Tail Slurry Top')}</div>
+            <div class="cement-metric-val">${formatMetricDepth(res.tail_top, isMetric)}<span class="cement-metric-unit">${depthUnit}</span></div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Spacer Top')}</div>
+            <div class="cement-metric-val">${formatMetricDepth(res.sp_top, isMetric)}<span class="cement-metric-unit">${depthUnit}</span></div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Total Slurry Vol')}</div>
+            <div class="cement-metric-val">${fmtV(res.total_slurry).val}<span class="cement-metric-unit">${volUnit}</span></div>
+          </div>
+        </div>
 
-    window.CementingCommon.createSchematicViewer(viewportEl, canvasEl, controls);
+        <div class="cement-metrics-grid">
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${returnsLabel}</div>
+            <div class="cement-metric-val" style="color:${returnsVol > 0 ? '#15803D' : '#B45309'};">
+              ${fmtV(returnsVol).val}<span class="cement-metric-unit">${volUnit}</span>
+            </div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('All Fluids Returned')}</div>
+            <div class="cement-metric-val">${fmtV(res.all_fluids_returned).val}<span class="cement-metric-unit">${volUnit}</span></div>
+          </div>
+        </div>
 
-    // Fullscreen schematic
-    const fsBtn = container.querySelector('#btn-surface-fullscreen');
-    if (fsBtn) {
-      fsBtn.onclick = () => {
-        const svgMarkup = renderSurfaceSchematicSvg(res, inp, surfaceCementingState.unit);
-        window.CementingCommon.openSchematicFullscreenModal(svgMarkup, surfaceCementingState.jobName || 'Surface Wellhead', isConductor ? 'Conductor Profile' : 'Surface Casing Profile');
+        <!-- Systematic Interval Table -->
+        <div class="cement-systematic-table-wrap">
+          <table class="cement-systematic-table">
+            <thead>
+              <tr>
+                <th style="width: 40%; text-align: left;">${t('Interval')}</th>
+                <th style="width: 30%; text-align: right;">${t('Volume')}</th>
+                <th style="width: 30%; text-align: right;">${t('Rise Height')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Number(inp.tail_vol || 0) > 0 || (res.rise_tail || 0) > 0 ? `
+                <tr>
+                  <td class="col-name">${t('Tail Slurry')}</td>
+                  <td class="col-num"><span class="cement-table-num">${fmtV(inp.tail_vol || 0).val}</span> <span class="cement-table-unit">${volUnit}</span></td>
+                  <td class="col-num"><span class="cement-table-num">${formatMetricDist(res.rise_tail || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
+                </tr>
+              ` : `
+                <tr class="row-muted">
+                  <td class="col-name">${t('Tail Slurry')}</td>
+                  <td class="col-num"><span class="cement-table-num">0.0</span> <span class="cement-table-unit">${volUnit}</span></td>
+                  <td class="col-num"><span class="cement-table-num">0.0</span> <span class="cement-table-unit">${depthUnit}</span></td>
+                </tr>
+              `}
+              <tr>
+                <td class="col-name">${t('Lead Slurry')}</td>
+                <td class="col-num"><span class="cement-table-num">${fmtV(inp.lead_vol || 0).val}</span> <span class="cement-table-unit">${volUnit}</span></td>
+                <td class="col-num"><span class="cement-table-num">${formatMetricDist(res.rise_lead || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
+              </tr>
+              <tr>
+                <td class="col-name">${t('Spacer')}</td>
+                <td class="col-num"><span class="cement-table-num">${fmtV(inp.sp_vol || 0).val}</span> <span class="cement-table-unit">${volUnit}</span></td>
+                <td class="col-num"><span class="cement-table-num">${formatMetricDist(res.rise_sp || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
+              </tr>
+              ${Number(inp.f2_vol || 0) > 0 ? `
+                <tr>
+                  <td class="col-name">${t('2nd Mud Wash')}</td>
+                  <td class="col-num"><span class="cement-table-num">${fmtV(inp.f2_vol).val}</span> <span class="cement-table-unit">${volUnit}</span></td>
+                  <td class="col-num"><span class="cement-table-num">${formatMetricDist(res.rise_f2 || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
+                </tr>
+              ` : ''}
+              ${Number(inp.f1_vol || 0) > 0 ? `
+                <tr>
+                  <td class="col-name">${t('1st Mud Wash')}</td>
+                  <td class="col-num"><span class="cement-table-num">${fmtV(inp.f1_vol).val}</span> <span class="cement-table-unit">${volUnit}</span></td>
+                  <td class="col-num"><span class="cement-table-num">${formatMetricDist(res.rise_f1 || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
+                </tr>
+              ` : ''}
+            </tbody>
+            <tfoot>
+              <tr class="cement-table-total-row">
+                <td class="col-name">${t('Total Cement Rise')}</td>
+                <td class="col-num"><span class="cement-table-num">${fmtV(res.total_slurry || 0).val}</span> <span class="cement-table-unit">${volUnit}</span></td>
+                <td class="col-num cement-val-highlight"><span class="cement-table-num">${formatMetricDist(res.rise_tot || 0, isMetric)}</span> <span class="cement-table-unit">${depthUnit}</span></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
+    resultsWrapper.appendChild(placeCard);
+
+    // 3. Output Card 2: Displacement & Pumping Sequence
+    const pumpCard = document.createElement('div');
+    pumpCard.className = `cement-accordion ${surfaceCementingState.collapsed.displacement ? '' : 'open'}`;
+    pumpCard.innerHTML = `
+      <div class="cement-accordion-header" id="surface-accordion-hdr-displacement">
+        <span class="cement-accordion-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          ${t('Displacement & Pumping Sequence')}
+        </span>
+        <span class="cement-chevron">▼</span>
+      </div>
+      <div class="cement-accordion-body">
+        <div class="cement-systematic-table-wrap">
+          <table class="cement-systematic-table">
+            <thead>
+              <tr>
+                <th style="width: 10%; text-align: center;">#</th>
+                <th style="width: 36%; text-align: left;">${t('Fluid Name')}</th>
+                <th style="width: 18%; text-align: right;">${t('Vol')} (${volUnit})</th>
+                <th style="width: 18%; text-align: right;">${t('MW')} (${mwUnit})</th>
+                <th style="width: 18%; text-align: right;">${t('Strokes')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(res.pumping_sequence || []).map(s => `
+                <tr>
+                  <td class="col-center" style="font-weight:700; color:var(--text-secondary);">${s.step}</td>
+                  <td class="col-name">${escapeAttr(t(s.name))}</td>
+                  <td class="col-num"><span class="cement-table-num">${fmtV(s.volume || 0).val}</span></td>
+                  <td class="col-num"><span class="cement-table-num">${fmtMW(s.density || 0).val}</span></td>
+                  <td class="col-num"><span class="cement-table-num">${Number(inp.pump_output) > 0 ? (s.volume / Number(inp.pump_output)).toFixed(0) : '-'}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr class="cement-table-total-row">
+                <td class="col-center"></td>
+                <td class="col-name">${t('Total Pumped')}</td>
+                <td class="col-num"><span class="cement-table-num">${fmtV(res.total_pumped || 0).val}</span> <span class="cement-table-unit">${volUnit}</span></td>
+                <td class="col-num"><span class="cement-table-dash">-</span></td>
+                <td class="col-num cement-val-highlight"><span class="cement-table-num">${Number(inp.pump_output) > 0 ? ((res.total_pumped || 0) / Number(inp.pump_output)).toFixed(0) : '-'}</span> <span class="cement-table-unit">stk</span></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="cement-metrics-grid" style="margin-top:12px;">
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Total Displacement')}</div>
+            <div class="cement-metric-val">${fmtV(res.disp_tot || 0).val}<span class="cement-metric-unit">${volUnit}</span></div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Displacement Strokes')}</div>
+            <div class="cement-metric-val">${(res.strokes || 0).toFixed(0)}<span class="cement-metric-unit">stk</span></div>
+          </div>
+          ${!isConductor ? `
+            <div class="cement-metric-box">
+              <div class="cement-metric-label">${t('Max Disp No Bump')}</div>
+              <div class="cement-metric-val">${fmtV(res.max_disp_no_bump || 0).val}<span class="cement-metric-unit">${volUnit}</span></div>
+            </div>
+            <div class="cement-metric-box">
+              <div class="cement-metric-label">${t('Bottom Plug Lands')}</div>
+              <div class="cement-metric-val">${fmtV(res.bottom_plug_lands || 0).val}<span class="cement-metric-unit">${volUnit}</span></div>
+            </div>
+          ` : `
+            <div class="cement-metric-box">
+              <div class="cement-metric-label">${t('Shoe Track Vol')}</div>
+              <div class="cement-metric-val">${fmtV(res.st_vol || 0).val}<span class="cement-metric-unit">${volUnit}</span></div>
+            </div>
+            <div class="cement-metric-box">
+              <div class="cement-metric-label">${t('Rathole Vol')}</div>
+              <div class="cement-metric-val">${fmtV(res.rat_vol || 0).val}<span class="cement-metric-unit">${volUnit}</span></div>
+            </div>
+          `}
+        </div>
+
+        ${isConductor ? `
+          <div style="padding:10px 12px; margin-top:12px; background:rgba(var(--primary-rgb, 14, 116, 144), 0.08); border-radius:10px; font-size:0.8rem; color:var(--text-primary); border-left:3px solid var(--primary);">
+            <strong>${t('Stab-in Advisory')}:</strong> ${t('Do not over-displace inner string; check floats; pull out of stab-in shoe.')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+    resultsWrapper.appendChild(pumpCard);
+
+    // 4. Output Card 3: Pressures & EMW
+    const pressCard = document.createElement('div');
+    pressCard.className = `cement-accordion ${surfaceCementingState.collapsed.pressures ? '' : 'open'}`;
+    pressCard.innerHTML = `
+      <div class="cement-accordion-header" id="surface-accordion-hdr-pressures">
+        <span class="cement-accordion-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          ${t('Pressures & EMW')}
+        </span>
+        <span class="cement-chevron">▼</span>
+      </div>
+      <div class="cement-accordion-body">
+        <div class="cement-metrics-grid">
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Annulus Pressure at FC')}</div>
+            <div class="cement-metric-val">${fmtP(res.p_ann_fc || 0).val}<span class="cement-metric-unit">${pressUnit}</span></div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Inside Pressure at FC')}</div>
+            <div class="cement-metric-val">${fmtP(res.p_in_fc || 0).val}<span class="cement-metric-unit">${pressUnit}</span></div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Differential Pressure (FC)')}</div>
+            <div class="cement-metric-val" style="color:${(res.diff_press || 0) > 0 ? '#B45309' : '#15803D'};">
+              ${fmtP(res.diff_press || 0).val}<span class="cement-metric-unit">${pressUnit}</span>
+            </div>
+          </div>
+          <div class="cement-metric-box">
+            <div class="cement-metric-label">${t('Collapse Safety Factor')}</div>
+            <div class="cement-metric-val" style="color:${(res.collapse_sf || 0) >= 1.1 ? '#15803D' : '#EF4444'};">
+              ${(res.collapse_sf !== undefined && res.collapse_sf !== null) ? (res.collapse_sf >= 900 ? 'No load' : res.collapse_sf.toFixed(2)) : '-'}
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:10px 12px; background:var(--bg-subtle); border-radius:10px; margin-bottom:12px; font-size:0.75rem; border-left:3px solid ${(res.diff_press || 0) > 0 ? '#F59E0B' : '#22C55E'};">
+          <strong>${t('Float Status')}:</strong> ${escapeAttr(t(res.diff_meaning || ''))}
+        </div>
+
+        <div class="cement-systematic-table-wrap">
+          <table class="cement-systematic-table">
+            <thead>
+              <tr>
+                <th style="width: 34%; text-align: left;">${t('Datum')}</th>
+                <th style="width: 22%; text-align: right;">${t('Pressure')} (${pressUnit})</th>
+                <th style="width: 22%; text-align: right;">${t('EMW')} (${mwUnit})</th>
+                <th style="width: 22%; text-align: right;">${t('LOT / Limit')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">${t('Float Collar')}</td>
+                <td class="col-num"><span class="cement-table-num">${fmtP(res.p_ann_fc || 0).val}</span> <span class="cement-table-unit">${pressUnit}</span></td>
+                <td class="col-num"><span class="cement-table-num">${fmtMW(res.emw_fc || 0).val}</span> <span class="cement-table-unit">${mwUnit}</span></td>
+                <td class="col-num"><span class="cement-table-dash">-</span></td>
+              </tr>
+              <tr>
+                <td class="col-name">${t('Casing Shoe')}</td>
+                <td class="col-num"><span class="cement-table-num">${fmtP(res.p_ann_shoe || 0).val}</span> <span class="cement-table-unit">${pressUnit}</span></td>
+                <td class="col-num"><span class="cement-table-num">${fmtMW(res.emw_shoe || 0).val}</span> <span class="cement-table-unit">${mwUnit}</span></td>
+                <td class="col-num"><span class="cement-table-dash">-</span></td>
+              </tr>
+              ${res.emw_prev_shoe !== undefined ? `
+                <tr>
+                  <td class="col-name">${t('Previous Shoe')}</td>
+                  <td class="col-num"><span class="cement-table-num">${res.p_prev_shoe !== undefined ? fmtP(res.p_prev_shoe).val : '-'}</span> <span class="cement-table-unit">${res.p_prev_shoe !== undefined ? pressUnit : ''}</span></td>
+                  <td class="col-num"><span class="cement-table-num">${fmtMW(res.emw_prev_shoe).val}</span> <span class="cement-table-unit">${mwUnit}</span></td>
+                  <td class="col-num">
+                    ${res.lot_margin !== undefined ? `
+                      <span class="cement-table-badge ${res.lot_margin >= 0 ? 'badge-ok' : 'badge-alert'}">
+                        ${res.lot_margin >= 0 ? '+' : ''}${fmtMW(res.lot_margin).val} ${mwUnit}
+                      </span>
+                    ` : '<span class="cement-table-dash">-</span>'}
+                  </td>
+                </tr>
+              ` : ''}
+              <tr>
+                <td class="col-name">${isConductor ? t('Max Pump Press') : t('Bump Pressure')}</td>
+                <td class="col-num"><span class="cement-table-num">${fmtP((isConductor ? inp.max_pump_pressure : res.bump_pressure) || 0).val}</span> <span class="cement-table-unit">${pressUnit}</span></td>
+                <td class="col-num"><span class="cement-table-dash">-</span></td>
+                <td class="col-num"><span class="cement-table-limit-badge" title="80% Casing Burst Limit">≤ ${fmtP(res.burst_limit || 0).val} ${pressUnit}</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="cement-table-footnote">
+            ${t('* Pressure limit reflects 80% casing burst rating threshold.')}
+          </div>
+        </div>
+      </div>
+    `;
+    resultsWrapper.appendChild(pressCard);
+
+    // 5. Output Card 4: Job Checks
+    const checkCard = document.createElement('div');
+    checkCard.className = `cement-accordion ${surfaceCementingState.collapsed.checks ? '' : 'open'}`;
+    const checks = res.checks || [];
+    const okCount = checks.filter(c => c.status === 'OK').length;
+    checkCard.innerHTML = `
+      <div class="cement-accordion-header" id="surface-accordion-hdr-checks">
+        <span class="cement-accordion-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          ${t('Job Validation Checks')} (${okCount}/${checks.length})
+        </span>
+        <span class="cement-chevron">▼</span>
+      </div>
+      <div class="cement-accordion-body">
+        ${checks.map(c => `
+          <div class="cement-check-item ${c.status === 'OK' ? 'cement-check-ok' : 'cement-check-alert'}">
+            <span class="cement-chip ${c.status === 'OK' ? 'cement-chip-ok' : 'cement-chip-alert'}">${escapeAttr(t(c.status))}</span>
+            <div>
+              <div style="font-weight:700; margin-bottom:2px;">${escapeAttr(t(c.label || c.name || ''))}</div>
+              <div>${escapeAttr(c.message || '')}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    resultsWrapper.appendChild(checkCard);
+
+    // 6. Output Card 5: Live Well Cementing Schematic
+    const schematicCard = document.createElement('div');
+    const isSchematicOpen = !surfaceCementingState.collapsed.schematic;
+    schematicCard.className = `cement-accordion ${isSchematicOpen ? 'open' : ''}`;
+    schematicCard.id = 'surface-schematic-accordion';
+    schematicCard.innerHTML = `
+      <div class="cement-accordion-header" id="surface-schematic-header-btn">
+        <span class="cement-accordion-title" id="surface-schematic-title-text">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          ${isSchematicOpen ? t('Hide Well Cementing Schematic') : t('Show Well Cementing Schematic')}
+        </span>
+        <span class="cement-chevron">▼</span>
+      </div>
+      <div class="cement-accordion-body" id="surface-schematic-accordion-body" style="padding:14px 16px;"></div>
+    `;
+    resultsWrapper.appendChild(schematicCard);
+
+    const schematicHeader = schematicCard.querySelector('#surface-schematic-header-btn');
+    const schematicTitle = schematicCard.querySelector('#surface-schematic-title-text');
+    const schematicBody = schematicCard.querySelector('#surface-schematic-accordion-body');
+
+    function renderSchematicContent() {
+      const sectionName = (inp && inp.name) || surfaceCementingState.jobName || (preset && preset.name) || 'Well Cementing Schematic';
+      const modelLabel = isConductor ? 'Conductor Profile' : 'Surface Casing Profile';
+      const svgMarkup = renderSurfaceSchematicSvg(res, inp, surfaceCementingState.unit);
+      const legendMarkup = (window.CementingCommon && typeof window.CementingCommon.renderFluidLegendHtml === 'function')
+        ? window.CementingCommon.renderFluidLegendHtml(inp, res, true)
+        : '';
+
+      schematicBody.innerHTML = `
+        <div class="schematic-toolbar-header">
+          <span class="schematic-helper-text">${t('Vertical profile to TD · surface section to scale')}</span>
+          <div class="schematic-toolbar-actions">
+            <button type="button" class="schematic-tb-btn" id="btn-surface-zoom-out" title="${t('Zoom Out (100% min)')}" aria-label="${t('Zoom Out')}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button type="button" class="schematic-tb-btn schematic-zoom-reset" id="btn-surface-zoom-reset" title="${t('Fit / Reset (100%)')}" aria-label="${t('Fit / Reset')}">100%</button>
+            <button type="button" class="schematic-tb-btn" id="btn-surface-zoom-in" title="${t('Zoom In (300% max)')}" aria-label="${t('Zoom In')}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button type="button" class="schematic-tb-btn" id="btn-surface-fullscreen" title="${t('Full Screen View')}" aria-label="${t('Full Screen View')}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+            </button>
+          </div>
+        </div>
+        <div class="cement-schematic-viewport" id="surface-schematic-viewport">
+          <div class="cement-schematic-canvas" id="surface-schematic-canvas">
+            ${svgMarkup}
+          </div>
+        </div>
+        ${legendMarkup}
+        <div class="cement-layer-tooltip" id="surface-layer-tooltip" style="display:none;"></div>
+      `;
+
+      const viewportEl = schematicBody.querySelector('#surface-schematic-viewport');
+      const canvasEl = schematicBody.querySelector('#surface-schematic-canvas');
+      const controls = {
+        zoomOutBtn: schematicBody.querySelector('#btn-surface-zoom-out'),
+        resetBtn: schematicBody.querySelector('#btn-surface-zoom-reset'),
+        zoomInBtn: schematicBody.querySelector('#btn-surface-zoom-in')
       };
+
+      if (window.CementingCommon && typeof window.CementingCommon.createSchematicViewer === 'function') {
+        window.CementingCommon.createSchematicViewer(viewportEl, canvasEl, controls);
+      }
+
+      const fsBtn = schematicBody.querySelector('#btn-surface-fullscreen');
+      if (fsBtn) {
+        fsBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (window.CementingCommon && typeof window.CementingCommon.openSchematicFullscreenModal === 'function') {
+            window.CementingCommon.openSchematicFullscreenModal(svgMarkup, sectionName, modelLabel);
+          }
+        };
+      }
+      if (window.CementingCommon && typeof window.CementingCommon.bindSchematicLayerClicks === 'function') {
+        window.CementingCommon.bindSchematicLayerClicks(schematicCard);
+      }
     }
 
-    // Layer click tooltips
-    window.CementingCommon.bindSchematicLayerClicks(container);
+    if (isSchematicOpen) {
+      renderSchematicContent();
+    }
 
-    // Accordions toggle
-    container.querySelectorAll('.cement-accordion-header').forEach(header => {
-      header.onclick = () => {
-        const card = header.closest('.cement-accordion');
-        if (card) {
-          card.classList.toggle('open');
+    schematicHeader.onclick = () => {
+      const willOpen = !schematicCard.classList.contains('open');
+      if (willOpen) {
+        schematicCard.classList.add('open');
+        surfaceCementingState.collapsed.schematic = false;
+        schematicTitle.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          ${t('Hide Well Cementing Schematic')}
+        `;
+        renderSchematicContent();
+      } else {
+        schematicCard.classList.remove('open');
+        surfaceCementingState.collapsed.schematic = true;
+        schematicTitle.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          ${t('Show Well Cementing Schematic')}
+        `;
+        schematicBody.innerHTML = '';
+      }
+    };
+
+    // 7. Bottom Action Buttons Stack
+    const actionRow = document.createElement('div');
+    actionRow.className = 'cement-step-btn-stack';
+    actionRow.style.marginTop = '20px';
+    actionRow.innerHTML = `
+      <button class="btn btn-primary" id="btn-surface-save-job" style="width:100%;">${t('Save Job')}</button>
+      <button class="btn btn-secondary" id="btn-surface-edit-data" style="width:100%;">${t('Edit Well Data')}</button>
+      <button class="btn btn-report-pdf" id="btn-surface-generate-pdf-report" style="width:100%;">
+        <svg class="btn-pdf-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <span class="btn-pdf-text">${t('Generate Job Report (PDF)')}</span>
+      </button>
+    `;
+    resultsWrapper.appendChild(actionRow);
+    container.appendChild(resultsWrapper);
+    container.style.paddingBottom = 'calc(env(safe-area-inset-bottom, 0px) + 32px)';
+
+    actionRow.querySelector('#btn-surface-save-job').onclick = () => saveCurrentSurfaceJob();
+    actionRow.querySelector('#btn-surface-edit-data').onclick = () => {
+      surfaceCementingState.view = 'welldata';
+      renderSurfaceCementingScreen();
+    };
+
+    const reportBtn = actionRow.querySelector('#btn-surface-generate-pdf-report');
+    if (reportBtn) {
+      reportBtn.onclick = async () => {
+        if (reportBtn.disabled) return;
+        const origHtml = reportBtn.innerHTML;
+        reportBtn.disabled = true;
+        reportBtn.classList.add('loading');
+        reportBtn.innerHTML = `
+          <span class="btn-pdf-spinner"></span>
+          <span>${t('Generating PDF Report...')}</span>
+        `;
+
+        try {
+          if (!surfaceCementingState.sectionPresets) {
+            surfaceCementingState.sectionPresets = SURFACE_SECTION_PRESETS;
+          }
+          if (window.CementingPDF && typeof window.CementingPDF.generateJobReport === 'function') {
+            const reportResult = await window.CementingPDF.generateJobReport(surfaceCementingState, { isSurface: true });
+            const savedFile = await window.CementingPDF.saveReportToFile(
+              reportResult.dataUri,
+              reportResult.fileName,
+              true,
+              'application/pdf'
+            );
+            if (typeof window.showReportReadyDialog === 'function') {
+              window.showReportReadyDialog(savedFile);
+            }
+          } else {
+            throw new Error('PDF generator library is not ready. Please try again.');
+          }
+        } catch (err) {
+          console.error('Failed to generate PDF report:', err);
+          if (typeof window.showReportErrorDialog === 'function') {
+            window.showReportErrorDialog(
+              t('Export failed'),
+              err.message || t('An unexpected error occurred while saving the report.'),
+              () => reportBtn.click()
+            );
+          } else if (typeof showToast === 'function') {
+            showToast(err.message || t('Export failed'));
+          }
+        } finally {
+          reportBtn.disabled = false;
+          reportBtn.classList.remove('loading');
+          reportBtn.innerHTML = origHtml;
         }
       };
+    }
+
+    // Accordion click handlers
+    [placeCard, pumpCard, pressCard, checkCard].forEach(card => {
+      const hdr = card.querySelector('.cement-accordion-header');
+      if (hdr) {
+        hdr.onclick = () => {
+          card.classList.toggle('open');
+        };
+      }
     });
-
-    // Save job button
-    const saveBtn = container.querySelector('#btn-surface-save-job');
-    if (saveBtn) {
-      saveBtn.onclick = () => {
-        promptSaveJob();
-      };
-    }
-
-    // Edit well data button
-    const editBtn = container.querySelector('#btn-surface-edit-data');
-    if (editBtn) {
-      editBtn.onclick = () => {
-        surfaceCementingState.view = 'welldata';
-        renderSurfaceCementingScreen();
-      };
-    }
   }
 
-  function renderResultMetric(label, val, valColor) {
-    return `
-      <div class="cement-metric-box">
-        <div class="cement-metric-label">${t(label)}</div>
-        <div class="cement-metric-val" style="${valColor ? `color:${valColor};` : ''}">${escapeHtml(val)}</div>
+  /**
+   * Duplicate Confirmation Modal Dialog for Surface Wellhead
+   */
+  function showDuplicateModal(existingJob, onConfirmOverwrite) {
+    const oldModal = document.getElementById('cement-duplicate-modal');
+    if (oldModal) oldModal.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'cement-duplicate-modal';
+    overlay.className = 'cement-modal-overlay';
+    overlay.innerHTML = `
+      <div class="cement-modal-card" role="dialog" aria-modal="true" aria-labelledby="dup-modal-title">
+        <div class="cement-modal-title" id="dup-modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          ${t('Duplicate Job Exists')}
+        </div>
+        <div class="cement-modal-desc">
+          A saved job for "<strong>${escapeAttr(existingJob.casingType || existingJob.jobName || existingJob.name)}</strong>" on this date (${escapeAttr(existingJob.calendarDate || existingJob.date || '')}) already exists. Do you want to overwrite it?
+        </div>
+        <div class="cement-modal-actions">
+          <button type="button" class="btn btn-secondary" id="btn-dup-cancel">${t('Cancel')}</button>
+          <button type="button" class="btn btn-primary" id="btn-dup-overwrite" style="background:#EF4444; border-color:#DC2626;">${t('Overwrite')}</button>
+        </div>
       </div>
     `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#btn-dup-cancel').onclick = () => {
+      overlay.remove();
+    };
+    overlay.querySelector('#btn-dup-overwrite').onclick = () => {
+      overlay.remove();
+      onConfirmOverwrite();
+    };
   }
 
-  function promptSaveJob() {
-    const currentName = surfaceCementingState.jobName || SURFACE_SECTION_PRESETS[surfaceCementingState.section]?.name || 'Surface Wellhead Job';
-    const name = prompt(t('Enter a name for this job:'), currentName);
-    if (!name) return;
+  function saveCurrentSurfaceJob() {
+    const preset = SURFACE_SECTION_PRESETS[surfaceCementingState.section] || SURFACE_SECTION_PRESETS['custom'];
+    const casingType = SECTION_SUBTITLES[surfaceCementingState.section] || preset.label || 'Surface Wellhead Casing';
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const timeStr = `${hh}:${min}`;
+    const finalName = `${casingType} - ${dateStr} ${timeStr}`;
 
     const list = getSavedJobsList();
-    const jobId = 'job_' + Date.now();
+
+    // Prevent duplicate: check same casing type and same calendar date (YYYY-MM-DD)
+    const existingIndex = list.findIndex(existing => {
+      const existingCasingType = existing.casingType || SECTION_SUBTITLES[existing.section || existing.sectionId] || existing.sectionLabel || (SURFACE_SECTION_PRESETS[existing.section]?.label);
+      const isSameCasing = (existing.section === surfaceCementingState.section) ||
+                           (existingCasingType && existingCasingType.toLowerCase() === casingType.toLowerCase());
+
+      let existingDate = existing.calendarDate;
+      if (!existingDate && existing.createdAt) {
+        try {
+          const d = new Date(existing.createdAt);
+          if (!isNaN(d.getTime())) {
+            existingDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          }
+        } catch (_) {}
+      }
+      if (!existingDate && existing.updatedAt) {
+        try {
+          const d = new Date(existing.updatedAt);
+          if (!isNaN(d.getTime())) {
+            existingDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          }
+        } catch (_) {}
+      }
+      if (!existingDate && (existing.name || existing.jobName)) {
+        const match = String(existing.name || existing.jobName).match(/\d{4}-\d{2}-\d{2}/);
+        if (match) existingDate = match[0];
+      }
+
+      return isSameCasing && existingDate === dateStr;
+    });
+
     const newJob = {
-      id: jobId,
-      name,
-      label: name,
+      id: 'surface_job_' + Date.now(),
+      name: finalName,
+      jobName: finalName,
+      casingType: casingType,
       section: surfaceCementingState.section,
+      sectionId: surfaceCementingState.section,
+      sectionLabel: casingType,
       model: surfaceCementingState.inputs.model,
-      inputs: { ...surfaceCementingState.inputs },
-      overrides: { ...surfaceCementingState.overrides },
+      calendarDate: dateStr,
+      date: dateStr,
       unit: surfaceCementingState.unit,
-      updatedAt: Date.now()
+      capUnit: surfaceCementingState.capUnit,
+      reference: surfaceCementingState.activeReference ? JSON.parse(JSON.stringify(surfaceCementingState.activeReference)) : null,
+      overrides: Object.assign({}, surfaceCementingState.overrides),
+      inputs: JSON.parse(JSON.stringify(surfaceCementingState.inputs)),
+      wellData: JSON.parse(JSON.stringify(surfaceCementingState.inputs)),
+      results: surfaceCementingState.results ? JSON.parse(JSON.stringify(surfaceCementingState.results)) : null,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString()
     };
+
+    if (existingIndex >= 0) {
+      const existingJob = list[existingIndex];
+      showDuplicateModal(existingJob, function onOverwrite() {
+        newJob.id = existingJob.id;
+        newJob.createdAt = existingJob.createdAt || newJob.createdAt;
+        newJob.updatedAt = now.toISOString();
+        list[existingIndex] = newJob;
+        saveJobsList(list);
+        surfaceCementingState.jobName = finalName;
+        if (typeof showToast === 'function') showToast(t('Job "{0}" updated!', finalName));
+        surfaceCementingState.view = 'chooser';
+        renderSurfaceCementingScreen();
+      });
+      return;
+    }
 
     list.unshift(newJob);
     saveJobsList(list);
-    surfaceCementingState.jobName = name;
-    if (typeof showToast === 'function') showToast(t('Job saved successfully'));
+    surfaceCementingState.jobName = finalName;
+    if (typeof showToast === 'function') showToast(t('Job "{0}" saved!', finalName));
+    surfaceCementingState.view = 'chooser';
+    renderSurfaceCementingScreen();
   }
 
   // SVG Well Cementing Schematic Renderer for Surface Wellhead
@@ -1438,11 +2687,11 @@
     const isConductor = res.model === 'surface_conductor';
     const isJackUp = inp.rig_type === 'jack-up';
 
-    const tdFt = Math.max(10, Number(inp.td) || 0);
-    const shoeFt = Math.max(0, Number(inp.shoe) || 0);
-    const fcFt = Math.max(0, res.fc || 0);
-    const prevShoeFt = isConductor ? 0 : Math.max(0, Number(inp.prev_shoe) || 0);
-    const seabedFt = isConductor ? Math.max(0, Number(inp.seabed) || 0) : 0;
+    const tdFt = Math.max(10, (Number(inp.td) || 0) / M_PER_FT);
+    const shoeFt = Math.max(0, (Number(inp.shoe) || 0) / M_PER_FT);
+    const fcFt = Math.max(0, (res.fc !== undefined ? res.fc : ((Number(inp.shoe) || 0) - (Number(inp.shoe_track_len) || 0)) / M_PER_FT));
+    const prevShoeFt = isConductor ? 0 : Math.max(0, (Number(inp.prev_shoe) || 0) / M_PER_FT);
+    const seabedFt = isConductor ? Math.max(0, (Number(inp.seabed) || 0) / M_PER_FT) : 0;
 
     const yTop = 60;
     const yBot = 740;
@@ -1490,11 +2739,10 @@
     function fmtD(val) {
       return formatMetricDepth(val, isMetric) + ' ' + (isMetric ? 'm' : 'ft');
     }
-    function fmtH(val) {
-      return formatMetricDist(val, isMetric) + ' ' + (isMetric ? 'm' : 'ft');
-    }
+    const fmtV = (v) => (window.CementingCommon && window.CementingCommon.formatVol) ? window.CementingCommon.formatVol(v) : { val: Number(v || 0).toFixed(1), unit: 'bbl', full: Number(v || 0).toFixed(1) + ' bbl' };
+    const fmtMW = (v) => (window.CementingCommon && window.CementingCommon.formatDensity) ? window.CementingCommon.formatDensity(v) : { val: Number(v || 0).toFixed(2), unit: 'ppg', full: Number(v || 0).toFixed(2) + ' ppg' };
 
-    let svg = `<svg viewBox="-20 0 540 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
+    let svg = `<svg viewBox="-50 0 600 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
 
     // Definitions
     svg += `
@@ -1525,7 +2773,6 @@
     // 2. Conductor Specific: Water / Air zone above seabed/GL
     if (isConductor && ySeabed > y0) {
       if (isJackUp) {
-        // Seawater band
         svg += `
           <rect x="120" y="${y0}" width="260" height="${ySeabed - y0}" fill="url(#surf-water-grad)" stroke="#0284C7" stroke-width="1" rx="4"/>
           <path d="M 120 ${y0} Q 140 ${y0 - 3}, 160 ${y0} T 200 ${y0} T 240 ${y0} T 280 ${y0} T 320 ${y0} T 360 ${y0} T 380 ${y0}" fill="none" stroke="#0284C7" stroke-width="2"/>
@@ -1534,7 +2781,6 @@
           <text x="125" y="${ySeabed + 12}" font-size="8.5" font-weight="700" fill="#786656">${t('Seabed')}</text>
         `;
       } else {
-        // Land Air band
         svg += `
           <rect x="120" y="${y0}" width="260" height="${ySeabed - y0}" fill="#FAF8F5" stroke="#CBD5E1" stroke-dasharray="4,3" stroke-width="1" rx="4"/>
           <text x="130" y="${y0 + 14}" font-size="8.5" font-weight="700" fill="#64748B" letter-spacing="0.5">${t('AIR / CELLAR (LAND)')}</text>
@@ -1570,52 +2816,52 @@
 
     // Annulus Original Fluid (Well mud / Hole fluid)
     if (topFluidY > annTopY) {
-      const origColor = isConductor ? '#C9D6DF' : '#F2D388';
-      const origName = isConductor ? 'Hole Fluid' : 'Well Mud';
+      const origColor = '#C9D6DF';
+      const origName = 'Hole Fluid';
       const origMw = isConductor ? inp.hole_fluid_mw : inp.mw;
       svg += `
-        <rect class="cement-svg-layer" data-name="${origName}" data-depth="${fmtD(isConductor ? seabedFt : 0)} - ${fmtD(inp.f1_vol > 0 ? res.f1_top : (inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc)))}" data-vol="In Hole" data-mw="${origMw} ppg" x="${ohLeft}" y="${annTopY}" width="${annLeftW}" height="${topFluidY - annTopY}" fill="${origColor}" cursor="pointer"/>
-        <rect class="cement-svg-layer" data-name="${origName}" data-depth="${fmtD(isConductor ? seabedFt : 0)} - ${fmtD(inp.f1_vol > 0 ? res.f1_top : (inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc)))}" data-vol="In Hole" data-mw="${origMw} ppg" x="${csgRight}" y="${annTopY}" width="${annRightW}" height="${topFluidY - annTopY}" fill="${origColor}" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="${origName}" data-depth="${fmtD(isConductor ? seabedFt : 0)} - ${fmtD(inp.f1_vol > 0 ? res.f1_top : (inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc)))}" data-vol="In Hole" data-mw="${fmtMW(origMw).full}" x="${ohLeft}" y="${annTopY}" width="${annLeftW}" height="${topFluidY - annTopY}" fill="${origColor}" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="${origName}" data-depth="${fmtD(isConductor ? seabedFt : 0)} - ${fmtD(inp.f1_vol > 0 ? res.f1_top : (inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc)))}" data-vol="In Hole" data-mw="${fmtMW(origMw).full}" x="${csgRight}" y="${annTopY}" width="${annRightW}" height="${topFluidY - annTopY}" fill="${origColor}" cursor="pointer"/>
       `;
     }
 
     // 1st Mud/Wash
     if (inp.f1_vol > 0 && yF2 > yF1) {
       svg += `
-        <rect class="cement-svg-layer" data-name="1st Mud Wash" data-depth="${fmtD(res.f1_top)} - ${fmtD(res.f2_top)}" data-vol="${inp.f1_vol} bbl" data-mw="${inp.f1_mw} ppg" x="${ohLeft}" y="${yF1}" width="${annLeftW}" height="${yF2 - yF1}" fill="#E07B39" cursor="pointer"/>
-        <rect class="cement-svg-layer" data-name="1st Mud Wash" data-depth="${fmtD(res.f1_top)} - ${fmtD(res.f2_top)}" data-vol="${inp.f1_vol} bbl" data-mw="${inp.f1_mw} ppg" x="${csgRight}" y="${yF1}" width="${annRightW}" height="${yF2 - yF1}" fill="#E07B39" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="1st Mud Wash" data-depth="${fmtD(res.f1_top)} - ${fmtD(res.f2_top)}" data-vol="${fmtV(inp.f1_vol).full}" data-mw="${fmtMW(inp.f1_mw).full}" x="${ohLeft}" y="${yF1}" width="${annLeftW}" height="${yF2 - yF1}" fill="#E07B39" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="1st Mud Wash" data-depth="${fmtD(res.f1_top)} - ${fmtD(res.f2_top)}" data-vol="${fmtV(inp.f1_vol).full}" data-mw="${fmtMW(inp.f1_mw).full}" x="${csgRight}" y="${yF1}" width="${annRightW}" height="${yF2 - yF1}" fill="#E07B39" cursor="pointer"/>
       `;
     }
 
     // 2nd Mud/Wash
     if (inp.f2_vol > 0 && ySP > yF2) {
       svg += `
-        <rect class="cement-svg-layer" data-name="2nd Mud Wash" data-depth="${fmtD(res.f2_top)} - ${fmtD(res.sp_top)}" data-vol="${inp.f2_vol} bbl" data-mw="${inp.f2_mw} ppg" x="${ohLeft}" y="${yF2}" width="${annLeftW}" height="${ySP - yF2}" fill="#9B59B6" cursor="pointer"/>
-        <rect class="cement-svg-layer" data-name="2nd Mud Wash" data-depth="${fmtD(res.f2_top)} - ${fmtD(res.sp_top)}" data-vol="${inp.f2_vol} bbl" data-mw="${inp.f2_mw} ppg" x="${csgRight}" y="${yF2}" width="${annRightW}" height="${ySP - yF2}" fill="#9B59B6" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="2nd Mud Wash" data-depth="${fmtD(res.f2_top)} - ${fmtD(res.sp_top)}" data-vol="${fmtV(inp.f2_vol).full}" data-mw="${fmtMW(inp.f2_mw).full}" x="${ohLeft}" y="${yF2}" width="${annLeftW}" height="${ySP - yF2}" fill="#9B59B6" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="2nd Mud Wash" data-depth="${fmtD(res.f2_top)} - ${fmtD(res.sp_top)}" data-vol="${fmtV(inp.f2_vol).full}" data-mw="${fmtMW(inp.f2_mw).full}" x="${csgRight}" y="${yF2}" width="${annRightW}" height="${ySP - yF2}" fill="#9B59B6" cursor="pointer"/>
       `;
     }
 
     // Spacer
     if (inp.sp_vol > 0 && yTOC > ySP) {
       svg += `
-        <rect class="cement-svg-layer" data-name="Spacer" data-depth="${fmtD(res.sp_top)} - ${fmtD(res.toc)}" data-vol="${inp.sp_vol} bbl" data-mw="${inp.sp_mw} ppg" x="${ohLeft}" y="${ySP}" width="${annLeftW}" height="${yTOC - ySP}" fill="#4A90D9" cursor="pointer"/>
-        <rect class="cement-svg-layer" data-name="Spacer" data-depth="${fmtD(res.sp_top)} - ${fmtD(res.toc)}" data-vol="${inp.sp_vol} bbl" data-mw="${inp.sp_mw} ppg" x="${csgRight}" y="${ySP}" width="${annRightW}" height="${yTOC - ySP}" fill="#4A90D9" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Spacer" data-depth="${fmtD(res.sp_top)} - ${fmtD(res.toc)}" data-vol="${fmtV(inp.sp_vol).full}" data-mw="${fmtMW(inp.sp_mw).full}" x="${ohLeft}" y="${ySP}" width="${annLeftW}" height="${yTOC - ySP}" fill="#4A90D9" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Spacer" data-depth="${fmtD(res.sp_top)} - ${fmtD(res.toc)}" data-vol="${fmtV(inp.sp_vol).full}" data-mw="${fmtMW(inp.sp_mw).full}" x="${csgRight}" y="${ySP}" width="${annRightW}" height="${yTOC - ySP}" fill="#4A90D9" cursor="pointer"/>
       `;
     }
 
     // Lead Slurry
     if (inp.lead_vol > 0 && yTail > yTOC) {
       svg += `
-        <rect class="cement-svg-layer" data-name="Lead Slurry" data-depth="${fmtD(res.toc)} - ${fmtD(res.tail_top)}" data-vol="${inp.lead_vol} bbl" data-mw="${inp.lead_mw} ppg" x="${ohLeft}" y="${yTOC}" width="${annLeftW}" height="${yTail - yTOC}" fill="#B5D99C" cursor="pointer"/>
-        <rect class="cement-svg-layer" data-name="Lead Slurry" data-depth="${fmtD(res.toc)} - ${fmtD(res.tail_top)}" data-vol="${inp.lead_vol} bbl" data-mw="${inp.lead_mw} ppg" x="${csgRight}" y="${yTOC}" width="${annRightW}" height="${yTail - yTOC}" fill="#B5D99C" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Lead Slurry" data-depth="${fmtD(res.toc)} - ${fmtD(res.tail_top)}" data-vol="${fmtV(inp.lead_vol).full}" data-mw="${fmtMW(inp.lead_mw).full}" x="${ohLeft}" y="${yTOC}" width="${annLeftW}" height="${yTail - yTOC}" fill="#B5D99C" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Lead Slurry" data-depth="${fmtD(res.toc)} - ${fmtD(res.tail_top)}" data-vol="${fmtV(inp.lead_vol).full}" data-mw="${fmtMW(inp.lead_mw).full}" x="${csgRight}" y="${yTOC}" width="${annRightW}" height="${yTail - yTOC}" fill="#B5D99C" cursor="pointer"/>
       `;
     }
 
     // Tail Slurry (Annulus)
     if (yShoe > yTail) {
       svg += `
-        <rect class="cement-svg-layer" data-name="Tail Slurry (Annulus)" data-depth="${fmtD(res.tail_top)} - ${fmtD(inp.shoe)}" data-vol="${inp.tail_vol} bbl" data-mw="${inp.tail_mw} ppg" x="${ohLeft}" y="${yTail}" width="${annLeftW}" height="${yShoe - yTail}" fill="#3E7D3A" cursor="pointer"/>
-        <rect class="cement-svg-layer" data-name="Tail Slurry (Annulus)" data-depth="${fmtD(res.tail_top)} - ${fmtD(inp.shoe)}" data-vol="${inp.tail_vol} bbl" data-mw="${inp.tail_mw} ppg" x="${csgRight}" y="${yTail}" width="${annRightW}" height="${yShoe - yTail}" fill="#3E7D3A" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Tail Slurry (Annulus)" data-depth="${fmtD(res.tail_top)} - ${fmtD(inp.shoe)}" data-vol="${fmtV(inp.tail_vol).full}" data-mw="${fmtMW(inp.tail_mw).full}" x="${ohLeft}" y="${yTail}" width="${annLeftW}" height="${yShoe - yTail}" fill="#3E7D3A" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Tail Slurry (Annulus)" data-depth="${fmtD(res.tail_top)} - ${fmtD(inp.shoe)}" data-vol="${fmtV(inp.tail_vol).full}" data-mw="${fmtMW(inp.tail_mw).full}" x="${csgRight}" y="${yTail}" width="${annRightW}" height="${yShoe - yTail}" fill="#3E7D3A" cursor="pointer"/>
       `;
     }
 
@@ -1623,12 +2869,11 @@
     if (yTD > yShoe) {
       const ratColor = (inp.tail_vol > 0) ? '#3E7D3A' : '#B5D99C';
       svg += `
-        <rect class="cement-svg-layer" data-name="Rathole Cement" data-depth="${fmtD(inp.shoe)} - ${fmtD(inp.td)}" data-vol="${(res.rat_vol || 0).toFixed(1)} bbl" data-mw="${(inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0} ppg" x="${ohLeft}" y="${yShoe}" width="${ohW}" height="${yTD - yShoe}" fill="${ratColor}" opacity="0.9" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Rathole Cement" data-depth="${fmtD(inp.shoe)} - ${fmtD(inp.td)}" data-vol="${fmtV(res.rat_vol || 0).full}" data-mw="${fmtMW((inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0).full}" x="${ohLeft}" y="${yShoe}" width="${ohW}" height="${yTD - yShoe}" fill="${ratColor}" opacity="0.9" cursor="pointer"/>
       `;
     }
 
     // 6. Casing Body & Shoe Track
-    // Casing Wall
     svg += `
       <!-- Casing Walls -->
       <rect x="${csgLeft}" y="${y0}" width="4" height="${yShoe - y0}" fill="#1F3864"/>
@@ -1639,24 +2884,26 @@
     `;
 
     // Casing Interior:
-    // From surface down to FC:
     if (yFC > y0) {
       if (isConductor) {
-        // Conductor has inner string from surface to FC
         svg += `
           <!-- Conductor Interior around DP -->
           <rect x="${csgLeft + 4}" y="${y0}" width="${dpLeft - (csgLeft + 4)}" height="${yFC - y0}" fill="#C9D6DF" opacity="0.5"/>
           <rect x="${dpRight}" y="${y0}" width="${(csgRight - 4) - dpRight}" height="${yFC - y0}" fill="#C9D6DF" opacity="0.5"/>
           <!-- Inner String DP Walls -->
-          <rect x="${dpLeft}" y="${y0}" width="2.5" height="${yFC - y0}" fill="#5A6B7D"/>
-          <rect x="${dpRight - 2.5}" y="${y0}" width="2.5" height="${yFC - y0}" fill="#5A6B7D"/>
-          <!-- Displacement fluid inside string -->
-          <rect class="cement-svg-layer" data-name="Displacement Fluid" data-depth="0 - ${fmtD(fcFt)}" data-vol="${res.disp_tot.toFixed(1)} bbl" data-mw="${inp.disp_mw} ppg" x="${dpLeft + 2.5}" y="${y0}" width="${dpW - 5}" height="${yFC - y0}" fill="#38BDF8" cursor="pointer"/>
+          <rect x="${dpLeft}" y="${y0}" width="2.5" height="${yFC - y0}" fill="#334155"/>
+          <rect x="${dpRight - 2.5}" y="${y0}" width="2.5" height="${yFC - y0}" fill="#334155"/>
+          <!-- DP Interior (Displacement Fluid) -->
+          <rect class="cement-svg-layer" data-name="Displacement Fluid (in DP)" data-depth="${fmtD(0)} - ${fmtD(res.fc)}" data-vol="${fmtV(res.disp_tot || 0).full}" data-mw="${fmtMW(inp.disp_mw).full}" x="${dpLeft + 2.5}" y="${y0}" width="${dpW - 5}" height="${yFC - y0}" fill="#F2D388" cursor="pointer"/>
+          <!-- Stab-in Packer / Shoe -->
+          <rect x="${csgLeft + 4}" y="${yFC - 6}" width="${csgW - 8}" height="6" fill="#151515" rx="1"/>
         `;
       } else {
-        // Surface casing interior filled with well mud
         svg += `
-          <rect class="cement-svg-layer" data-name="Displacement Mud" data-depth="0 - ${fmtD(fcFt)}" data-vol="${res.disp_tot.toFixed(1)} bbl" data-mw="${inp.mw} ppg" x="${csgLeft + 4}" y="${y0}" width="${csgW - 8}" height="${yFC - y0}" fill="#F2D388" opacity="0.85" cursor="pointer"/>
+          <!-- Casing Interior Displacement -->
+          <rect class="cement-svg-layer" data-name="Displacement Fluid" data-depth="${fmtD(0)} - ${fmtD(res.fc)}" data-vol="${fmtV(res.disp_tot || 0).full}" data-mw="${fmtMW(inp.mw).full}" x="${csgLeft + 4}" y="${y0}" width="${csgW - 8}" height="${yFC - y0}" fill="#F2D388" cursor="pointer"/>
+          <!-- Float Collar / Wiper Plug -->
+          <rect x="${csgLeft + 4}" y="${yFC - 6}" width="${csgW - 8}" height="6" fill="#D97706" rx="1"/>
         `;
       }
     }
@@ -1665,113 +2912,175 @@
     if (yShoe > yFC) {
       const stColor = (inp.tail_vol > 0) ? '#3E7D3A' : '#B5D99C';
       svg += `
-        <!-- Float Collar Plate -->
-        <rect x="${csgLeft + 4}" y="${yFC - 3}" width="${csgW - 8}" height="3" fill="#151515"/>
-        <rect class="cement-svg-layer" data-name="Shoe Track Cement" data-depth="${fmtD(fcFt)} - ${fmtD(shoeFt)}" data-vol="${(res.st_vol || 0).toFixed(1)} bbl" data-mw="${(inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0} ppg" x="${csgLeft + 4}" y="${yFC}" width="${csgW - 8}" height="${yShoe - yFC}" fill="${stColor}" cursor="pointer"/>
+        <!-- Shoe Track Cement -->
+        <rect class="cement-svg-layer" data-name="Shoe Track Cement" data-depth="${fmtD(res.fc)} - ${fmtD(inp.shoe)}" data-vol="${fmtV(res.st_vol || 0).full}" data-mw="${fmtMW((inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0).full}" x="${csgLeft + 4}" y="${yFC}" width="${csgW - 8}" height="${yShoe - yFC}" fill="${stColor}" cursor="pointer"/>
       `;
     }
 
-    // Top reference line
-    svg += `
-      <line x1="110" y1="${y0}" x2="390" y2="${y0}" stroke="#475569" stroke-width="2.5"/>
-    `;
+    // 7. Balanced Left/Right Depth Callouts with Collision Avoidance & Rounded Pills
+    const leftMarkers = [];
+    const rightMarkers = [];
 
-    // 7. Depth Markers on the LEFT with right-aligned '►' pointers
-    const leftMarkers = [
-      { depth: 0, label: 'Surface', y: y0, show: true },
-      { depth: seabedFt, label: isJackUp ? 'Seabed' : 'Ground Level', y: ySeabed, show: isConductor && seabedFt > 0 },
-      { depth: prevShoeFt, label: 'Prev Shoe', y: yPrevShoe, show: !isConductor && prevShoeFt > 0 },
-      { depth: res.f1_top, label: '1st Mud Top', y: yF1, show: inp.f1_vol > 0 && res.f1_top < (isConductor ? seabedFt : 0) },
-      { depth: res.f2_top, label: '2nd Mud Top', y: yF2, show: inp.f2_vol > 0 && res.f2_top < res.sp_top },
-      { depth: res.sp_top, label: 'Spacer Top', y: ySP, show: inp.sp_vol > 0 && res.sp_top < res.toc },
-      { depth: res.toc, label: 'TOC', y: yTOC, show: res.total_slurry > 0 && res.toc > 0 },
-      { depth: res.tail_top, label: 'Tail Top', y: yTail, show: inp.tail_vol > 0 && res.tail_top < shoeFt },
-      { depth: fcFt, label: 'Float Collar', y: yFC, show: fcFt > 0 },
-      { depth: shoeFt, label: 'Casing Shoe', y: yShoe, show: shoeFt > 0 },
-      { depth: tdFt, label: 'TD', y: yTD, show: tdFt > 0 }
-    ].filter(m => m.show);
-
-    // Render left depth markers
-    leftMarkers.forEach(m => {
-      svg += `
-        <g class="depth-marker-left">
-          <polygon points="${ohLeft - 2},${m.y} ${ohLeft - 7},${m.y - 3.5} ${ohLeft - 7},${m.y + 3.5}" fill="#334155"/>
-          <text x="${ohLeft - 10}" y="${m.y + 3.5}" font-size="8.5" font-weight="700" fill="#334155" text-anchor="end">${m.label} ${fmtD(m.depth)}</text>
-        </g>
-      `;
+    // Left Side Callouts: Structural / Geometry depths
+    leftMarkers.push({
+      d: 0,
+      targetY: y0,
+      label: `${t('Surface / RKB')} 0 ${isMetric ? 'm' : 'ft'}`,
+      bg: '#2C1A11',
+      text: '#FFFFFF'
     });
 
-    // 8. Height Arrows on the RIGHT
-    const rightArrows = [];
-    if (inp.tail_vol > 0 && res.rise_tail > 0) {
-      rightArrows.push({
-        yTop: yTail,
-        yBot: yShoe,
-        label: `Tail ${fmtH(res.rise_tail)} (${inp.tail_mw} ppg)`,
-        color: '#3E7D3A'
-      });
-    }
-    if (inp.lead_vol > 0 && res.rise_lead > 0) {
-      rightArrows.push({
-        yTop: yTOC,
-        yBot: yTail,
-        label: `Lead ${fmtH(res.rise_lead)} (${inp.lead_mw} ppg)`,
-        color: '#64748B'
-      });
-    }
-    if (inp.sp_vol > 0 && res.rise_sp > 0) {
-      rightArrows.push({
-        yTop: ySP,
-        yBot: yTOC,
-        label: `Spacer ${fmtH(res.rise_sp)} (${inp.sp_mw} ppg)`,
-        color: '#0284C7'
+    if (!isConductor && prevShoeFt > 0) {
+      leftMarkers.push({
+        d: prevShoeFt,
+        targetY: yPrevShoe,
+        label: `${t('Prev Shoe')} ${fmtD(prevShoeFt)}`,
+        bg: '#64748B',
+        text: '#FFFFFF'
       });
     }
 
-    rightArrows.forEach((arr, i) => {
-      const arrX = ohRight + 12 + (i * 2);
-      const midY = (arr.yTop + arr.yBot) / 2;
-      svg += `
-        <g class="height-arrow-right">
-          <line x1="${ohRight + 4}" y1="${arr.yTop}" x2="${arrX + 6}" y2="${arr.yTop}" stroke="${arr.color}" stroke-dasharray="2,2" stroke-width="0.8"/>
-          <line x1="${ohRight + 4}" y1="${arr.yBot}" x2="${arrX + 6}" y2="${arr.yBot}" stroke="${arr.color}" stroke-dasharray="2,2" stroke-width="0.8"/>
-          <line x1="${arrX}" y1="${arr.yTop}" x2="${arrX}" y2="${arr.yBot}" stroke="${arr.color}" stroke-width="1.5"/>
-          <polygon points="${arrX},${arr.yTop} ${arrX - 3},${arr.yTop + 5} ${arrX + 3},${arr.yTop + 5}" fill="${arr.color}"/>
-          <polygon points="${arrX},${arr.yBot} ${arrX - 3},${arr.yBot - 5} ${arrX + 3},${arr.yBot - 5}" fill="${arr.color}"/>
-          <text x="${arrX + 8}" y="${midY + 3}" font-size="8.5" font-weight="700" fill="${arr.color}">${arr.label}</text>
-        </g>
-      `;
-    });
+    if (fcFt > 0) {
+      leftMarkers.push({
+        d: fcFt,
+        targetY: yFC,
+        label: `${t('Float Collar Depth')} ${fmtD(fcFt)}`,
+        bg: '#DC2626',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (shoeFt > 0) {
+      leftMarkers.push({
+        d: shoeFt,
+        targetY: yShoe,
+        label: `${t('Casing Shoe')} ${fmtD(shoeFt)}`,
+        bg: '#1E293B',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (tdFt > 0) {
+      leftMarkers.push({
+        d: tdFt,
+        targetY: yTD,
+        label: `${t('Hole Depth (MD)')} ${fmtD(tdFt)}`,
+        bg: '#78716C',
+        text: '#FFFFFF'
+      });
+    }
+
+    // Right Side Callouts: Environmental & Fluid Top depths
+    if (isConductor && seabedFt > 0) {
+      const seabedLabel = isJackUp ? t('Seabed') : t('Ground Level');
+      rightMarkers.push({
+        d: seabedFt,
+        targetY: ySeabed,
+        label: `${seabedLabel} ${fmtD(seabedFt)}`,
+        bg: '#8D7765',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.f1_vol > 0 && res.f1_top !== undefined && res.f1_top < shoeFt) {
+      rightMarkers.push({
+        d: res.f1_top,
+        targetY: yF1,
+        label: `${t('1st Mud Wash Top')} ${fmtD(res.f1_top)}`,
+        bg: '#E07B39',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.f2_vol > 0 && res.f2_top !== undefined && res.f2_top < shoeFt) {
+      rightMarkers.push({
+        d: res.f2_top,
+        targetY: yF2,
+        label: `${t('2nd Mud Wash Top')} ${fmtD(res.f2_top)}`,
+        bg: '#9B59B6',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.sp_vol > 0 && res.sp_top !== undefined && res.sp_top < shoeFt) {
+      rightMarkers.push({
+        d: res.sp_top,
+        targetY: ySP,
+        label: `${t('Spacer Top')} ${fmtD(res.sp_top)}`,
+        bg: '#4A90D9',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (res.toc !== undefined && res.toc >= 0 && res.toc < shoeFt) {
+      const tocLabel = (inp.lead_vol > 0) ? t('Lead Slurry Top') : t('TOC');
+      rightMarkers.push({
+        d: res.toc,
+        targetY: yTOC,
+        label: `${tocLabel} ${fmtD(res.toc)}`,
+        bg: '#15803D',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.tail_vol > 0 && res.tail_top > 0 && res.tail_top < shoeFt && Math.abs(res.tail_top - res.toc) > 0.5) {
+      rightMarkers.push({
+        d: res.tail_top,
+        targetY: yTail,
+        label: `${t('Tail Top')} ${fmtD(res.tail_top)}`,
+        bg: '#3E7D3A',
+        text: '#FFFFFF'
+      });
+    }
+
+    const calloutsFn = (window.CementingCommon && typeof window.CementingCommon.renderSchematicCallouts === 'function')
+      ? window.CementingCommon.renderSchematicCallouts
+      : null;
+
+    if (calloutsFn) {
+      svg += calloutsFn({
+        leftMarkers,
+        rightMarkers,
+        ohLeft,
+        ohRight,
+        leftTagRight: 135,
+        rightTagX: 365,
+        minGap: 18,
+        minY: 45,
+        maxY: 765
+      });
+    }
 
     svg += `</svg>`;
     return svg;
   }
 
-  // Public exports
-  root.surfaceCementingState = surfaceCementingState;
-  root.SURFACE_SECTION_PRESETS = SURFACE_SECTION_PRESETS;
-  root.renderSurfaceCementingScreen = renderSurfaceCementingScreen;
-  root.openSurfaceCementingModule = openSurfaceCementingModule;
-  root.selectSurfaceSection = selectSection;
-  root.surfaceGoToView = surfaceGoToView;
-  root.calculateSurfaceCementing = executeSurfaceCalculation;
+  // Global functions exposed for testability and runtime
   root.renderSurfaceSchematicSvg = renderSurfaceSchematicSvg;
-  root.promptSaveJob = promptSaveJob;
-  root.loadSavedJob = loadSavedJob;
-  root.computeSurfaceCapacities = computeSurfaceCapacities;
-
   if (typeof window !== 'undefined') {
-    window.surfaceCementingState = surfaceCementingState;
-    window.SURFACE_SECTION_PRESETS = SURFACE_SECTION_PRESETS;
-    window.renderSurfaceCementingScreen = renderSurfaceCementingScreen;
-    window.openSurfaceCementingModule = openSurfaceCementingModule;
-    window.selectSurfaceSection = selectSection;
-    window.surfaceGoToView = surfaceGoToView;
-    window.calculateSurfaceCementing = executeSurfaceCalculation;
     window.renderSurfaceSchematicSvg = renderSurfaceSchematicSvg;
-    window.promptSaveJob = promptSaveJob;
-    window.loadSavedJob = loadSavedJob;
-    window.computeSurfaceCapacities = computeSurfaceCapacities;
   }
 
-})(typeof window !== 'undefined' ? window : this);
+  root.surfaceGoToView = function (v) {
+    surfaceCementingState.view = v;
+    renderSurfaceCementingScreen();
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('languageChanged', () => {
+      const surfaceScreen = document.getElementById('screen-cement-planner-surface');
+      if (surfaceScreen && surfaceScreen.classList.contains('active')) {
+        renderSurfaceCementingScreen();
+      }
+    });
+
+    window.addEventListener('unitSystemChanged', () => {
+      loadPersistedUnit();
+      const surfaceScreen = document.getElementById('screen-cement-planner-surface');
+      if (surfaceScreen && surfaceScreen.classList.contains('active')) {
+        renderSurfaceCementingScreen();
+      }
+    });
+  }
+
+})(typeof self !== 'undefined' ? self : this);

@@ -4,8 +4,8 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "build": "mkdir -p www && cp index.html style.css collapsing_header.js icons.js app.js translations.js tubulars_db.js cementing_engine.js cementing_common.js cementing_ui.js cementing_surface_ui.js cementing_pdf.js roboto_font.js jspdf.umd.min.js jspdf.plugin.autotable.min.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/ && cp -r fonts www/ && cp -r stuckpipe www/",
-    "test": "npx vitest run tests/cementing.test.ts && node tests/collapsing_header_contract.test.mjs && node stuckpipe/engine.test.mjs && python3 scripts/verify_stuckpipe_locales.py && python3 scripts/offline_icon_guard.py && python3 scripts/mojibake_guard.py",
+    "build": "mkdir -p www && cp index.html style.css units_engine.js collapsing_header.js icons.js app.js translations.js tubulars_db.js cementing_engine.js cementing_common.js cementing_ui.js cementing_surface_ui.js cementing_pdf.js roboto_font.js jspdf.umd.min.js jspdf.plugin.autotable.min.js logo.png firebase-app-compat.js firebase-remote-config-compat.js www/ && cp -r fonts www/ && cp -r stuckpipe www/",
+    "test": "node tests/unit_engine.test.mjs && node tests/cementing_pilot_units.test.mjs && npx vitest run tests/cementing.test.ts && node tests/calc_hub_units.test.mjs && node tests/collapsing_header_contract.test.mjs && node stuckpipe/engine.test.mjs && python3 scripts/verify_stuckpipe_locales.py && python3 scripts/offline_icon_guard.py && python3 scripts/mojibake_guard.py",
     "test:cementing": "npx vitest run tests/cementing.test.ts",
     "test:header": "node --experimental-websocket tests/collapsing_header_contract.test.mjs",
     "test:stuckpipe": "node stuckpipe/engine.test.mjs && python3 scripts/verify_stuckpipe_locales.py",

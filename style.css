@@ -1016,6 +1016,200 @@ html[lang="ar"] .back-btn .ico svg {
   z-index: 2;
 }
 
+/* ============================================================
+   SETTINGS - UNIT SYSTEM CARD & SEGMENTED CONTROL (STEP A)
+   ============================================================ */
+.unit-system-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background-color: rgba(141, 119, 101, 0.12);
+  background-color: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  color: var(--accent-color);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 28%, transparent);
+  line-height: 1.2;
+  transition: all 200ms ease;
+}
+
+[data-theme="dark"] .unit-system-badge {
+  background-color: rgba(255, 255, 255, 0.08);
+  background-color: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
+}
+
+.unit-system-segmented-control {
+  position: relative;
+  display: flex;
+  background-color: rgba(0, 0, 0, 0.055);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: 14px;
+  padding: 4px;
+  gap: 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  margin-bottom: 0;
+}
+
+.unit-system-slider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 10px;
+  background-color: var(--accent-color);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.unit-system-segmented-control[data-active-system="api"] .unit-system-slider {
+  transform: translateX(0%);
+}
+
+.unit-system-segmented-control[data-active-system="si"] .unit-system-slider {
+  transform: translateX(100%);
+}
+
+.unit-system-segmented-control[data-active-system="mixed"] .unit-system-slider {
+  transform: translateX(200%);
+}
+
+.unit-system-segment.segmented-control-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 6px;
+  background: transparent !important;
+  border: none;
+  border-radius: 10px;
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  color: #1E293B;
+  transition: color 180ms ease, opacity 180ms ease;
+  font-family: inherit;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.unit-system-segment.segmented-control-btn:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+
+.unit-btn-line1 {
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.unit-btn-line2 {
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  color: #475569;
+  transition: color 180ms ease;
+}
+
+/* Light Mode Selected State */
+.unit-system-segment.segmented-control-btn.active {
+  color: #FFFFFF;
+}
+
+.unit-system-segment.segmented-control-btn.active .unit-btn-line2 {
+  color: #FFFFFF;
+  opacity: 0.92;
+}
+
+/* Dark Mode Track & Labels */
+[data-theme="dark"] .unit-system-segmented-control {
+  background-color: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .unit-system-slider {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .unit-system-segment.segmented-control-btn {
+  color: #F8FAFC;
+}
+
+[data-theme="dark"] .unit-system-segment.segmented-control-btn .unit-btn-line2 {
+  color: #CBD5E1;
+}
+
+/* Dark Mode Selected State: Dark text for guaranteed >= 4.5:1 contrast against all 5 dark accents */
+[data-theme="dark"] .unit-system-segment.segmented-control-btn.active {
+  color: #0F172A;
+}
+
+[data-theme="dark"] .unit-system-segment.segmented-control-btn.active .unit-btn-line2 {
+  color: #0F172A;
+  opacity: 0.88;
+}
+
+/* Summary Live Text */
+.unit-system-summary {
+  min-height: 20px;
+  line-height: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 14px;
+  margin-bottom: 2px;
+  opacity: 0.85;
+  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unit-system-summary.is-fading {
+  opacity: 0;
+}
+
+[data-theme="dark"] .unit-system-summary {
+  color: #94A3B8;
+  opacity: 0.9;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .unit-system-slider {
+    transition: none !important;
+  }
+  .unit-system-summary {
+    transition: none !important;
+  }
+  .unit-system-segment.segmented-control-btn {
+    transition: none !important;
+  }
+}
+
 /* Grid of Cards (Hole Sizes, etc.) */
 .sizes-grid {
   display: grid;
@@ -1343,9 +1537,12 @@ input:checked + .slider:before {
 /* Custom Notification Toast */
 .toast {
   position: fixed;
-  top: -120px;
+  top: 114px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate3d(-50%, -20px, 0);
+  opacity: 0;
+  visibility: hidden;
+  will-change: transform, opacity;
   background-color: #1C1917;
   color: #F5F5F4;
   padding: 10px 22px;
@@ -1354,14 +1551,17 @@ input:checked + .slider:before {
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
-  transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 220ms ease-out, border-color 220ms ease-out, color 180ms ease-out;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.22s ease-out, visibility 0.22s ease-out;
   z-index: 10000;
   pointer-events: none;
   white-space: nowrap;
+  contain: paint layout;
 }
 
 .toast.show {
-  top: 114px;
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(-50%, 0, 0);
 }
 
 /* Animations */
@@ -4078,6 +4278,241 @@ textarea.toolkit-input {
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
 }
 
+/* Top-Level Unit Toggle Card directly above API Capacities & Annuli */
+.cement-unit-toggle-card {
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  padding: 0 14px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-sizing: border-box;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  contain: layout;
+  transition: background-color 220ms ease-out, border-color 220ms ease-out;
+}
+
+[data-theme="dark"] .cement-unit-toggle-card {
+  background: #1E293B;
+  border-color: #334155;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.cement-unit-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cement-unit-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cement-unit-ruler-icon {
+  color: #0369A1;
+  flex-shrink: 0;
+  display: block;
+}
+
+[data-theme="dark"] .cement-unit-ruler-icon {
+  color: #38BDF8;
+}
+
+.cement-unit-toggle-card .cement-unit-caption {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #0F172A;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+[data-theme="dark"] .cement-unit-toggle-card .cement-unit-caption {
+  color: #F1F5F9;
+}
+
+/* Fixed-width live unit indicator subtitle/pill with tabular-nums */
+.cement-unit-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 116px;
+  width: 116px;
+  height: 24px;
+  box-sizing: border-box;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.cement-unit-mode-pill.mode-metric {
+  background: #E0F2FE;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+}
+
+.cement-unit-mode-pill.mode-imperial {
+  background: #F0FDF4;
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+
+[data-theme="dark"] .cement-unit-mode-pill.mode-metric {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38BDF8;
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+[data-theme="dark"] .cement-unit-mode-pill.mode-imperial {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ADE80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+/* Segmented Pill Track */
+.cement-unit-toggle-card .cement-segmented-control {
+  display: inline-flex;
+  align-items: center;
+  width: 96px;
+  min-width: 96px;
+  height: 32px;
+  box-sizing: border-box;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .cement-unit-toggle-card .cement-segmented-control {
+  background: #0F172A;
+  border-color: #1E293B;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Segment Buttons */
+.cement-unit-toggle-card .cement-unit-btn {
+  border: none;
+  background: transparent;
+  height: 26px;
+  min-height: 26px;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--font-family);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  box-shadow: none;
+  transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.cement-unit-toggle-card .cement-unit-btn:not(.active):hover {
+  background: rgba(203, 213, 225, 0.4);
+  color: #0F172A;
+}
+
+.cement-unit-toggle-card .cement-unit-btn:not(.active):active {
+  background: rgba(203, 213, 225, 0.6);
+  color: #0F172A;
+}
+
+.cement-unit-toggle-card .cement-unit-btn.active {
+  background: linear-gradient(135deg, #0F4C5C 0%, #0369A1 100%);
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(3, 105, 161, 0.35), 0 1px 2px rgba(15, 76, 92, 0.2);
+  transform: none;
+}
+
+[data-theme="dark"] .cement-unit-toggle-card .cement-unit-btn {
+  border: none;
+  color: #94A3B8;
+}
+
+[data-theme="dark"] .cement-unit-toggle-card .cement-unit-btn:not(.active):hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #F8FAFC;
+}
+
+[data-theme="dark"] .cement-unit-toggle-card .cement-unit-btn:not(.active):active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+
+[data-theme="dark"] .cement-unit-toggle-card .cement-unit-btn.active {
+  background: linear-gradient(135deg, #0EA5E9 0%, #14B8A6 100%);
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(14, 165, 233, 0.4);
+  transform: none;
+}
+
+@media (max-width: 380px) {
+  .cement-unit-toggle-card {
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .cement-unit-header-left {
+    gap: 5px;
+  }
+  .cement-unit-toggle-card .cement-unit-caption {
+    font-size: 0.74rem;
+  }
+  .cement-unit-mode-pill {
+    min-width: 104px;
+    width: 104px;
+    font-size: 0.62rem;
+    padding: 0 4px;
+  }
+  .cement-unit-toggle-card .cement-segmented-control {
+    width: 84px;
+    min-width: 84px;
+  }
+  .cement-unit-toggle-card .cement-unit-btn {
+    width: 38px;
+    min-width: 38px;
+    font-size: 0.78rem;
+  }
+}
+
 /* Read-Only Header Row for Well Data & Result Screens */
 /* Read-Only Header Row for Well Data & Result Screens */
 .cement-readonly-header-row {
@@ -4337,6 +4772,16 @@ textarea.toolkit-input {
   color: #B45309;
 }
 
+[data-theme="dark"] .cement-badge-subsea {
+  background: rgba(14, 165, 233, 0.18);
+  color: #38BDF8;
+}
+
+[data-theme="dark"] .cement-badge-riserless {
+  background: rgba(245, 158, 11, 0.18);
+  color: #FBBF24;
+}
+
 .cement-accordion {
   margin-bottom: 12px;
   border-radius: 16px;
@@ -4443,6 +4888,19 @@ textarea.toolkit-input {
   font-size: 0.8rem;
   margin-bottom: 6px;
   box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
+}
+
+.cement-cap-table-simplified col:nth-child(1) {
+  width: 38%;
+}
+
+.cement-cap-table-simplified col:nth-child(2) {
+  width: 32%;
+}
+
+.cement-cap-table-simplified col:nth-child(3) {
+  width: 30%;
 }
 
 .cement-cap-table-simplified th {
@@ -4540,6 +4998,9 @@ textarea.toolkit-input {
 }
 
 .cement-cap-header-unit-select {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
   height: 24px;
   padding: 1px 4px;
   font-size: 0.66rem;
@@ -4552,6 +5013,7 @@ textarea.toolkit-input {
   cursor: pointer;
   box-sizing: border-box;
   text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
   transition: background-color 220ms ease-out, border-color 220ms ease-out, color 180ms ease-out;
 }
 
@@ -4573,6 +5035,7 @@ textarea.toolkit-input {
   text-align: right;
   box-sizing: border-box;
   outline: none;
+  font-variant-numeric: tabular-nums;
   transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
 }
 
@@ -5081,6 +5544,85 @@ textarea.toolkit-input {
   line-height: 1.4;
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Cement Schematic Fluid Legend Component */
+.cement-fluid-legend-card {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  box-shadow: var(--shadow-subtle);
+}
+
+[data-theme="dark"] .cement-fluid-legend-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.cement-fluid-legend-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cement-fluid-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px 12px;
+}
+
+.cement-fluid-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 0;
+}
+
+.cement-fluid-legend-swatch {
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .cement-fluid-legend-swatch {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.cement-fluid-legend-info {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.25;
+}
+
+.cement-fluid-legend-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cement-fluid-legend-meta {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  font-family: 'Roboto Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cement-actions-bottom {

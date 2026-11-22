@@ -180,9 +180,16 @@ const DIR_LABEL = {
 export function mountStuckPipe(root, options = {}) {
   const key = options.storageKey || 'drillingtoolkit_stuckpipe';
 
+  const getActiveUnitSys = () => {
+    if (typeof window !== 'undefined' && window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function') {
+      return window.UnitsEngine.getUnitSystem() === 'si' ? 'metric' : 'field';
+    }
+    return 'field';
+  };
+
   const s = {
     tab: 'diagnose',
-    sys: 'field', // Permanently locked to standard Oilfield units
+    sys: getActiveUnitSys(),
     input: { ...DEFAULT_INPUT() },
     planId: null,
     calcTab: 'diff',
@@ -234,20 +241,49 @@ export function mountStuckPipe(root, options = {}) {
     head.replaceChildren();
 
     // High-contrast 2-column Primary Mode Segmented Control (Diagnose | Calculate)
-    const tabs = h('div', { class: 'sp-tabs', role: 'tablist' },
+    const tabs = h('div', { class: 'sp-tabs', role: 'tablist', 'aria-label': tr('stuckpipe.title') },
       h('button', {
-        type: 'button', class: 'sp-tab' + (s.tab === 'diagnose' ? ' on' : ''),
+        type: 'button',
+        class: 'sp-tab' + (s.tab === 'diagnose' ? ' on active' : ''),
+        role: 'tab',
+        'aria-selected': String(s.tab === 'diagnose'),
+        tabindex: s.tab === 'diagnose' ? '0' : '-1',
         onclick: () => { s.tab = 'diagnose'; redraw(); },
       }, tabIcon(TAB_ICONS.search_check), h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_diagnose'))),
       h('button', {
-        type: 'button', class: 'sp-tab' + (s.tab === 'calculate' ? ' on' : ''),
+        type: 'button',
+        class: 'sp-tab' + (s.tab === 'calculate' ? ' on active' : ''),
+        role: 'tab',
+        'aria-selected': String(s.tab === 'calculate'),
+        tabindex: s.tab === 'calculate' ? '0' : '-1',
         onclick: () => { s.tab = 'calculate'; redraw(); },
       }, tabIcon(TAB_ICONS.calculator), h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_calculate'))),
       showLog ? h('button', {
-        type: 'button', class: 'sp-tab' + (s.tab === 'log' ? ' on' : ''),
+        type: 'button',
+        class: 'sp-tab' + (s.tab === 'log' ? ' on active' : ''),
+        role: 'tab',
+        'aria-selected': String(s.tab === 'log'),
+        tabindex: s.tab === 'log' ? '0' : '-1',
         onclick: () => { s.tab = 'log'; redraw(); },
       }, h('span', { class: 'sp-tab-text' }, tr('stuckpipe.tab_log'))) : null
     );
+
+    tabs.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const tabBtns = Array.from(tabs.querySelectorAll('.sp-tab'));
+      const activeIdx = tabBtns.findIndex(b => b.classList.contains('on') || b.classList.contains('active'));
+      let nextIdx = activeIdx;
+      if (e.key === 'ArrowLeft') {
+        nextIdx = activeIdx <= 0 ? tabBtns.length - 1 : activeIdx - 1;
+      } else if (e.key === 'ArrowRight') {
+        nextIdx = activeIdx >= tabBtns.length - 1 ? 0 : activeIdx + 1;
+      }
+      if (tabBtns[nextIdx]) {
+        e.preventDefault();
+        tabBtns[nextIdx].click();
+        tabBtns[nextIdx].focus();
+      }
+    });
 
     head.append(tabs);
 
@@ -920,9 +956,21 @@ export function mountStuckPipe(root, options = {}) {
   };
   window.addEventListener('languageChanged', langHandler);
 
+  // Listen for unit system changes (Mixed / API -> 'field', SI -> 'metric')
+  const unitHandler = (e) => {
+    const newSys = e.detail && e.detail.unitSystem;
+    const targetSys = (newSys === 'si') ? 'metric' : 'field';
+    if (s.sys !== targetSys) {
+      s.sys = targetSys;
+      redraw();
+    }
+  };
+  window.addEventListener('unitSystemChanged', unitHandler);
+
   return {
     destroy() {
       window.removeEventListener('languageChanged', langHandler);
+      window.removeEventListener('unitSystemChanged', unitHandler);
       root.replaceChildren();
     },
     getState: () => ({ ...s }),

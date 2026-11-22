@@ -831,4 +831,79 @@ describe('Cementing Engine Verification Tests', () => {
       expect(resLow.checks.some(c => c.label === 'TOC Position' && c.status === 'CHECK')).toBe(true);
     });
   });
+
+  describe('Well Cementing Schematic Collision Avoidance & Callouts', () => {
+    // Import CementingCommon dynamically
+    // @ts-ignore
+    const CementingCommon = require('../cementing_common.js');
+
+    it('T14 — De-overlaps two identical depth markers with >= 18px separation', () => {
+      const markers = [
+        { d: 100, targetY: 250, label: 'Seabed 100.0 m' },
+        { d: 100, targetY: 250, label: 'TOC 100.0 m' }
+      ];
+      const relaxed = CementingCommon.relaxSchematicMarkers(markers, 18, 40, 765);
+      expect(relaxed.length).toBe(2);
+      expect(Math.abs(relaxed[1].displayY - relaxed[0].displayY)).toBeGreaterThanOrEqual(18);
+      // Symmetrical around 250
+      expect((relaxed[0].displayY + relaxed[1].displayY) / 2).toBeCloseTo(250, 1);
+    });
+
+    it('T15 — De-overlaps 3 close bottom markers (Float Collar, Shoe, TD)', () => {
+      const markers = [
+        { d: 185, targetY: 732, label: 'Float Collar Depth 185.0 m' },
+        { d: 200, targetY: 740, label: 'Casing Shoe 200.0 m' },
+        { d: 205, targetY: 742, label: 'Hole Depth (MD) 205.0 m' }
+      ];
+      const relaxed = CementingCommon.relaxSchematicMarkers(markers, 18, 40, 765);
+      expect(relaxed.length).toBe(3);
+      for (let i = 1; i < relaxed.length; i++) {
+        expect(relaxed[i].displayY - relaxed[i - 1].displayY).toBeGreaterThanOrEqual(18);
+      }
+      expect(relaxed[2].displayY).toBeLessThanOrEqual(765);
+    });
+
+    it('T16 — Respects minY and maxY boundary clamps', () => {
+      const markers = [
+        { d: 0, targetY: 30, label: 'Surface 0 m' },
+        { d: 5, targetY: 35, label: 'Prev Shoe 5 m' }
+      ];
+      const relaxed = CementingCommon.relaxSchematicMarkers(markers, 18, 50, 765);
+      expect(relaxed[0].displayY).toBeGreaterThanOrEqual(50);
+      expect(relaxed[1].displayY).toBeGreaterThanOrEqual(68);
+    });
+
+    it('T17 — Generates valid SVG callout markup with leader lines and pills', () => {
+      const leftMarkers = [
+        { d: 0, targetY: 60, label: 'Surface / RKB 0 m', bg: '#2C1A11', text: '#FFFFFF' },
+        { d: 200, targetY: 740, label: 'Casing Shoe 200.0 m', bg: '#1E293B', text: '#FFFFFF' }
+      ];
+      const rightMarkers = [
+        { d: 100, targetY: 250, label: 'Seabed 100.0 m', bg: '#8D7765', text: '#FFFFFF' },
+        { d: 100, targetY: 250, label: 'TOC 100.0 m', bg: '#15803D', text: '#FFFFFF' }
+      ];
+
+      const svg = CementingCommon.renderSchematicCallouts({
+        leftMarkers,
+        rightMarkers,
+        ohLeft: 195,
+        ohRight: 305,
+        leftTagRight: 135,
+        rightTagX: 365,
+        minGap: 18,
+        minY: 45,
+        maxY: 765
+      });
+
+      expect(svg).toContain('<rect');
+      expect(svg).toContain('<text');
+      expect(svg).toContain('schematic-callout-pill');
+      expect(svg).toContain('schematic-leader-line'); // Angled leader line for de-overlapped Seabed/TOC
+      expect(svg).toContain('schematic-leader-direct'); // Direct horizontal line
+      expect(svg).toContain('Seabed 100.0 m');
+      expect(svg).toContain('TOC 100.0 m');
+      expect(svg).toContain('Casing Shoe 200.0 m');
+      expect(svg).not.toContain('NaN');
+    });
+  });
 });

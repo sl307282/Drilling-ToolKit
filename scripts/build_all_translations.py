@@ -30,6 +30,149 @@ if os.path.exists(cementing_extra_file):
             if k not in master_keys:
                 master_keys.append(k)
 
+UNIT_SYSTEM_KEYS = {
+    "Unit System": {
+        "es": "Sistema de unidades", "hi": "इकाई प्रणाली", "ar": "نظام الوحدات",
+        "zh": "单位制", "fr": "Système d'unités", "pt": "Sistema de unidades",
+        "de": "Einheitensystem", "ja": "単位系", "ru": "Система единиц",
+        "id": "Sistem Satuan", "ko": "단위계", "uk": "Система одиниць",
+    },
+    "UNIT SYSTEM": {
+        "es": "SISTEMA DE UNIDADES", "hi": "इकाई प्रणाली", "ar": "نظام الوحدات",
+        "zh": "单位制", "fr": "SYSTÈME D'UNITÉS", "pt": "SISTEMA DE UNIDADES",
+        "de": "EINHEITENSYSTEM", "ja": "単位系", "ru": "СИСТЕМА ЕДИНИЦ",
+        "id": "SISTEM SATUAN", "ko": "단위계", "uk": "СИСТЕМА ОДИНИЦЬ",
+    },
+    "Oilfield Units (API)": {
+        "es": "Unidades petroleras (API)", "hi": "ऑयलफील्ड इकाइयाँ (API)", "ar": "وحدات حقول النفط (API)",
+        "zh": "油田单位 (API)", "fr": "Unités pétrolières (API)", "pt": "Unidades petrolíferas (API)",
+        "de": "Ölfeldeinheiten (API)", "ja": "油田単位 (API)", "ru": "Промысловые единицы (API)",
+        "id": "Satuan Lapangan Minyak (API)", "ko": "유전 단위 (API)", "uk": "Промислові одиниці (API)",
+    },
+    "Metric Units (SI)": {
+        "es": "Unidades métricas (SI)", "hi": "मीट्रिक इकाइयाँ (SI)", "ar": "الوحدات المترية (SI)",
+        "zh": "公制单位 (SI)", "fr": "Unités métriques (SI)", "pt": "Unidades métricas (SI)",
+        "de": "Metrische Einheiten (SI)", "ja": "メートル法単位 (SI)", "ru": "Метрические единицы (SI)",
+        "id": "Satuan Metrik (SI)", "ko": "미터법 단위 (SI)", "uk": "Метричні одиниці (SI)",
+    },
+    "Mixed Units": {
+        "es": "Unidades mixtas", "hi": "मिश्रित इकाइयाँ", "ar": "وحدات مختلطة",
+        "zh": "混合单位", "fr": "Unités mixtes", "pt": "Unidades mistas",
+        "de": "Gemischte Einheiten", "ja": "混合単位", "ru": "Смешанные единицы",
+        "id": "Satuan Campuran", "ko": "혼합 단위", "uk": "Змішані одиниці",
+    },
+    "Imperial (ft, bbl/ft)": {
+        "es": "Imperial (ft, bbl/ft)", "hi": "इंपीरियल (ft, bbl/ft)", "ar": "إمبراطوري (ft, bbl/ft)",
+        "zh": "英制 (ft, bbl/ft)", "fr": "Impérial (ft, bbl/ft)", "pt": "Imperial (ft, bbl/ft)",
+        "de": "Imperial (ft, bbl/ft)", "ja": "ヤードポンド法 (ft, bbl/ft)", "ru": "Имперские (ft, bbl/ft)",
+        "id": "Imperial (ft, bbl/ft)", "ko": "야드파운드법 (ft, bbl/ft)", "uk": "Імперські (ft, bbl/ft)",
+    },
+    "Metric (m, L/m)": {
+        "es": "Métrico (m, L/m)", "hi": "मीट्रिक (m, L/m)", "ar": "متري (m, L/m)",
+        "zh": "公制 (m, L/m)", "fr": "Métrique (m, L/m)", "pt": "Métrico (m, L/m)",
+        "de": "Metrisch (m, L/m)", "ja": "メートル法 (m, L/m)", "ru": "Метрические (m, L/m)",
+        "id": "Metrik (m, L/m)", "ko": "미터법 (m, L/m)", "uk": "Метричні (m, L/m)",
+    },
+    "Mixed (m, bbl/m)": {
+        "es": "Mixto (m, bbl/m)", "hi": "मिश्रित (m, bbl/m)", "ar": "مختلط (m, bbl/m)",
+        "zh": "混合 (m, bbl/m)", "fr": "Mixte (m, bbl/m)", "pt": "Misto (m, bbl/m)",
+        "de": "Gemischt (m, bbl/m)", "ja": "混合 (m, bbl/m)", "ru": "Смешанные (m, bbl/m)",
+        "id": "Campuran (m, bbl/m)", "ko": "혼합 (m, bbl/m)", "uk": "Змішані (m, bbl/m)",
+    },
+    "Metric (m, bbl/m)": {
+        "es": "Métrico (m, bbl/m)", "hi": "मीट्रिक (m, bbl/m)", "ar": "متري (m, bbl/m)",
+        "zh": "公制 (m, bbl/m)", "fr": "Métrique (m, bbl/m)", "pt": "Métrico (m, bbl/m)",
+        "de": "Metrisch (m, bbl/m)", "ja": "メートル法 (m, bbl/m)", "ru": "Метрические (m, bbl/m)",
+        "id": "Metrik (m, bbl/m)", "ko": "미터법 (m, bbl/m)", "uk": "Метричні (m, bbl/m)",
+    },
+    "Customize unit system, themes and language": {
+        "es": "Personalice el sistema de unidades, temas e idioma",
+        "hi": "इकाई प्रणाली, थीम और भाषा को अनुकूलित करें",
+        "ar": "تخصيص نظام الوحدات والسمات واللغة",
+        "zh": "自定义单位制、主题与语言",
+        "fr": "Personnaliser le système d'unités, les thèmes et la langue",
+        "pt": "Personalizar o sistema de unidades, temas e idioma",
+        "de": "Einheitensystem, Designs und Sprache anpassen",
+        "ja": "単位系、テーマ、言語のカスタマイズ",
+        "ru": "Настройка системы единиц, тем оформления и языка",
+        "id": "Sesuaikan sistem satuan, tema, dan bahasa",
+        "ko": "단위계, 테마 및 언어 맞춤설정",
+        "uk": "Налаштування системи одиниць, колірних тем та мови інтерфейсу",
+    },
+    "API": {
+        "es": "API", "hi": "API", "ar": "API",
+        "zh": "API", "fr": "API", "pt": "API",
+        "de": "API", "ja": "API", "ru": "API",
+        "id": "API", "ko": "API", "uk": "API",
+    },
+    "SI": {
+        "es": "SI", "hi": "SI", "ar": "SI",
+        "zh": "SI", "fr": "SI", "pt": "SI",
+        "de": "SI", "ja": "SI", "ru": "SI",
+        "id": "SI", "ko": "SI", "uk": "SI",
+    },
+    "Mixed": {
+        "es": "Mixto", "hi": "मिश्रित", "ar": "مختلط",
+        "zh": "混合", "fr": "Mixte", "pt": "Misto",
+        "de": "Gemischt", "ja": "混合", "ru": "Смешанный",
+        "id": "Campuran", "ko": "혼합", "uk": "Змішаний",
+    },
+    "Oilfield": {
+        "es": "Petrolero", "hi": "ऑयलफील्ड", "ar": "حقول النفط",
+        "zh": "油田", "fr": "Pétrolier", "pt": "Petrolífero",
+        "de": "Ölfeld", "ja": "油田", "ru": "Промысловый",
+        "id": "Minyak", "ko": "유전", "uk": "Промисловий",
+    },
+    "Metric": {
+        "es": "Métrico", "hi": "मीट्रिक", "ar": "متري",
+        "zh": "公制", "fr": "Métrique", "pt": "Métrico",
+        "de": "Metrisch", "ja": "メートル法", "ru": "Метрический",
+        "id": "Metrik", "ko": "미터법", "uk": "Метричний",
+    },
+    "Custom": {
+        "es": "Personalizado", "hi": "कस्टम", "ar": "مخصص",
+        "zh": "自定义", "fr": "Personnalisé", "pt": "Personalizado",
+        "de": "Benutzerdefiniert", "ja": "カスタム", "ru": "Пользовательский",
+        "id": "Kustom", "ko": "사용자지정", "uk": "Власний",
+    },
+    "MIXED": {
+        "es": "MIXTO", "hi": "मिश्रित", "ar": "مختلط",
+        "zh": "混合", "fr": "MIXTE", "pt": "MISTO",
+        "de": "GEMISCHT", "ja": "混合", "ru": "СМЕШАННЫЙ",
+        "id": "CAMPURAN", "ko": "혼합", "uk": "ЗМІШАНИЙ",
+    },
+    "Each screen keeps its own default units": {
+        "es": "Cada pantalla conserva sus unidades predeterminadas",
+        "hi": "प्रत्येक स्क्रीन अपनी डिफ़ॉल्ट इकाइयाँ रखती है",
+        "ar": "تحتفظ كل شاشة بوحداتها الافتراضية",
+        "zh": "各个页面保留各自默认单位",
+        "fr": "Chaque écran conserve ses unités par défaut",
+        "pt": "Cada tela mantém suas unidades padrão",
+        "de": "Jeder Bildschirm behält seine Standardeinheiten",
+        "ja": "各画面はそれぞれのデフォルト単位を保持します",
+        "ru": "Каждый экран сохраняет свои единицы по умолчанию",
+        "id": "Setiap layar mempertahankan satuan defaultnya sendiri",
+        "ko": "각 화면은 자체 기본 단위를 유지합니다",
+        "uk": "Кожен екран зберігає власні одиниці за замовчуванням",
+    },
+    "ft · in · bbl · ppg · psi · bbl/ft · °F": {
+        "es": "ft · in · bbl · ppg · psi · bbl/ft · °F", "hi": "ft · in · bbl · ppg · psi · bbl/ft · °F", "ar": "ft · in · bbl · ppg · psi · bbl/ft · °F",
+        "zh": "ft · in · bbl · ppg · psi · bbl/ft · °F", "fr": "ft · in · bbl · ppg · psi · bbl/ft · °F", "pt": "ft · in · bbl · ppg · psi · bbl/ft · °F",
+        "de": "ft · in · bbl · ppg · psi · bbl/ft · °F", "ja": "ft · in · bbl · ppg · psi · bbl/ft · °F", "ru": "ft · in · bbl · ppg · psi · bbl/ft · °F",
+        "id": "ft · in · bbl · ppg · psi · bbl/ft · °F", "ko": "ft · in · bbl · ppg · psi · bbl/ft · °F", "uk": "ft · in · bbl · ppg · psi · bbl/ft · °F",
+    },
+    "m · mm · m³ · SG · bar · L/m · °C": {
+        "es": "m · mm · m³ · SG · bar · L/m · °C", "hi": "m · mm · m³ · SG · bar · L/m · °C", "ar": "m · mm · m³ · SG · bar · L/m · °C",
+        "zh": "m · mm · m³ · SG · bar · L/m · °C", "fr": "m · mm · m³ · SG · bar · L/m · °C", "pt": "m · mm · m³ · SG · bar · L/m · °C",
+        "de": "m · mm · m³ · SG · bar · L/m · °C", "ja": "m · mm · m³ · SG · bar · L/m · °C", "ru": "m · mm · m³ · SG · bar · L/m · °C",
+        "id": "m · mm · m³ · SG · bar · L/m · °C", "ko": "m · mm · m³ · SG · bar · L/m · °C", "uk": "m · mm · m³ · SG · bar · L/m · °C",
+    }
+}
+
+for k in UNIT_SYSTEM_KEYS:
+    if k not in master_keys:
+        master_keys.append(k)
+
 langs = ['es', 'hi', 'ar', 'zh', 'fr', 'pt', 'de', 'ja', 'ru', 'id', 'ko', 'uk']
 assembled = {}
 
@@ -82,6 +225,11 @@ for lang in langs:
     # Add extra cementing translations for all languages
     if lang in cementing_extra:
         combined.update(cementing_extra[lang])
+
+    # Add unit system translations
+    for k, vals in UNIT_SYSTEM_KEYS.items():
+        if lang in vals:
+            combined[k] = vals[lang]
 
     # Ensure every single master key exists
     missing = [k for k in master_keys if k not in combined]
