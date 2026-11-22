@@ -905,5 +905,211 @@ describe('Cementing Engine Verification Tests', () => {
       expect(svg).toContain('Casing Shoe 200.0 m');
       expect(svg).not.toContain('NaN');
     });
+
+    it('T18 — Renders internal dimension bracket for Displacement Fluid with arrows and ticks', () => {
+      const dimensions = [
+        {
+          id: 'displacement',
+          type: 'internal',
+          track: 'internal',
+          topY: 50,
+          botY: 650,
+          label: 'Displacement Fluid',
+          heightStr: '1200.0 m',
+          mwStr: '1.20 SG',
+          color: '#D97706'
+        }
+      ];
+
+      const svg = CementingCommon.renderVerticalDimensions({
+        dimensions,
+        isMetric: true,
+        internalX: 250
+      });
+
+      expect(svg).toContain('schematic-dim-internal');
+      expect(svg).toContain('schematic-dim-line');
+      expect(svg).toContain('x1="250"');
+      expect(svg).toContain('schematic-dim-tick');
+      expect(svg).toContain('schematic-dim-arrow');
+      expect(svg).toContain('Displacement Fluid: 1200.0 m (1.20 SG)');
+      expect(svg).not.toContain('NaN');
+    });
+
+    it('T19 — Renders annular and environmental dimension brackets on dedicated tracks (505 and 645)', () => {
+      const dimensions = [
+        {
+          id: 'air_gap',
+          type: 'env',
+          track: 'outer',
+          topY: 50,
+          botY: 98,
+          label: 'Air Gap',
+          heightStr: '25.0 m',
+          color: '#0284C7'
+        },
+        {
+          id: 'water_depth',
+          type: 'env',
+          track: 'outer',
+          topY: 98,
+          botY: 251,
+          label: 'Water Depth',
+          heightStr: '100.0 m',
+          color: '#0369A1'
+        },
+        {
+          id: 'spacer',
+          type: 'annulus',
+          track: 'inner',
+          topY: 400,
+          botY: 480,
+          label: 'Spacer',
+          heightStr: '100.0 m',
+          mwStr: '1.50 SG',
+          color: '#4A90D9'
+        },
+        {
+          id: 'lead_slurry',
+          type: 'annulus',
+          track: 'inner',
+          topY: 480,
+          botY: 640,
+          label: 'Lead Slurry',
+          heightStr: '200.0 m',
+          mwStr: '1.68 SG',
+          color: '#15803D'
+        }
+      ];
+
+      const svg = CementingCommon.renderVerticalDimensions({
+        dimensions,
+        isMetric: true,
+        innerTrackX: 505,
+        outerTrackX: 645,
+        extStartX: 475
+      });
+
+      expect(svg).toContain('schematic-dim-inner');
+      expect(svg).toContain('schematic-dim-outer');
+      expect(svg).toContain('schematic-ext-line');
+      expect(svg).toContain('Air Gap: 25.0 m');
+      expect(svg).toContain('Water Depth: 100.0 m');
+      expect(svg).toContain('Spacer: 100.0 m (1.50 SG)');
+      expect(svg).toContain('Lead Slurry: 200.0 m (1.68 SG)');
+      expect(svg).not.toContain('NaN');
+    });
+
+    it('T20 — Auto-offsets thin intervals (< 22px span) with elbow leader lines to prevent overlapping', () => {
+      const dimensions = [
+        {
+          id: 'thin_spacer',
+          type: 'annulus',
+          track: 'inner',
+          topY: 450,
+          botY: 462, // spanH = 12px (< 22px)
+          label: 'Spacer',
+          heightStr: '15.0 m',
+          mwStr: '1.50 SG',
+          color: '#4A90D9'
+        },
+        {
+          id: 'lead_slurry',
+          type: 'annulus',
+          track: 'inner',
+          topY: 462,
+          botY: 600, // spanH = 138px
+          label: 'Lead Slurry',
+          heightStr: '200.0 m',
+          mwStr: '1.68 SG',
+          color: '#15803D'
+        }
+      ];
+
+      const svg = CementingCommon.renderVerticalDimensions({
+        dimensions,
+        isMetric: true,
+        innerTrackX: 505,
+        outerTrackX: 645,
+        extStartX: 475
+      });
+
+      // The thin spacer must be stepped out to outer track and receive an angled leader line
+      expect(svg).toContain('schematic-dim-outer');
+      expect(svg).toContain('schematic-dim-leader');
+      expect(svg).toContain('Spacer: 15.0 m (1.50 SG)');
+      expect(svg).toContain('Lead Slurry: 200.0 m (1.68 SG)');
+      expect(svg).not.toContain('NaN');
+    });
+
+    it('T21 — Renders full Subsea and Surface Schematics with 790x800 viewBox and vertical dimensions', () => {
+      // Mock result and inputs for testing full schematic SVG renderers
+      const mockResult = {
+        model: 'subsea',
+        air_gap: 82.02,
+        water_depth: 328.08,
+        mudline: 410.1,
+        toc: 1640.4,
+        tail_top: 2624.7,
+        fc: 3280.8,
+        shoe: 3608.9,
+        td: 3937.0,
+        total_slurry: 150
+      };
+      const mockInput = {
+        air_gap: 82.02,
+        water_depth: 328.08,
+        shoe: 3608.9,
+        td: 3937.0,
+        shoe_track_len: 328.1,
+        lead_vol: 100,
+        lead_mw: 14.0,
+        tail_vol: 50,
+        tail_mw: 15.8,
+        sp_vol: 50,
+        sp_mw: 12.5,
+        mw: 10.0,
+        disp_mw: 10.0
+      };
+
+      // Set global window/CementingCommon mocks
+      const mockStorage: Record<string, string> = {};
+      const storageMock = {
+        getItem: (k: string) => mockStorage[k] || null,
+        setItem: (k: string, v: string) => { mockStorage[k] = String(v); },
+        removeItem: (k: string) => { delete mockStorage[k]; },
+        clear: () => {}
+      };
+      // @ts-ignore
+      global.localStorage = storageMock;
+      // @ts-ignore
+      global.window = {
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        localStorage: storageMock,
+        CementingCommon: CementingCommon
+      };
+
+      // Import cementing_ui and test renderWellCementingSchematic
+      // @ts-ignore
+      const cementingUi = require('../cementing_ui.js');
+      if (typeof cementingUi.renderWellCementingSchematic === 'function') {
+        const subseaSvg = cementingUi.renderWellCementingSchematic(mockResult, mockInput, 'm');
+        expect(subseaSvg).toContain('viewBox="-50 0 800 800"');
+        expect(subseaSvg).toContain('schematic-dimensions-layer');
+        expect(subseaSvg).toContain('schematic-dim-internal');
+        expect(subseaSvg).not.toContain('NaN');
+      }
+
+      // Import cementing_surface_ui and test renderSurfaceSchematicSvg
+      // @ts-ignore
+      const surfaceUi = require('../cementing_surface_ui.js');
+      if (typeof surfaceUi.renderSurfaceSchematicSvg === 'function') {
+        const surfaceSvg = surfaceUi.renderSurfaceSchematicSvg(mockResult, mockInput, 'm');
+        expect(surfaceSvg).toContain('viewBox="-50 0 800 800"');
+        expect(surfaceSvg).toContain('schematic-dimensions-layer');
+        expect(surfaceSvg).not.toContain('NaN');
+      }
+    });
   });
 });

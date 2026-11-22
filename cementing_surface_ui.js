@@ -2742,7 +2742,7 @@
     const fmtV = (v) => (window.CementingCommon && window.CementingCommon.formatVol) ? window.CementingCommon.formatVol(v) : { val: Number(v || 0).toFixed(1), unit: 'bbl', full: Number(v || 0).toFixed(1) + ' bbl' };
     const fmtMW = (v) => (window.CementingCommon && window.CementingCommon.formatDensity) ? window.CementingCommon.formatDensity(v) : { val: Number(v || 0).toFixed(2), unit: 'ppg', full: Number(v || 0).toFixed(2) + ' ppg' };
 
-    let svg = `<svg viewBox="-50 0 600 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
+    let svg = `<svg viewBox="-50 0 800 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
 
     // Definitions
     svg += `
@@ -3044,7 +3044,219 @@
         ohLeft,
         ohRight,
         leftTagRight: 135,
-        rightTagX: 365,
+        rightTagX: 355,
+        minGap: 18,
+        minY: 45,
+        maxY: 765
+      });
+    }
+
+    // 8. Vertical Span Dimension Lines & Brackets for All Active Zones & Fluids
+    function fmtH(val) {
+      return (window.CementingCommon && typeof window.CementingCommon.formatMetricDist === 'function')
+        ? (window.CementingCommon.formatMetricDist(val, isMetric) + ' ' + (isMetric ? 'm' : 'ft'))
+        : (Number(val || 0).toFixed(1) + (isMetric ? ' m' : ' ft'));
+    }
+
+    const dimensions = [];
+
+    // Environmental / Above-Mudline/GL Zone (when > 0)
+    if (isConductor && seabedFt > 0 && ySeabed > y0) {
+      const seabedLabel = isJackUp ? t('Water Depth') : t('Air Gap');
+      const seabedColor = isJackUp ? '#0284C7' : '#64748B';
+      dimensions.push({
+        id: 'seabed_zone',
+        type: 'env',
+        track: 'inner',
+        topY: y0,
+        botY: ySeabed,
+        topD: 0,
+        botD: seabedFt,
+        label: seabedLabel,
+        heightStr: fmtH(seabedFt),
+        color: seabedColor,
+        bg: seabedColor
+      });
+    }
+
+    // Displacement Fluid inside Casing/String
+    if (fcFt > 0 && yFC > y0) {
+      const dispMw = isConductor ? (inp.disp_mw || inp.hole_fluid_mw) : inp.mw;
+      dimensions.push({
+        id: 'displacement',
+        type: 'internal',
+        track: 'internal',
+        topY: y0,
+        botY: yFC,
+        topD: 0,
+        botD: fcFt,
+        label: t('Displacement Fluid'),
+        heightStr: fmtH(fcFt),
+        mwStr: fmtMW(dispMw).full,
+        color: '#D97706',
+        bg: '#1E293B'
+      });
+    }
+
+    // Shoe Track Cement inside Casing (between FC and Shoe)
+    if (shoeFt > fcFt && yShoe > yFC) {
+      const stMw = (inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0;
+      dimensions.push({
+        id: 'shoe_track',
+        type: 'internal',
+        track: 'internal',
+        topY: yFC,
+        botY: yShoe,
+        topD: fcFt,
+        botD: shoeFt,
+        label: t('Shoe Track'),
+        heightStr: fmtH(shoeFt - fcFt),
+        mwStr: fmtMW(stMw).full,
+        color: '#3E7D3A',
+        bg: '#1E293B'
+      });
+    }
+
+    // Annular Fluids:
+    const annTopD = isConductor ? seabedFt : 0;
+    const topFluidD = (inp.f1_vol > 0) ? res.f1_top : ((inp.f2_vol > 0) ? res.f2_top : ((inp.sp_vol > 0) ? res.sp_top : res.toc));
+
+    // Annulus Hole Fluid / Original Mud
+    if (topFluidD > annTopD && topFluidY > annTopY) {
+      const origMw = isConductor ? inp.hole_fluid_mw : inp.mw;
+      dimensions.push({
+        id: 'hole_fluid',
+        type: 'annulus',
+        track: 'inner',
+        topY: annTopY,
+        botY: topFluidY,
+        topD: annTopD,
+        botD: topFluidD,
+        label: t('Hole Fluid'),
+        heightStr: fmtH(topFluidD - annTopD),
+        mwStr: fmtMW(origMw).full,
+        color: '#64748B',
+        bg: '#334155'
+      });
+    }
+
+    // 1st Mud Wash
+    if (inp.f1_vol > 0 && res.f1_top !== undefined) {
+      const f1NextTop = (inp.f2_vol > 0) ? res.f2_top : ((inp.sp_vol > 0) ? res.sp_top : res.toc);
+      const f1NextY = (inp.f2_vol > 0) ? yF2 : ((inp.sp_vol > 0) ? ySP : yTOC);
+      if (f1NextTop > res.f1_top && f1NextY > yF1) {
+        dimensions.push({
+          id: 'f1_mud',
+          type: 'annulus',
+          track: 'inner',
+          topY: yF1,
+          botY: f1NextY,
+          topD: res.f1_top,
+          botD: f1NextTop,
+          label: t('1st Mud Wash'),
+          heightStr: fmtH(f1NextTop - res.f1_top),
+          mwStr: fmtMW(inp.f1_mw).full,
+          color: '#E07B39',
+          bg: '#E07B39'
+        });
+      }
+    }
+
+    // 2nd Mud Wash
+    if (inp.f2_vol > 0 && res.f2_top !== undefined) {
+      const f2NextTop = (inp.sp_vol > 0) ? res.sp_top : res.toc;
+      const f2NextY = (inp.sp_vol > 0) ? ySP : yTOC;
+      if (f2NextTop > res.f2_top && f2NextY > yF2) {
+        dimensions.push({
+          id: 'f2_mud',
+          type: 'annulus',
+          track: 'inner',
+          topY: yF2,
+          botY: f2NextY,
+          topD: res.f2_top,
+          botD: f2NextTop,
+          label: t('2nd Mud Wash'),
+          heightStr: fmtH(f2NextTop - res.f2_top),
+          mwStr: fmtMW(inp.f2_mw).full,
+          color: '#9B59B6',
+          bg: '#9B59B6'
+        });
+      }
+    }
+
+    // Spacer
+    if (inp.sp_vol > 0 && res.sp_top !== undefined && res.toc > res.sp_top && yTOC > ySP) {
+      dimensions.push({
+        id: 'spacer',
+        type: 'annulus',
+        track: 'inner',
+        topY: ySP,
+        botY: yTOC,
+        topD: res.sp_top,
+        botD: res.toc,
+        label: t('Spacer'),
+        heightStr: fmtH(res.toc - res.sp_top),
+        mwStr: fmtMW(inp.sp_mw).full,
+        color: '#4A90D9',
+        bg: '#4A90D9'
+      });
+    }
+
+    // Lead Slurry
+    if (inp.lead_vol > 0 && res.toc !== undefined && res.tail_top > res.toc && yTail > yTOC) {
+      dimensions.push({
+        id: 'lead_slurry',
+        type: 'annulus',
+        track: 'inner',
+        topY: yTOC,
+        botY: yTail,
+        topD: res.toc,
+        botD: res.tail_top,
+        label: t('Lead Slurry'),
+        heightStr: fmtH(res.tail_top - res.toc),
+        mwStr: fmtMW(inp.lead_mw).full,
+        color: '#15803D',
+        bg: '#15803D'
+      });
+    }
+
+    // Tail Slurry
+    const tailStartD = (inp.lead_vol > 0 && res.tail_top > 0) ? res.tail_top : res.toc;
+    const tailStartY = (inp.lead_vol > 0 && res.tail_top > 0) ? yTail : yTOC;
+    const tailEndD = tdFt;
+    const tailEndY = yTD;
+    if (tailEndD > tailStartD && tailEndY > tailStartY && (inp.tail_vol > 0 || res.total_slurry > 0)) {
+      const tailMw = (inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0;
+      dimensions.push({
+        id: 'tail_slurry',
+        type: 'annulus',
+        track: 'inner',
+        topY: tailStartY,
+        botY: tailEndY,
+        topD: tailStartD,
+        botD: tailEndD,
+        label: t('Tail Slurry'),
+        heightStr: fmtH(tailEndD - tailStartD),
+        mwStr: fmtMW(tailMw).full,
+        color: '#3E7D3A',
+        bg: '#3E7D3A'
+      });
+    }
+
+    const dimensionsFn = (window.CementingCommon && typeof window.CementingCommon.renderVerticalDimensions === 'function')
+      ? window.CementingCommon.renderVerticalDimensions
+      : null;
+
+    if (dimensionsFn) {
+      svg += dimensionsFn({
+        dimensions,
+        isMetric,
+        ohLeft,
+        ohRight,
+        internalX: cx,
+        innerTrackX: 505,
+        outerTrackX: 645,
+        extStartX: 475,
         minGap: 18,
         minY: 45,
         maxY: 765

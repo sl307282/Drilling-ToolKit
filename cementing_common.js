@@ -21,6 +21,7 @@
     root.getFluidLegendItems = exports.getFluidLegendItems;
     root.relaxSchematicMarkers = exports.relaxSchematicMarkers;
     root.renderSchematicCallouts = exports.renderSchematicCallouts;
+    root.renderVerticalDimensions = exports.renderVerticalDimensions;
     root.formatVol = exports.formatVol;
     root.formatDensity = exports.formatDensity;
     root.formatPressure = exports.formatPressure;
@@ -905,6 +906,181 @@
     return svg;
   }
 
+  /**
+   * Render Vertical Span Dimension Lines & Brackets for Well Zones & Fluid Columns
+   * Renders crisp engineering extension lines, end ticks, arrows (▲/▼), and rounded pill badges.
+   * Features automatic thin-interval detection and offset leader lines to prevent overlapping.
+   */
+  function renderVerticalDimensions(opts) {
+    const {
+      dimensions = [],
+      isMetric = false,
+      ohLeft = 195,
+      ohRight = 305,
+      internalX = 250,
+      innerTrackX = 505,
+      outerTrackX = 645,
+      extStartX = 480,
+      minGap = 18,
+      minY = 40,
+      maxY = 765
+    } = opts;
+
+    if (!dimensions || !dimensions.length) return '';
+
+    let svg = `<g class="schematic-dimensions-layer">`;
+
+    // Separate dimensions by track
+    const internalDims = [];
+    const innerDims = [];
+    const outerDims = [];
+
+    dimensions.forEach(d => {
+      const topY = Math.round((Number(d.topY) || 0) * 10) / 10;
+      const botY = Math.round((Number(d.botY) || 0) * 10) / 10;
+      if (botY - topY < 0.5) return; // skip degenerate spans
+
+      const fullLabel = d.mwStr ? `${d.label}: ${d.heightStr} (${d.mwStr})` : `${d.label}: ${d.heightStr}`;
+      const item = Object.assign({}, d, {
+        topY,
+        botY,
+        midY: Math.round(((topY + botY) / 2) * 10) / 10,
+        spanH: botY - topY,
+        fullLabel,
+        color: d.color || '#4A90D9',
+        bg: d.bg || '#1E293B',
+        text: d.text || '#FFFFFF'
+      });
+
+      if (item.type === 'internal' || item.track === 'internal') {
+        internalDims.push(item);
+      } else if (item.track === 'outer') {
+        outerDims.push(item);
+      } else {
+        innerDims.push(item);
+      }
+    });
+
+    // 1. Render Internal Dimensions (e.g. Displacement Fluid inside Casing / String)
+    internalDims.forEach(d => {
+      const x = internalX;
+      const tagW = Math.max(80, Math.min(150, Math.round(d.fullLabel.length * 5.0 + 12)));
+      const tagH = 16;
+      const ty = d.midY;
+
+      svg += `<g class="schematic-dim-item schematic-dim-internal" data-id="${d.id}" data-top-y="${d.topY}" data-bot-y="${d.botY}">`;
+      
+      // Vertical dimension line
+      svg += `<line class="schematic-dim-line" x1="${x}" y1="${d.topY}" x2="${x}" y2="${d.botY}" stroke="${d.color}" stroke-width="1.6" stroke-dasharray="3,2"/>`;
+      
+      // Top & bottom end ticks
+      svg += `<line class="schematic-dim-tick" x1="${x - 6}" y1="${d.topY}" x2="${x + 6}" y2="${d.topY}" stroke="${d.color}" stroke-width="2"/>`;
+      svg += `<line class="schematic-dim-tick" x1="${x - 6}" y1="${d.botY}" x2="${x + 6}" y2="${d.botY}" stroke="${d.color}" stroke-width="2"/>`;
+      
+      // Arrowheads (▲ / ▼)
+      if (d.spanH >= 16) {
+        svg += `<path class="schematic-dim-arrow" d="M ${x - 2.5} ${d.topY + 5} L ${x} ${d.topY} L ${x + 2.5} ${d.topY + 5}" fill="none" stroke="${d.color}" stroke-width="1.8" stroke-linecap="round"/>`;
+        svg += `<path class="schematic-dim-arrow" d="M ${x - 2.5} ${d.botY - 5} L ${x} ${d.botY} L ${x + 2.5} ${d.botY - 5}" fill="none" stroke="${d.color}" stroke-width="1.8" stroke-linecap="round"/>`;
+      }
+
+      // Pill badge (centered over break/dimension line)
+      svg += `
+        <rect x="${x - tagW / 2}" y="${ty - tagH / 2}" width="${tagW}" height="${tagH}" rx="4" ry="4" fill="#0F172A" opacity="0.95" stroke="${d.color}" stroke-width="1"/>
+        <text x="${x}" y="${ty + 3.5}" font-size="${d.fullLabel.length > 25 ? '7.8' : '8.4'}" font-weight="700" fill="${d.text}" text-anchor="middle" font-family="'Outfit', sans-serif">${d.fullLabel}</text>
+      </g>`;
+    });
+
+    // 2. Process Inner & Outer Annular/Environmental Tracks with Collision Avoidance
+    const finalInner = [];
+    const finalOuter = outerDims.slice();
+
+    innerDims.forEach(d => {
+      if (d.spanH < 22) {
+        // Thin interval -> offset to outer track with elbow leader line
+        d.isOffset = true;
+        finalOuter.push(d);
+      } else {
+        finalInner.push(d);
+      }
+    });
+
+    // Relax pill display positions on inner track
+    const relaxedInner = relaxSchematicMarkers(finalInner.map(d => ({
+      dim: d,
+      d: d.midY,
+      targetY: d.midY
+    })), minGap, minY, maxY);
+
+    // Relax pill display positions on outer track
+    const relaxedOuter = relaxSchematicMarkers(finalOuter.map(d => ({
+      dim: d,
+      d: d.midY,
+      targetY: d.midY
+    })), minGap, minY, maxY);
+
+    // Helper to render track items
+    function renderTrack(items, trackX, pillBaseX, isOuter) {
+      items.forEach(item => {
+        const d = item.dim;
+        const cy = Math.round(item.displayY * 10) / 10;
+        const ty = d.midY;
+        const tagW = Math.max(80, Math.min(150, Math.round(d.fullLabel.length * 5.0 + 12)));
+        const tagH = 16;
+        const pillX = pillBaseX;
+
+        svg += `<g class="schematic-dim-item ${isOuter ? 'schematic-dim-outer' : 'schematic-dim-inner'}" data-id="${d.id}" data-top-y="${d.topY}" data-bot-y="${d.botY}">`;
+
+        // Horizontal extension lines from wellbore / depth marker edge to dimension track
+        const extX = Math.min(extStartX, trackX - 10);
+        svg += `
+          <line class="schematic-ext-line" x1="${extX}" y1="${d.topY}" x2="${trackX + 5}" y2="${d.topY}" stroke="#94A3B8" stroke-dasharray="2,2" stroke-width="0.9" opacity="0.8"/>
+          <line class="schematic-ext-line" x1="${extX}" y1="${d.botY}" x2="${trackX + 5}" y2="${d.botY}" stroke="#94A3B8" stroke-dasharray="2,2" stroke-width="0.9" opacity="0.8"/>
+        `;
+
+        // Vertical dimension line
+        svg += `<line class="schematic-dim-line" x1="${trackX}" y1="${d.topY}" x2="${trackX}" y2="${d.botY}" stroke="${d.color}" stroke-width="1.8"/>`;
+
+        // Top & bottom end ticks
+        svg += `<line class="schematic-dim-tick" x1="${trackX - 4}" y1="${d.topY}" x2="${trackX + 4}" y2="${d.topY}" stroke="${d.color}" stroke-width="2"/>`;
+        svg += `<line class="schematic-dim-tick" x1="${trackX - 4}" y1="${d.botY}" x2="${trackX + 4}" y2="${d.botY}" stroke="${d.color}" stroke-width="2"/>`;
+
+        // Arrowheads (▲ / ▼)
+        if (d.spanH >= 14) {
+          svg += `<path class="schematic-dim-arrow" d="M ${trackX - 2.5} ${d.topY + 5} L ${trackX} ${d.topY} L ${trackX + 2.5} ${d.topY + 5}" fill="none" stroke="${d.color}" stroke-width="1.8" stroke-linecap="round"/>`;
+          svg += `<path class="schematic-dim-arrow" d="M ${trackX - 2.5} ${d.botY - 5} L ${trackX} ${d.botY} L ${trackX + 2.5} ${d.botY - 5}" fill="none" stroke="${d.color}" stroke-width="1.8" stroke-linecap="round"/>`;
+        }
+
+        // Leader line to pill
+        if (d.isOffset || Math.abs(cy - ty) > 1.5) {
+          // Angled elbow leader line from (trackX, ty) to (pillX, cy)
+          svg += `
+            <path class="schematic-dim-leader" d="M ${trackX} ${ty} L ${pillX - 6} ${ty} L ${pillX} ${cy}" fill="none" stroke="#94A3B8" stroke-dasharray="2,2" stroke-width="1.2"/>
+          `;
+        } else {
+          // Direct horizontal connection
+          svg += `
+            <line class="schematic-dim-leader" x1="${trackX}" y1="${ty}" x2="${pillX}" y2="${ty}" stroke="${d.color}" stroke-width="1.2"/>
+          `;
+        }
+
+        // Pill badge
+        svg += `
+          <rect x="${pillX}" y="${cy - tagH / 2}" width="${tagW}" height="${tagH}" rx="4" ry="4" fill="${d.bg}" opacity="0.95" stroke="#FFFFFF" stroke-width="0.5"/>
+          <text x="${pillX + tagW / 2}" y="${cy + 3.5}" font-size="${d.fullLabel.length > 25 ? '7.8' : '8.4'}" font-weight="700" fill="${d.text}" text-anchor="middle" font-family="'Outfit', sans-serif">${d.fullLabel}</text>
+        </g>`;
+      });
+    }
+
+    // Render inner track items (trackX = 505, pillBaseX = 514)
+    renderTrack(relaxedInner, innerTrackX, innerTrackX + 9, false);
+
+    // Render outer track items (trackX = 645, pillBaseX = 654)
+    renderTrack(relaxedOuter, outerTrackX, outerTrackX + 9, true);
+
+    svg += `</g>`;
+    return svg;
+  }
+
   return {
     M_PER_FT,
     FT_PER_M,
@@ -936,6 +1112,7 @@
     formatPressure,
     formatPumpOutput,
     relaxSchematicMarkers,
-    renderSchematicCallouts
+    renderSchematicCallouts,
+    renderVerticalDimensions
   };
 }));

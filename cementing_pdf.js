@@ -803,16 +803,16 @@
     let pngDataUrl = null;
     if (svgMarkup) {
       try {
-        pngDataUrl = await svgToPngDataUrl(svgMarkup, 1064, 1600);
+        pngDataUrl = await svgToPngDataUrl(svgMarkup, 1600, 1600);
       } catch (err) {
         console.warn('Schematic rasterization error:', err);
       }
     }
 
     if (pngDataUrl) {
-      // Draw schematic centered on page 3
-      const imgWidth = 105;
-      const imgHeight = 158; // Aspect ~0.665
+      // Draw schematic centered on page 3 (800x800 1:1 aspect ratio)
+      const imgWidth = 125;
+      const imgHeight = 125;
       const imgX = margin + (contentWidth - imgWidth) / 2;
       const imgY = yPos;
 

@@ -4005,7 +4005,7 @@
     }
 
     // Build SVG components
-    let svg = `<svg viewBox="-50 0 600 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
+    let svg = `<svg viewBox="-50 0 800 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
 
     // Definitions (patterns & filters)
     svg += `
@@ -4361,7 +4361,230 @@
         ohLeft,
         ohRight,
         leftTagRight: 135,
-        rightTagX: 365,
+        rightTagX: 355,
+        minGap: 18,
+        minY: 45,
+        maxY: 765
+      });
+    }
+
+    // 8. Vertical Span Dimension Lines & Brackets for All Active Zones & Fluids
+    const dimensions = [];
+
+    // Air Gap (when > 0)
+    if (hasAirGap && inp.air_gap > 0 && yAir > y0) {
+      dimensions.push({
+        id: 'air_gap',
+        type: 'env',
+        track: 'inner',
+        topY: y0,
+        botY: yAir,
+        topD: 0,
+        botD: inp.air_gap,
+        label: t('Air Gap'),
+        heightStr: fmtH(inp.air_gap),
+        color: '#0284C7',
+        bg: '#0284C7'
+      });
+    }
+
+    // Water Depth (when > 0)
+    if (hasWater && waterDepthFt > 0 && yMud > yAir) {
+      dimensions.push({
+        id: 'water_depth',
+        type: 'env',
+        track: 'inner',
+        topY: yAir,
+        botY: yMud,
+        topD: inp.air_gap || 0,
+        botD: mudlineFt,
+        label: t('Water Depth'),
+        heightStr: fmtH(waterDepthFt),
+        color: '#0369A1',
+        bg: '#0369A1'
+      });
+    }
+
+    // Displacement Fluid inside Casing/String
+    const topCsgD = inp.model === 'subsea' ? (inp.hanger || 0) : 0;
+    const fcDepth = res.fc !== undefined ? Number(res.fc) : (Number(inp.shoe) - (Number(inp.shoe_track_len) || 0));
+    if (fcDepth > topCsgD && yFC > topCsgY) {
+      const dispMw = inp.disp_mw || inp.mw || 0;
+      dimensions.push({
+        id: 'displacement',
+        type: 'internal',
+        track: 'internal',
+        topY: topCsgY,
+        botY: yFC,
+        topD: topCsgD,
+        botD: fcDepth,
+        label: t('Displacement Fluid'),
+        heightStr: fmtH(fcDepth - topCsgD),
+        mwStr: fmtMW(dispMw).full,
+        color: '#D97706',
+        bg: '#1E293B'
+      });
+    }
+
+    // Shoe Track Cement inside Casing (between FC and Shoe)
+    if (inp.shoe > fcDepth && yShoe > yFC) {
+      const stMw = (inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0;
+      dimensions.push({
+        id: 'shoe_track',
+        type: 'internal',
+        track: 'internal',
+        topY: yFC,
+        botY: yShoe,
+        topD: fcDepth,
+        botD: inp.shoe,
+        label: t('Shoe Track'),
+        heightStr: fmtH(inp.shoe - fcDepth),
+        mwStr: fmtMW(stMw).full,
+        color: '#3E7D3A',
+        bg: '#1E293B'
+      });
+    }
+
+    // Annular Fluids:
+    const annTopD = inp.model === 'subsea' ? (inp.hanger || mudlineFt) : mudlineFt;
+    const topFluidD = inp.f1_vol > 0 ? res.f1_top : (inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc));
+
+    // Annulus Hole Fluid / Original Mud
+    if (topFluidD > annTopD && topFluidY > annTopY) {
+      const holeMw = inp.mw || inp.hole_fluid_mw || 0;
+      dimensions.push({
+        id: 'hole_fluid',
+        type: 'annulus',
+        track: 'inner',
+        topY: annTopY,
+        botY: topFluidY,
+        topD: annTopD,
+        botD: topFluidD,
+        label: t('Hole Fluid'),
+        heightStr: fmtH(topFluidD - annTopD),
+        mwStr: fmtMW(holeMw).full,
+        color: '#64748B',
+        bg: '#334155'
+      });
+    }
+
+    // 1st Mud Wash
+    if (inp.f1_vol > 0 && res.f1_top !== undefined) {
+      const f1NextTop = inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc);
+      const f1NextY = inp.f2_vol > 0 ? yF2 : (inp.sp_vol > 0 ? ySP : yTOC);
+      if (f1NextTop > res.f1_top && f1NextY > yF1) {
+        dimensions.push({
+          id: 'f1_mud',
+          type: 'annulus',
+          track: 'inner',
+          topY: yF1,
+          botY: f1NextY,
+          topD: res.f1_top,
+          botD: f1NextTop,
+          label: t('1st Mud Wash'),
+          heightStr: fmtH(f1NextTop - res.f1_top),
+          mwStr: fmtMW(inp.f1_mw).full,
+          color: '#E07B39',
+          bg: '#E07B39'
+        });
+      }
+    }
+
+    // 2nd Mud Wash
+    if (inp.f2_vol > 0 && res.f2_top !== undefined) {
+      const f2NextTop = inp.sp_vol > 0 ? res.sp_top : res.toc;
+      const f2NextY = inp.sp_vol > 0 ? ySP : yTOC;
+      if (f2NextTop > res.f2_top && f2NextY > yF2) {
+        dimensions.push({
+          id: 'f2_mud',
+          type: 'annulus',
+          track: 'inner',
+          topY: yF2,
+          botY: f2NextY,
+          topD: res.f2_top,
+          botD: f2NextTop,
+          label: t('2nd Mud Wash'),
+          heightStr: fmtH(f2NextTop - res.f2_top),
+          mwStr: fmtMW(inp.f2_mw).full,
+          color: '#9B59B6',
+          bg: '#9B59B6'
+        });
+      }
+    }
+
+    // Spacer
+    if (inp.sp_vol > 0 && res.sp_top !== undefined && res.toc > res.sp_top && yTOC > ySP) {
+      dimensions.push({
+        id: 'spacer',
+        type: 'annulus',
+        track: 'inner',
+        topY: ySP,
+        botY: yTOC,
+        topD: res.sp_top,
+        botD: res.toc,
+        label: t('Spacer'),
+        heightStr: fmtH(res.toc - res.sp_top),
+        mwStr: fmtMW(inp.sp_mw).full,
+        color: '#4A90D9',
+        bg: '#4A90D9'
+      });
+    }
+
+    // Lead Slurry
+    if (inp.lead_vol > 0 && res.toc !== undefined && res.tail_top > res.toc && yTail > yTOC) {
+      dimensions.push({
+        id: 'lead_slurry',
+        type: 'annulus',
+        track: 'inner',
+        topY: yTOC,
+        botY: yTail,
+        topD: res.toc,
+        botD: res.tail_top,
+        label: t('Lead Slurry'),
+        heightStr: fmtH(res.tail_top - res.toc),
+        mwStr: fmtMW(inp.lead_mw).full,
+        color: '#15803D',
+        bg: '#15803D'
+      });
+    }
+
+    // Tail Slurry
+    const tailStartD = (inp.lead_vol > 0 && res.tail_top > 0) ? res.tail_top : res.toc;
+    const tailStartY = (inp.lead_vol > 0 && res.tail_top > 0) ? yTail : yTOC;
+    const tailEndD = tdFt;
+    const tailEndY = yTD;
+    if (tailEndD > tailStartD && tailEndY > tailStartY && (inp.tail_vol > 0 || res.total_slurry > 0)) {
+      const tailMw = (inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0;
+      dimensions.push({
+        id: 'tail_slurry',
+        type: 'annulus',
+        track: 'inner',
+        topY: tailStartY,
+        botY: tailEndY,
+        topD: tailStartD,
+        botD: tailEndD,
+        label: t('Tail Slurry'),
+        heightStr: fmtH(tailEndD - tailStartD),
+        mwStr: fmtMW(tailMw).full,
+        color: '#3E7D3A',
+        bg: '#3E7D3A'
+      });
+    }
+
+    const dimensionsFn = (window.CementingCommon && typeof window.CementingCommon.renderVerticalDimensions === 'function')
+      ? window.CementingCommon.renderVerticalDimensions
+      : null;
+
+    if (dimensionsFn) {
+      svg += dimensionsFn({
+        dimensions,
+        isMetric,
+        ohLeft,
+        ohRight,
+        internalX: cx,
+        innerTrackX: 505,
+        outerTrackX: 645,
+        extStartX: 475,
         minGap: 18,
         minY: 45,
         maxY: 765
@@ -4693,7 +4916,6 @@
 
   root.openCementingModule = openCementingModule;
   root.renderCementingScreen = renderCementingScreen;
-  root.toggleCementingCard = toggleCementingCard;
   root.loadSavedCementingJob = loadSavedCementingJob;
   root.deleteSavedCementingJob = deleteSavedCementingJob;
   root.exportCementingSchematic = exportCementingSchematic;
@@ -4709,7 +4931,7 @@
   if (typeof window !== 'undefined') {
     window.openCementingModule = openCementingModule;
     window.renderCementingScreen = renderCementingScreen;
-    window.toggleCementingCard = toggleCementingCard;
+    window.toggleCementingCard = root.toggleCementingCard;
     window.loadSavedCementingJob = loadSavedCementingJob;
     window.deleteSavedCementingJob = deleteSavedCementingJob;
     window.exportCementingSchematic = exportCementingSchematic;
