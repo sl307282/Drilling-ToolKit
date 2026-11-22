@@ -3,9 +3,9 @@
     <color name="colorPrimary">#4A7C59</color>
     <color name="colorPrimaryDark">#2D6346</color>
     <color name="colorAccent">#4A7C59</color>
-    <color name="splash_background">#FAF8F5</color>
-    <color name="splashBackground">#FAF8F5</color>
+    <color name="splash_background">#FFFFFF</color>
+    <color name="splashBackground">#FFFFFF</color>
     <color name="splash_card_bg">#FFFFFF</color>
     <color name="splash_title_color">#1F2A2E</color>
-    <color name="splash_tagline_color">#3E7A52</color>
+    <color name="splash_tagline_color">#38443C</color>
 </resources>
