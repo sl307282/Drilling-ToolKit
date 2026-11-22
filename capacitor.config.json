@@ -2,13 +2,13 @@
   "appId": "com.drillingtoolkit.app",
   "appName": "Drilling Toolkit",
   "webDir": "www",
-  "backgroundColor": "#FAF8F5",
+  "backgroundColor": "#FFFFFF",
   "android": {
-    "backgroundColor": "#FAF8F5"
+    "backgroundColor": "#FFFFFF"
   },
   "plugins": {
     "SplashScreen": {
-      "backgroundColor": "#FAF8F5",
+      "backgroundColor": "#FFFFFF",
       "launchShowDuration": 0,
       "launchAutoHide": false,
       "launchFadeOutDuration": 200,
