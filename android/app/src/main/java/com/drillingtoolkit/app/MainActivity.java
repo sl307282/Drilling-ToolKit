@@ -18,6 +18,7 @@ import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 
+import androidx.activity.EdgeToEdge;
 import androidx.core.graphics.Insets;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.ViewCompat;
@@ -39,7 +40,7 @@ public class MainActivity extends BridgeActivity {
         instance = this;
         isAppReady = false;
 
-        // Install Android core splash screen
+        // 1. Install Android core splash screen BEFORE super.onCreate()
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
 
         // Keep system splash visible until the app is fully loaded
@@ -64,6 +65,9 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
+        // 2. Enable modern Edge-to-Edge support for Android 15 (API 35+) and backward-compatible inset handling
+        EdgeToEdge.enable(this);
+
         // Sizing & display cutout handling: ensure splash and window layout do not jump on notched displays
         Window window = getWindow();
         if (window != null) {
@@ -73,10 +77,12 @@ public class MainActivity extends BridgeActivity {
                 window.setAttributes(lp);
             }
 
-            // Force solid white system bars matching the splash background across light and dark system themes
-            int splashColor = Color.parseColor("#FFFFFF");
-            window.setNavigationBarColor(splashColor);
-            window.setStatusBarColor(splashColor);
+            // On Android versions prior to API 35 (Android 15), set system bar colors to match splash
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                int splashColor = Color.parseColor("#FFFFFF");
+                window.setNavigationBarColor(splashColor);
+                window.setStatusBarColor(splashColor);
+            }
             WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
             if (controller != null) {
                 controller.setAppearanceLightNavigationBars(true);
