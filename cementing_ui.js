@@ -1189,6 +1189,7 @@
         } else {
           cementingState.results = CementingEngine.calcSubsea(engineInput);
         }
+        cementingState.engineInput = engineInput;
       } catch (e) {
         console.error('Calculation error loading saved job:', e);
       }
@@ -2140,6 +2141,7 @@
           result = CementingEngine.calcSubsea(engineInput);
         }
         cementingState.results = result;
+        cementingState.engineInput = engineInput;
         cementingState.view = 'results';
         renderCementingScreen();
       } catch (err) {
@@ -2668,6 +2670,7 @@
         } else {
           cementingState.results = CementingEngine.calcSubsea(engineInput);
         }
+        cementingState.engineInput = engineInput;
       } catch (err) {
         console.error('Cementing calculation error:', err);
         container.innerHTML = `<div class="content-card" style="color:#EF4444;">Calculation error: ${err.message}</div>`;
@@ -3184,6 +3187,7 @@
           if (!cementingState.sectionPresets) {
             cementingState.sectionPresets = SECTION_PRESETS;
           }
+          cementingState.engineInput = getEngineInputs();
           if (window.CementingPDF && typeof window.CementingPDF.generateJobReport === 'function') {
             const reportResult = await window.CementingPDF.generateJobReport(cementingState);
             const savedFile = await window.CementingPDF.saveReportToFile(

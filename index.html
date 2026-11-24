@@ -926,6 +926,21 @@
           </div>
         </div>
         
+        <!-- Well Control KMW Rounding Setting -->
+        <div class="content-card">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; color:var(--text-primary);">
+              <span data-i18n="Kill Mud Weight Rounding">Kill Mud Weight Rounding</span>
+              <span id="active-kmw-rounding" style="font-size:0.8rem; font-weight:600; color:var(--accent-color);">+0.1 ppg (Default)</span>
+            </label>
+            <div class="segmented-control" id="settings-kmw-rounding-control" style="margin-bottom:0;">
+              <button type="button" class="segmented-control-btn active" data-rounding="0.1">+0.1 ppg</button>
+              <button type="button" class="segmented-control-btn" data-rounding="0.05">+0.05 ppg</button>
+              <button type="button" class="segmented-control-btn" data-rounding="exact">Exact</button>
+            </div>
+          </div>
+        </div>
+
         <div class="content-card">
           <div class="form-group" style="margin-bottom: 0;">
             <label style="font-size:0.85rem; font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; color:var(--text-primary);">
@@ -1631,9 +1646,13 @@
 
   <!-- Application Scripts -->
   <script src="units_engine.js?v=1.1.6" defer></script>
+  <script src="well_control_config.js?v=1.1.6" defer></script>
+  <script src="well_control_engine.js?v=1.1.6" defer></script>
+  <script src="well_control_pdf.js?v=1.1.6" defer></script>
   <script src="translations.js?v=1.1.6" defer></script>
   <script src="jspdf.umd.min.js" defer></script>
   <script src="jspdf.plugin.autotable.min.js" defer></script>
+  <script src="html2canvas.min.js" defer></script>
   <script src="roboto_font.js?v=1.1.6" defer></script>
   <script src="icons.js?v=1.1.6" defer></script>
   <script src="cementing_engine.js?v=1.1.6" defer></script>

@@ -17,3 +17,4 @@ add_*.js
 venv/
 android/app/release/
 emulator_*.png
+scratch/

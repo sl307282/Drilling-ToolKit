@@ -64,6 +64,7 @@ const DB = {
     "8.5": { "5_DP": 23.37, "5_HWDP": 22.66, "6-1/2_DC": 15.20 }
   },
   casingVolumes: {
+    "42": { "5_DP": 880.00, "5_HWDP": 879.30, "6-1/2_DC": 871.80, "8_DC": 860.80, "9-1/2_DC": 847.50 },
     "30": { "5_DP": 383.70, "5_HWDP": 383.05, "6-1/2_DC": 375.59, "8_DC": 364.57, "9-1/2_DC": 351.27 },
     "20": { "5_DP": 164.50, "5_HWDP": 163.81, "6-1/2_DC": 156.35, "8_DC": 145.33, "9-1/2_DC": 132.03 },
     "13.375": { "5_DP": 66.13, "5_HWDP": 65.42, "6-1/2_DC": 57.96, "8_DC": 46.94, "9-1/2_DC": 33.64 },
@@ -71,6 +72,7 @@ const DB = {
     "RISER": { "5_DP": 189.52 }
   },
   holeToPreviousCasing: {
+    "36": "42",
     "26": "30",
     "17.5": "20",
     "12.25": "13.375",
@@ -89,6 +91,7 @@ let state = {
   screenHistory: [],
   globalUnit: (window.UnitsEngine ? window.UnitsEngine.getUnit('capacity') : (localStorage.getItem('globalUnit') || 'L/m')), // L/m, bbl/m, bbl/ft
   flowType: 'surface', // surface, subsea, or other modules
+  rigType: localStorage.getItem('rigType') || 'LAND', // 'LAND', 'JACKUP', 'SUBSEA_FLOATER'
   
   openedFromHomeSearch: false,
   savedHomeSearchQuery: '',
@@ -206,6 +209,7 @@ let calcSubState = {
   expandedCategoryId: null,
   listScrollTop: 0
 };
+window.calcSubState = calcSubState;
 
 let quickRefSubState = {
   view: 'menu',
@@ -325,41 +329,17 @@ const getCasingAnnularCapacity = (casingSize, pipeType, pipeSize) => {
 // Direction flag for slide animation: 'forward' | 'back'
 let _navDirection = 'none';
 
-let _ignoreNextPopstate = 0;
-let _handlingPopstate = false;
+// Canonical unified navigation stack
+let navStack = [
+  { screen: 'dashboard' }
+];
 
 function pushNavHistory(stateObj) {
-  try {
-    const hash = '#' + (stateObj.screen || 'dashboard') +
-      (stateObj.view ? '/' + stateObj.view : '') +
-      (stateObj.section ? '/' + stateObj.section : '') +
-      (stateObj.formulaId ? '/' + stateObj.formulaId : '') +
-      (stateObj.itemId ? '/' + stateObj.itemId : '');
-    window.history.pushState(stateObj, '', hash);
-  } catch (e) {}
+  // Unified navStack handles stack entries
 }
 
 function syncHistoryBack() {
-  if (_handlingPopstate) return;
-  try {
-    _ignoreNextPopstate++;
-    window.history.back();
-  } catch (e) {}
-}
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('popstate', () => {
-    if (_ignoreNextPopstate > 0) {
-      _ignoreNextPopstate--;
-      return;
-    }
-    _handlingPopstate = true;
-    try {
-      handleAppBack();
-    } finally {
-      _handlingPopstate = false;
-    }
-  });
+  // Unified navStack handles back transitions
 }
 
 // UI Navigation Controller
@@ -380,7 +360,7 @@ const navigateTo = (screenId) => {
   }
 
   const current = state.currentScreen;
-  if (current === screenId) return;
+  if (current === screenId && screenId !== 'drilling-calc' && screenId !== 'drilling-guide' && screenId !== 'drilling-guide-detail') return;
 
   // Ensure cementingState is set to chooser if entering without active section/view or from planner home
   if (screenId === 'cement-planner-subsea') {
@@ -397,12 +377,19 @@ const navigateTo = (screenId) => {
     }
   }
 
-  // Ensure Calculation Hub starts on Categories landing portal when entering from Dashboard
-  if (screenId === 'drilling-calc' && current === 'dashboard') {
-    calcSubState.view = 'categories';
-    calcSubState.formulaId = null;
-    calcSubState.expandedCategoryId = null;
-    calcSubState.listScrollTop = 0;
+  // Ensure Calculation Hub starts on Categories landing portal when entering from Dashboard without a targeted formula
+  if (screenId === 'drilling-calc') {
+    if (current === 'dashboard' && calcSubState.view !== 'formula' && calcSubState.view !== 'riser-margin') {
+      calcSubState.view = 'categories';
+      calcSubState.formulaId = null;
+      calcSubState.expandedCategoryId = null;
+      calcSubState.listScrollTop = 0;
+    } else if (!calcSubState.view) {
+      calcSubState.view = 'categories';
+      calcSubState.formulaId = null;
+      calcSubState.expandedCategoryId = null;
+      calcSubState.listScrollTop = 0;
+    }
   }
 
   // Ensure Drilling Guide starts on top-level categories when entering from Dashboard
@@ -436,39 +423,90 @@ const navigateTo = (screenId) => {
   }
 
   if (screenId === 'dashboard') {
+    navStack = [{ screen: 'dashboard' }];
     state.screenHistory = [];
     state.openedFromHomeSearch = false;
+    calcSubState.view = null;
+    calcSubState.formulaId = null;
+    calcSubState.expandedCategoryId = null;
   } else {
-    // If screenId is already in screenHistory, unwind history back to it to prevent loops/duplicates
+    // Keep state.screenHistory synchronized for backwards compatibility
     const existingIndex = state.screenHistory.indexOf(screenId);
     if (existingIndex !== -1) {
       state.screenHistory = state.screenHistory.slice(0, existingIndex);
     } else {
       state.screenHistory.push(current);
     }
+
+    // Build unified navStack entry
+    let newEntry = { screen: screenId };
+    if (screenId === 'drilling-calc') {
+      newEntry = {
+        screen: 'drilling-calc',
+        calcView: calcSubState.view || 'categories',
+        calcSection: calcSubState.section || 'drilling',
+        calcCategory: calcSubState.category || 'calculations',
+        calcFormulaId: calcSubState.formulaId || null,
+        calcExpandedCategoryId: calcSubState.expandedCategoryId || null,
+        calcScrollTop: calcSubState.listScrollTop || 0
+      };
+    } else if (screenId === 'drilling-guide') {
+      newEntry = {
+        screen: 'drilling-guide',
+        guideExpandedCategoryId: state.expandedGuideCategoryId || null,
+        guideSelectedId: state.selectedGuideId || null,
+        guideSelectedCategory: state.selectedGuideCategory || null,
+        guideScrollTop: state.guideScrollTop || 0
+      };
+    } else if (screenId === 'drilling-guide-detail') {
+      newEntry = {
+        screen: 'drilling-guide-detail',
+        guideExpandedCategoryId: state.expandedGuideCategoryId || null,
+        guideSelectedId: state.selectedGuideId || null,
+        guideSelectedCategory: state.selectedGuideCategory || null,
+        guideScrollTop: state.guideScrollTop || 0
+      };
+    }
+
+    navStack.push(newEntry);
   }
 
   _navDirection = 'forward';
   state.currentScreen = screenId;
-  pushNavHistory({ screen: screenId });
   renderScreen();
 };
 window.navigateTo = navigateTo;
 
 let calcHistory = safeJSONParse(localStorage.getItem('drillingToolkitHistory'), []);
 
-const saveCalculationToHistory = (type) => {
+const saveCalculationToHistory = (type, resultsData, warningsList) => {
+  const rigType = state.rigType || (state.flowType === 'subsea' ? 'SUBSEA_FLOATER' : 'LAND');
+  const storedInputs = JSON.parse(JSON.stringify(state.calcInputs));
+  const holeSizeVal = parseFloat(state.selectedHoleSize || state.customHoleSize) || 0;
+  if (rigType !== 'JACKUP' || holeSizeVal < 36) {
+    delete storedInputs.airGap;
+    delete storedInputs.waterDepth;
+    delete storedInputs.hasSurfaceConductor;
+    delete storedInputs.conductorAnnular;
+  }
   const newEntry = {
     id: Date.now(),
     date: new Date().toLocaleString(),
-    type: type,
+    timestamp: Date.now(),
+    type: type, // 'kill_sheet' or 'dashboard'
     flowType: state.flowType,
+    rigType: rigType,
     holeSize: state.selectedHoleSize,
-    inputs: JSON.parse(JSON.stringify(state.calcInputs))
+    jobName: state.calcInputs.jobName || 'Well #1',
+    unitSystem: state.globalUnit,
+    inputs: storedInputs,
+    results: resultsData ? JSON.parse(JSON.stringify(resultsData)) : null,
+    hasWarnings: (warningsList && warningsList.length > 0),
+    warnings: warningsList || []
   };
 
   calcHistory.unshift(newEntry);
-  if (calcHistory.length > 10) calcHistory = calcHistory.slice(0, 10);
+  if (calcHistory.length > 25) calcHistory = calcHistory.slice(0, 25);
 
   localStorage.setItem('drillingToolkitHistory', JSON.stringify(calcHistory));
 };
@@ -491,30 +529,46 @@ window.renderHistoryScreen = () => {
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
-        <p style="font-size:0.95rem;">No calculation history found.</p>
-        <p style="font-size:0.8rem; margin-top:8px;">Run a calculation to save it here automatically.</p>
+        <p style="font-size:0.95rem;">${t('No calculation history found.', 'No calculation history found.')}</p>
+        <p style="font-size:0.8rem; margin-top:8px;">${t('Run a calculation to save it here automatically.', 'Run a calculation to save it here automatically.')}</p>
       </div>
     `;
     return;
   }
 
-  let html = '<div style="display:flex; flex-direction:column; gap:12px;">';
+  let html = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:0 4px;">
+      <span style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">${filteredHistory.length} ${t('Saved Snapshots', 'Saved Snapshots')}</span>
+      <button id="clear-all-history-btn" style="background:none; border:none; color:#EF4444; font-size:0.8rem; font-weight:600; cursor:pointer; padding:4px 8px; border-radius:6px;">${t('Clear All', 'Clear All')}</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+  `;
 
   filteredHistory.forEach((item) => {
     const isKillSheet = item.type === 'kill_sheet';
-    const title = isKillSheet ? 'Kill Data Sheet' : 'Wellbore Calculations';
+    const title = isKillSheet ? t('Kill Data Sheet', 'Kill Data Sheet') : t('Wellbore Calculations', 'Wellbore Calculations');
+    const kmw = item.results && item.results.kmwUsed ? `${item.results.kmwUsed.toFixed(2)} ppg` : (item.inputs.killOMW_ppg ? `${item.inputs.killOMW_ppg} ppg` : '-');
+    const statusChip = item.hasWarnings
+      ? `<span class="wc-status-badge caution">${t('Warnings Acknowledged', 'Warnings Acknowledged')}</span>`
+      : `<span class="wc-status-badge safe">${t('Safe Margin', 'Safe Margin')}</span>`;
+
     const desc = isKillSheet
-      ? `MW: ${item.inputs.killOMW_ppg} ppg | KRP: ${item.inputs.killSCR_psi} psi`
-      : `Hole MD: ${item.inputs.holeMD} ${state.globalUnit === 'bbl/ft' ? 'ft' : 'm'} | TVD: ${item.inputs.holeTVD}`;
+      ? `KMW: ${kmw} | KRP: ${item.inputs.killSCR_psi || item.inputs.killSCR || '-'} psi | SIDP: ${item.inputs.killSIDPP_psi || item.inputs.killSIDP || '-'}`
+      : `Hole MD: ${item.inputs.holeMD} | TVD: ${item.inputs.holeTVD}`;
 
     html += `
-      <div class="content-card compact-card" style="padding:15px; position:relative; cursor:pointer;" onclick="loadHistoryItem(${item.id})">
-        <button class="delete-history-btn" onclick="deleteHistoryItem(${item.id}, event)" style="position:absolute; right:12px; top:12px; background:none; border:none; color:var(--accent-color); padding:4px; border-radius:50%; cursor:pointer;">
+      <div class="content-card compact-card" style="padding:15px; position:relative; cursor:pointer;" onclick="viewHistorySnapshot(${item.id})">
+        <button class="delete-history-btn" onclick="deleteHistoryItem(${item.id}, event)" style="position:absolute; right:12px; top:12px; background:none; border:none; color:var(--accent-color); padding:4px; border-radius:50%; cursor:pointer;" aria-label="Delete">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
         </button>
-        <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">${item.date}</div>
-        <div style="font-weight:700; color:var(--text-primary); margin-bottom:6px; font-size:0.95rem;">${title} (${item.flowType === 'subsea' ? 'Subsea' : 'Surface'})</div>
-        <div style="font-size:0.85rem; color:var(--text-secondary);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <span style="font-size:0.75rem; color:var(--text-secondary);">${item.date}</span>
+          ${statusChip}
+        </div>
+        <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px; font-size:0.95rem;">
+          ${item.jobName || 'Well #1'} — ${title}
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-secondary);">
           <span style="font-weight:600; color:var(--text-primary);">${item.holeSize}" Hole</span> • ${desc}
         </div>
       </div>
@@ -523,13 +577,182 @@ window.renderHistoryScreen = () => {
 
   html += '</div>';
   container.innerHTML = html;
+
+  const clearBtn = document.getElementById('clear-all-history-btn');
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      if (confirm('Are you sure you want to clear all saved calculation snapshots?')) {
+        calcHistory = calcHistory.filter(item => item.flowType !== state.flowType);
+        localStorage.setItem('drillingToolkitHistory', JSON.stringify(calcHistory));
+        renderHistoryScreen();
+        showToast('Calculation history cleared.');
+      }
+    };
+  }
 };
 
 window.deleteHistoryItem = (id, event) => {
-  event.stopPropagation();
+  if (event) event.stopPropagation();
   calcHistory = calcHistory.filter(i => i.id !== id);
   localStorage.setItem('drillingToolkitHistory', JSON.stringify(calcHistory));
   renderHistoryScreen();
+  showToast('Record deleted');
+};
+
+window.viewHistorySnapshot = (id) => {
+  const item = calcHistory.find(i => i.id === id);
+  if (!item) return;
+
+  let modal = document.getElementById('wc-history-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'wc-history-modal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+
+  const isKill = item.type === 'kill_sheet';
+  const inp = item.inputs || {};
+  const res = item.results || {};
+
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:440px; max-height:85vh; overflow-y:auto; padding:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+        <div>
+          <h3 style="font-size:1rem; font-weight:700; margin:0 0 4px; color:var(--text-primary);">${item.jobName || 'Well Record'} Snapshot</h3>
+          <span style="font-size:0.75rem; color:var(--text-secondary);">${item.date} • ${item.flowType === 'subsea' ? 'Subsea' : 'Surface'}</span>
+        </div>
+        <button id="close-wc-history-modal" style="background:none; border:none; padding:4px; cursor:pointer; color:var(--text-secondary);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div style="margin-bottom:14px; padding:10px 12px; background:var(--bg-subtle); border-radius:8px; border:1px solid var(--border-subtle);">
+        <h4 style="font-size:0.8rem; font-weight:700; margin:0 0 8px; text-transform:uppercase;">Input Parameters</h4>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.78rem;">
+          <div><span style="color:var(--text-secondary);">Hole TVD/MD:</span> <strong>${inp.holeTVD || '-'}/${inp.holeMD || '-'}</strong></div>
+          <div><span style="color:var(--text-secondary);">Shoe TVD/MD:</span> <strong>${inp.shoeTVD || '-'}/${inp.shoeMD || '-'}</strong></div>
+          ${isKill ? `
+          <div><span style="color:var(--text-secondary);">Current Mud:</span> <strong>${inp.killOMW_ppg || '-'} ppg</strong></div>
+          <div><span style="color:var(--text-secondary);">LOT EMW:</span> <strong>${inp.killLotMw_ppg || '-'} ppg</strong></div>
+          <div><span style="color:var(--text-secondary);">KRP:</span> <strong>${inp.killSCR_psi || '-'} psi</strong></div>
+          <div><span style="color:var(--text-secondary);">SIDP / SICP:</span> <strong>${inp.killSIDPP_psi || '-'}/${inp.killSICP_psi || '-'}</strong></div>
+          ` : ''}
+        </div>
+      </div>
+
+      ${res && (res.kmwUsed || res.maasp) ? `
+      <div style="margin-bottom:14px; padding:10px 12px; background:var(--bg-subtle); border-radius:8px; border:1px solid var(--border-subtle);">
+        <h4 style="font-size:0.8rem; font-weight:700; margin:0 0 8px; text-transform:uppercase;">Calculated Results</h4>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.78rem;">
+          <div><span style="color:var(--text-secondary);">KMW to Use:</span> <strong>${res.kmwUsed?.toFixed(2) || '-'} ppg</strong></div>
+          <div><span style="color:var(--text-secondary);">KMW Exact:</span> <strong>${res.kmwExact?.toFixed(3) || '-'} ppg</strong></div>
+          <div><span style="color:var(--text-secondary);">Initial MAASP:</span> <strong>${res.maasp?.toFixed(1) || '-'} psi</strong></div>
+          <div><span style="color:var(--text-secondary);">ICP / FCP:</span> <strong>${Math.round(res.icp || 0)}/${res.fcp?.toFixed(1) || '-'} psi</strong></div>
+          <div><span style="color:var(--text-secondary);">MAASP After Kill:</span> <strong>${res.maaspAfterKillRounded?.toFixed(1) || '-'} psi</strong></div>
+          <div><span style="color:var(--text-secondary);">Barite per 100 bbl:</span> <strong>${res.baritePer100Bbl?.toFixed(2) || '-'} sk</strong></div>
+        </div>
+      </div>
+      ` : ''}
+
+      ${item.warnings && item.warnings.length > 0 ? `
+      <div style="margin-bottom:14px; padding:8px 12px; background:rgba(245, 158, 11, 0.12); border:1px solid #F59E0B; border-radius:8px;">
+        <span style="font-size:0.75rem; font-weight:700; color:#D97706;">Acknowledged Warnings:</span>
+        <ul style="margin:4px 0 0 16px; padding:0; font-size:0.72rem; color:var(--text-primary);">
+          ${item.warnings.map(w => `<li>${w.message || w}</li>`).join('')}
+        </ul>
+      </div>
+      ` : ''}
+
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:16px;">
+        ${isKill && window.WellControlPdf ? `
+        <button id="export-history-pdf-btn" class="btn btn-primary" style="margin:0; width:100%; padding:10px;">
+          Export This Record (PDF)
+        </button>
+        ` : ''}
+        <button id="load-history-active-btn" class="btn btn-secondary" style="margin:0; width:100%; padding:10px;">
+          Load into Active Calculator
+        </button>
+      </div>
+    </div>
+  `;
+
+  modal.classList.add('active');
+
+  const closeBtn = document.getElementById('close-wc-history-modal');
+  if (closeBtn) closeBtn.onclick = () => modal.classList.remove('active');
+  modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('active'); };
+
+  const loadBtn = document.getElementById('load-history-active-btn');
+  if (loadBtn) {
+    loadBtn.onclick = () => {
+      modal.classList.remove('active');
+      loadHistoryItem(id);
+    };
+  }
+
+  const exportBtn = document.getElementById('export-history-pdf-btn');
+  if (exportBtn) {
+    exportBtn.onclick = async () => {
+      try {
+        exportBtn.disabled = true;
+        exportBtn.textContent = 'Generating PDF...';
+        const pdfRes = await window.WellControlPdf.generateWellControlReport({
+          jobName: item.jobName,
+          timestamp: item.date,
+          flowType: item.flowType,
+          holeTVD: inp.holeTVD || 0,
+          holeMD: inp.holeMD || inp.holeTVD || 0,
+          shoeTVD: inp.shoeTVD || 0,
+          shoeMD: inp.shoeMD || inp.shoeTVD || 0,
+          riserLength: inp.riserLength || 0,
+          stringVolume: res.stringVolume || 0,
+          openHoleVolume: res.openHoleVolume || 0,
+          annularVolume: res.annularVolume || 0,
+          totalSystemVolume: res.totalSystemVolume || 0,
+          surfaceToBitStrokes: inp.surfaceToBitStrokes || 0,
+          omw: inp.killOMW_ppg || 0,
+          lotEmw: inp.killLotMw_ppg || 0,
+          lotSafetyFactor: inp.lotSafetyFactor || 1.0,
+          krp: inp.killSCR_psi || 0,
+          clf: inp.killCLF_psi || 0,
+          sidp: inp.killSIDPP_psi || 0,
+          sicp: inp.killSICP_psi || 0,
+          maasp: res.maasp || 0,
+          dynMaasp: res.dynMaasp || 0,
+          dynSicp: res.dynSicp || 0,
+          kmwExact: res.kmwExact || 0,
+          kmwUsed: res.kmwUsed || 0,
+          extraOverbalancePsi: res.extraOverbalancePsi || 0,
+          icp: res.icp || 0,
+          fcp: res.fcp || 0,
+          pressDrop100: res.pressDrop100 || 0,
+          maaspAfterKillRounded: res.maaspAfterKillRounded || 0,
+          maaspAfterKillExact: res.maaspAfterKillExact || 0,
+          baritePer100Bbl: res.baritePer100Bbl || 0,
+          volToMix: res.volToMix || 0,
+          totalBariteSacks: res.totalBariteSacks || 0,
+          totalBariteTonnes: res.totalBariteTonnes || 0,
+          pitGain: inp.pitGain || 0,
+          schedule: res.schedule || []
+        });
+
+        if (window.CementingPdf && window.CementingPdf.saveReportToFile) {
+          const savedFile = await window.CementingPdf.saveReportToFile(pdfRes.pdfBase64, pdfRes.fileName, true, 'application/pdf');
+          await window.CementingPdf.openReportFile(savedFile);
+        } else {
+          pdfRes.doc.save(pdfRes.fileName);
+        }
+        showToast('PDF generated successfully!');
+      } catch (err) {
+        console.error('History PDF generation error:', err);
+        alert('Could not export PDF: ' + (err.message || err));
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.textContent = 'Export This Record (PDF)';
+      }
+    };
+  }
 };
 
 window.loadHistoryItem = (id) => {
@@ -552,365 +775,272 @@ window.loadHistoryItem = (id) => {
 
 // Screen History Pop Helper
 function popScreenHistory() {
-  if (state.screenHistory.length > 0) {
-    _navDirection = 'back';
-    const previousScreen = state.screenHistory.pop();
-    state.currentScreen = previousScreen;
-    renderScreen();
-
-    // If returning to Home, check if we need to restore home search
-    if (previousScreen === 'dashboard' && state.savedHomeSearchQuery) {
-      const searchInput = document.querySelector('.search-input');
-      if (searchInput) {
-        searchInput.value = state.savedHomeSearchQuery;
-        state.searchQuery = state.savedHomeSearchQuery;
-        handleSearch({ target: searchInput });
-      }
-    }
-  } else {
-    // Already at Home (or history empty)
-    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
-      window.Capacitor.Plugins.App.exitApp();
-    }
-  }
+  handleBack();
 }
 
+let _isBackHandling = false;
+
 // Central Unified App Back Navigation Controller
-function handleAppBack() {
-  // 1. Check if virtual keyboard is active (an input or textarea is focused)
-  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
-    document.activeElement.blur();
-    return;
-  }
-
-  // 2. Check if a custom dropdown (e.g. language dropdown) is open
-  const openDropdown = document.querySelector('.lang-dropdown.open');
-  if (openDropdown) {
-    openDropdown.classList.remove('open');
-    return;
-  }
-
-  // 3. Check if any photo modal or dialog is open
-  const photoModal = document.getElementById('iadc-photo-modal');
-  if (photoModal && photoModal.style.display && photoModal.style.display !== 'none') {
-    photoModal.style.display = 'none';
-    return;
-  }
-
-  // 4. Check if language picker overlay is open
-  const langOverlay = document.getElementById('lang-picker-overlay');
-  if (langOverlay && langOverlay.classList.contains('active')) {
-    langOverlay.classList.remove('active');
-    return;
-  }
-
-  // 5. Check if any generic modal overlay is open
-  const openModal = document.querySelector('.modal-overlay.active');
-  if (openModal) {
-    openModal.classList.remove('active');
-    return;
-  }
-
-  // 5b. Check if cementing schematic full-screen modal is open
-  const schematicModal = document.getElementById('schematic-fullscreen-modal');
-  if (schematicModal && (schematicModal.classList.contains('active') || schematicModal.style.display !== 'none')) {
-    if (typeof closeSchematicFullscreenModal === 'function') {
-      closeSchematicFullscreenModal();
-    } else {
-      schematicModal.style.display = 'none';
-      schematicModal.classList.remove('active');
-    }
-    return;
-  }
-
-  // 6. Check if side drawer / navigation menu is open
-  const drawer = document.getElementById('drawer-menu');
-  if (drawer && drawer.classList.contains('active')) {
-    drawer.classList.remove('active');
-    const backdrop = document.getElementById('drawer-backdrop');
-    if (backdrop) backdrop.classList.remove('active');
-    return;
-  }
-
-  // 7. Check if user opened this tool directly from active Home Search
-  if (state.openedFromHomeSearch) {
-    state.openedFromHomeSearch = false;
-
-    // Reset inner tool states
-    if (typeof calcSubState !== 'undefined') {
-      calcSubState.view = 'categories';
-      calcSubState.formulaId = null;
-    }
-    if (typeof wellControlSubState !== 'undefined') {
-      wellControlSubState.view = 'menu';
-      wellControlSubState.category = null;
-      wellControlSubState.formulaId = null;
-      wellControlSubState.fromScreen = null;
-    }
-    if (typeof tubularSubState !== 'undefined') {
-      tubularSubState.view = 'menu';
-    }
-    if (typeof quickRefSubState !== 'undefined') {
-      quickRefSubState.view = 'menu';
-      quickRefSubState.fromGuide = false;
-      quickRefSubState.fromSearch = false;
-    }
-
-    _navDirection = 'back';
-    state.screenHistory = [];
-    state.currentScreen = 'dashboard';
-    renderScreen();
-
-    // Restore Home search input and results exactly as they were
-    const searchInput = document.querySelector('.search-input');
-    if (searchInput && state.savedHomeSearchQuery) {
-      searchInput.value = state.savedHomeSearchQuery;
-      state.searchQuery = state.savedHomeSearchQuery;
-      handleSearch({ target: searchInput });
-    }
-    return;
-  }
-
-  // 8. Handle in-page nested views for specific tools
-
-  // --- Tool: Calculation Hub (screen-drilling-calc) ---
-  if (state.currentScreen === 'drilling-calc') {
-    // If opened directly from Home Search, return straight to Home with search preserved
-    if (state.openedFromHomeSearch) {
-      popScreenHistory();
-      syncHistoryBack();
+function handleBack() {
+  if (_isBackHandling) return;
+  _isBackHandling = true;
+  try {
+    // 1. Check if virtual keyboard is active (an input or textarea is focused)
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
       return;
     }
-    // Level 3: Inside a specific calculator formula view -> return to list with expanded category & scroll preserved
-    if (calcSubState.view === 'formula') {
-      calcSubState.view = 'list';
+
+    // 2. Check if a custom dropdown (e.g. language dropdown) is open
+    const openDropdown = document.querySelector('.lang-dropdown.open');
+    if (openDropdown) {
+      openDropdown.classList.remove('open');
+      return;
+    }
+
+    // 3. Check if any photo modal or dialog is open
+    const photoModal = document.getElementById('iadc-photo-modal');
+    if (photoModal && photoModal.style.display && photoModal.style.display !== 'none') {
+      photoModal.style.display = 'none';
+      return;
+    }
+
+    // 4. Check if language picker overlay is open
+    const langOverlay = document.getElementById('lang-picker-overlay');
+    if (langOverlay && langOverlay.classList.contains('active')) {
+      langOverlay.classList.remove('active');
+      return;
+    }
+
+    // 5. Check if any generic modal overlay is open
+    const openModal = document.querySelector('.modal-overlay.active');
+    if (openModal) {
+      openModal.classList.remove('active');
+      return;
+    }
+
+    // 5b. Check if cementing schematic full-screen modal is open
+    const schematicModal = document.getElementById('schematic-fullscreen-modal');
+    if (schematicModal && (schematicModal.classList.contains('active') || schematicModal.style.display !== 'none')) {
+      if (typeof closeSchematicFullscreenModal === 'function') {
+        closeSchematicFullscreenModal();
+      } else {
+        schematicModal.style.display = 'none';
+        schematicModal.classList.remove('active');
+      }
+      return;
+    }
+
+    // 6. Check if side drawer / navigation menu is open
+    const drawer = document.getElementById('drawer-menu');
+    if (drawer && drawer.classList.contains('active')) {
+      drawer.classList.remove('active');
+      const backdrop = document.getElementById('drawer-backdrop');
+      if (backdrop) backdrop.classList.remove('active');
+      return;
+    }
+
+    // 7. Check if search within Calculation Hub is active
+    if (state.currentScreen === 'drilling-calc' && calcSubState.search && calcSubState.search.trim() !== '') {
+      calcSubState.search = '';
       renderDrillingCalcScreen();
-      syncHistoryBack();
       return;
     }
 
-    // Level 2: Inside the category list view ("Drilling Calculations" or "Well Control Calculations")
-    if (calcSubState.view === 'list') {
-      // If search inside calc is active, clear it first
-      if (calcSubState.search && calcSubState.search.trim() !== '') {
-        calcSubState.search = '';
-        renderDrillingCalcScreen();
+    // 7b. Check if search within Drilling Guide is active
+    if (state.currentScreen === 'drilling-guide') {
+      const guideSearch = document.getElementById('guide-search-inp') || document.getElementById('guide-search-input');
+      if (guideSearch && guideSearch.value && guideSearch.value.trim() !== '') {
+        guideSearch.value = '';
+        state.expandedGuideCategoryId = null;
+        renderDrillingGuideScreen();
         return;
       }
-      // Step back directly to Categories landing portal view (preserves natural step back without collapsing accordion first)
-      calcSubState.view = 'categories';
+    }
+
+    // 8. Check if user opened this tool directly from active Home Search
+    if (state.openedFromHomeSearch) {
+      state.openedFromHomeSearch = false;
+      navStack = [{ screen: 'dashboard' }];
+      state.screenHistory = [];
+      _navDirection = 'back';
+      state.currentScreen = 'dashboard';
+      calcSubState.view = null;
       calcSubState.formulaId = null;
       calcSubState.expandedCategoryId = null;
-      calcSubState.listScrollTop = 0;
-      renderDrillingCalcScreen();
-      syncHistoryBack();
+      renderScreen();
+
+      // Restore Home search input and results exactly as they were
+      const searchInput = document.getElementById('home-search-input') || document.querySelector('.search-input');
+      if (searchInput && state.savedHomeSearchQuery) {
+        searchInput.value = state.savedHomeSearchQuery;
+        state.searchQuery = state.savedHomeSearchQuery;
+        handleSearch({ target: searchInput }, true);
+      }
       return;
     }
 
-    // Level 1: In Categories portal view -> exit to Home
-    if (calcSubState.view === 'categories') {
-      if (calcSubState.search && calcSubState.search.trim() !== '') {
-        calcSubState.search = '';
-        renderDrillingCalcScreen();
+    // 9. Multi-level sub-view checks for specific non-stack workflows
+    if (state.currentScreen === 'well-control') {
+      if (wellControlSubState.fromScreen) {
+        const dest = wellControlSubState.fromScreen;
+        wellControlSubState.fromScreen = null;
+        wellControlSubState.view = 'menu';
+        wellControlSubState.category = null;
+        wellControlSubState.formulaId = null;
+        navigateTo(dest);
         return;
       }
-      // Level 0: Exit to Home
-      popScreenHistory();
-      syncHistoryBack();
-      return;
-    }
-  }
-
-  // --- Tool: Well Control Calculations (screen-well-control) ---
-  if (state.currentScreen === 'well-control') {
-    // If opened from a parent screen like subsea-hole-size
-    if (wellControlSubState.fromScreen) {
-      const dest = wellControlSubState.fromScreen;
-      wellControlSubState.fromScreen = null;
-      wellControlSubState.view = 'menu';
-      wellControlSubState.category = null;
-      wellControlSubState.formulaId = null;
-      if (state.screenHistory.includes(dest)) {
-        while (state.screenHistory.length > 0 && state.currentScreen !== dest) {
-          state.currentScreen = state.screenHistory.pop();
-        }
-        renderScreen();
-      } else {
-        navigateTo(dest);
+      if (wellControlSubState.view !== 'menu') {
+        wellControlSubState.view = 'menu';
+        wellControlSubState.category = null;
+        wellControlSubState.formulaId = null;
+        renderWellControlScreen();
+        return;
       }
-      return;
     }
 
-    // Level 2: Inside formula, equations sheet, or CLF guide
-    if (wellControlSubState.view !== 'menu') {
-      wellControlSubState.view = 'menu';
-      wellControlSubState.category = null;
-      wellControlSubState.formulaId = null;
-      renderWellControlScreen();
-      return;
-    }
-
-    // Level 1: In Well Control menu
-    const expanded = document.querySelector('#well-control-container .guide-category-card.expanded');
-    if (expanded) {
-      expanded.classList.remove('expanded');
-      const subList = expanded.querySelector('.guide-subcategory-list');
-      if (subList) subList.style.maxHeight = null;
-      return;
-    }
-
-    // Level 0: Exit to previous screen (Home or Calculation Hub)
-    popScreenHistory();
-    return;
-  }
-
-  // --- Tool: API Tubular Data (screen-api-tubular) ---
-  if (state.currentScreen === 'api-tubular') {
-    if (state.openedFromHomeSearch) {
-      popScreenHistory();
-      return;
-    }
-    if (tubularSubState.view !== 'menu') {
+    if (state.currentScreen === 'api-tubular' && typeof tubularSubState !== 'undefined' && tubularSubState.view !== 'menu') {
       tubularSubState.view = 'menu';
-      tubularSubState.selections = {
-        connection: '',
-        od: '',
-        od_inch: '',
-        grade: '',
-        weight: '',
-        nominal_weight_lbs_ft: '',
-        class: ''
-      };
+      tubularSubState.selections = { connection: '', od: '', od_inch: '', grade: '', weight: '', nominal_weight_lbs_ft: '', class: '' };
       renderAPITubularScreen();
       return;
     }
-    popScreenHistory();
-    return;
-  }
 
-  // --- Tool: Quick Reference (screen-quick-ref) ---
-  if (state.currentScreen === 'quick-ref') {
-    if (state.openedFromHomeSearch) {
-      popScreenHistory();
-      return;
-    }
-    if (quickRefSubState.fromGuide) {
-      quickRefSubState.fromGuide = false;
-      quickRefSubState.view = 'menu';
-      navigateTo('drilling-guide');
-      return;
-    }
-    if (quickRefSubState.view !== 'menu') {
-      quickRefSubState.view = 'menu';
-      renderQuickRefScreen();
-      return;
-    }
-    popScreenHistory();
-    return;
-  }
-
-  // --- Tool: Drilling Guide Detail (screen-drilling-guide-detail) ---
-  if (state.currentScreen === 'drilling-guide-detail') {
-    if (state.openedFromHomeSearch) {
-      popScreenHistory();
-      syncHistoryBack();
-      return;
-    }
-    // Step back to drilling-guide list, preserving expanded category and scroll position
-    popScreenHistory();
-    syncHistoryBack();
-    return;
-  }
-
-  // --- Tool: Drilling Guide (screen-drilling-guide) ---
-  if (state.currentScreen === 'drilling-guide') {
-    if (state.openedFromHomeSearch) {
-      popScreenHistory();
-      syncHistoryBack();
-      return;
-    }
-    // If search within drilling guide is active, clear it first
-    const guideSearch = document.getElementById('guide-search-inp') || document.getElementById('guide-search-input');
-    if (guideSearch && guideSearch.value && guideSearch.value.trim() !== '') {
-      guideSearch.value = '';
-      state.expandedGuideCategoryId = null;
-      renderDrillingGuideScreen();
-      return;
-    }
-    // If an accordion category card is expanded, collapse it first
-    if (state.expandedGuideCategoryId || document.querySelector('#drilling-guide-container .guide-category-card.expanded')) {
-      const expanded = document.querySelector('#drilling-guide-container .guide-category-card.expanded');
-      if (expanded) {
-        expanded.classList.remove('expanded');
-        const subList = expanded.querySelector('.guide-subcategory-list');
-        if (subList) subList.style.maxHeight = null;
-      }
-      state.selectedGuideId = null;
-      state.expandedGuideCategoryId = null;
-      return;
-    }
-    popScreenHistory();
-    syncHistoryBack();
-    return;
-  }
-
-  // --- Tool: Cementing Module (screen-cement-planner-subsea / screen-cementing) ---
-  if (state.currentScreen === 'cement-planner-subsea' || state.currentScreen === 'cementing') {
-    const store = (typeof cementingStore !== 'undefined' ? cementingStore : (typeof cementingState !== 'undefined' ? cementingState : null));
-    if (store) {
-      if (store.view === 'results') {
-        store.view = 'welldata';
-        if (typeof renderCementingScreen === 'function') renderCementingScreen();
+    if (state.currentScreen === 'quick-ref' && typeof quickRefSubState !== 'undefined') {
+      if (quickRefSubState.fromGuide) {
+        quickRefSubState.fromGuide = false;
+        quickRefSubState.view = 'menu';
+        navigateTo('drilling-guide');
         return;
       }
-      if (store.view === 'welldata') {
-        store.view = 'capacities';
-        if (typeof renderCementingScreen === 'function') renderCementingScreen();
-        return;
-      }
-      if (store.view === 'capacities' || store.view === 'job') {
-        store.view = 'chooser';
-        if (typeof renderCementingScreen === 'function') renderCementingScreen();
+      if (quickRefSubState.view !== 'menu') {
+        quickRefSubState.view = 'menu';
+        renderQuickRefScreen();
         return;
       }
     }
-    popScreenHistory();
-    return;
-  }
 
-  // --- Tool: Surface Wellhead Cementing (screen-cement-planner-surface) ---
-  if (state.currentScreen === 'cement-planner-surface') {
-    const store = (typeof surfaceCementingStore !== 'undefined' ? surfaceCementingStore : (typeof surfaceCementingState !== 'undefined' ? surfaceCementingState : null));
-    if (store) {
-      if (store.view === 'results') {
-        store.view = 'welldata';
-        if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
-        return;
+    if (state.currentScreen === 'cement-planner-subsea' || state.currentScreen === 'cementing') {
+      const store = (typeof cementingStore !== 'undefined' ? cementingStore : (typeof cementingState !== 'undefined' ? cementingState : null));
+      if (store) {
+        if (store.view === 'results') {
+          store.view = 'welldata';
+          if (typeof renderCementingScreen === 'function') renderCementingScreen();
+          return;
+        }
+        if (store.view === 'welldata') {
+          store.view = 'capacities';
+          if (typeof renderCementingScreen === 'function') renderCementingScreen();
+          return;
+        }
+        if (store.view === 'capacities' || store.view === 'job') {
+          store.view = 'chooser';
+          if (typeof renderCementingScreen === 'function') renderCementingScreen();
+          return;
+        }
       }
-      if (store.view === 'welldata') {
-        store.view = 'capacities';
-        if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
-        return;
+    }
+
+    if (state.currentScreen === 'cement-planner-surface') {
+      const store = (typeof surfaceCementingStore !== 'undefined' ? surfaceCementingStore : (typeof surfaceCementingState !== 'undefined' ? surfaceCementingState : null));
+      if (store) {
+        if (store.view === 'results') {
+          store.view = 'welldata';
+          if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
+          return;
+        }
+        if (store.view === 'welldata') {
+          store.view = 'capacities';
+          if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
+          return;
+        }
+        if (store.view === 'capacities' || store.view === 'job') {
+          store.view = 'chooser';
+          if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
+          return;
+        }
       }
-      if (store.view === 'capacities' || store.view === 'job') {
-        store.view = 'chooser';
-        if (typeof renderSurfaceCementingScreen === 'function') renderSurfaceCementingScreen();
+    }
+
+    // 10. Canonical Navigation Stack Pop (One Step per Back Action)
+    if (navStack.length > 1) {
+      _navDirection = 'back';
+      const popped = navStack.pop();
+      const target = navStack[navStack.length - 1];
+
+      state.currentScreen = target.screen;
+
+      if (target.screen === 'drilling-calc') {
+        calcSubState.view = target.calcView || 'categories';
+        calcSubState.section = target.calcSection || 'drilling';
+        calcSubState.category = target.calcCategory || 'calculations';
+        calcSubState.formulaId = target.calcFormulaId || null;
+        calcSubState.expandedCategoryId = target.calcExpandedCategoryId || null;
+        calcSubState.listScrollTop = target.calcScrollTop || 0;
+        if (popped.screen !== 'drilling-calc') {
+          renderScreen();
+        } else {
+          renderDrillingCalcScreen();
+        }
+      } else if (target.screen === 'drilling-guide') {
+        state.expandedGuideCategoryId = target.guideExpandedCategoryId || null;
+        state.selectedGuideId = target.guideSelectedId || null;
+        state.selectedGuideCategory = target.guideSelectedCategory || null;
+        state.guideScrollTop = target.guideScrollTop || 0;
+        if (popped.screen !== 'drilling-guide') {
+          renderScreen();
+        } else {
+          renderDrillingGuideScreen();
+        }
+      } else if (target.screen === 'drilling-guide-detail') {
+        state.expandedGuideCategoryId = target.guideExpandedCategoryId || null;
+        state.selectedGuideId = target.guideSelectedId || null;
+        state.selectedGuideCategory = target.guideSelectedCategory || null;
+        state.guideScrollTop = target.guideScrollTop || 0;
+        renderScreen();
+      } else {
+        if (target.screen === 'dashboard') {
+          calcSubState.view = null;
+          calcSubState.formulaId = null;
+          calcSubState.expandedCategoryId = null;
+        }
+        renderScreen();
+      }
+      return;
+    }
+
+    // 10b. Check if search on Dashboard is active: clear search first before exiting app
+    if (state.currentScreen === 'dashboard') {
+      const searchInput = document.getElementById('home-search-input') || document.querySelector('.search-input');
+      if (searchInput && searchInput.value && searchInput.value.trim() !== '') {
+        searchInput.value = '';
+        state.searchQuery = '';
+        state.savedHomeSearchQuery = '';
+        handleSearch({ target: searchInput }, true);
         return;
       }
     }
-    popScreenHistory();
-    return;
-  }
 
-  // 9. Standard screen history pop
-  popScreenHistory();
+    // 11. Already at Home (navStack.length <= 1) -> Exit app
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+      window.Capacitor.Plugins.App.exitApp();
+    }
+  } finally {
+    _isBackHandling = false;
+  }
+}
+
+function handleAppBack() {
+  handleBack();
 }
 
 const navigateBack = (forceGlobal = false) => {
-  handleAppBack();
+  handleBack();
 };
-window.navigateBack = handleAppBack;
-window.handleAppBack = handleAppBack;
+window.navigateBack = handleBack;
+window.handleAppBack = handleBack;
+window.handleBack = handleBack;
 
 // Helper controllers for drawer, modals and theme
 const updateDynamicBackground = (theme, bgTheme) => {
@@ -1122,10 +1252,218 @@ const initThemeToggler = () => {
     });
   }
 
-  window.addEventListener('languageChanged', () => {
+  window.addEventListener('languageChanged', (e) => {
     const cur = document.documentElement.getAttribute('data-theme') || 'light';
     updateThemeToggleUI(cur);
+    if (typeof updateCalculationHubLanguage === 'function') {
+      updateCalculationHubLanguage(e?.detail?.lang);
+    }
+    if (typeof window.refreshCurrentScreenOnLanguageChange === 'function') {
+      window.refreshCurrentScreenOnLanguageChange();
+    }
   });
+};
+
+
+window.refreshCurrentScreenOnLanguageChange = function() {
+  const screenId = state.currentScreen;
+  if (!screenId) return;
+
+  try {
+    switch (screenId) {
+      case 'surface-hole-size':
+      case 'subsea-hole-size':
+        if (typeof renderHoleSizeSelection === 'function') {
+          renderHoleSizeSelection();
+        }
+        break;
+
+      case 'surface-drillstring':
+      case 'subsea-drillstring': {
+        const flow = state.flowType;
+        const dcSel = document.getElementById(`dc-type-sel-${flow}`);
+        if (dcSel) state.drillstring.dcType = dcSel.value;
+        const dpSel = document.getElementById(`dp-type-sel-${flow}`);
+        if (dpSel) state.drillstring.dpType = dpSel.value;
+        const hwdpSel = document.getElementById(`hwdp-size-sel-${flow}`);
+        if (hwdpSel) state.drillstring.hwdpSize = hwdpSel.value;
+        const dc1 = document.getElementById(`dc-size-sel-${flow}`);
+        if (dc1) state.drillstring.dcSize = dc1.value;
+        const dc2 = document.getElementById(`dc-size-sel-2-${flow}`);
+        if (dc2) state.drillstring.dcSize2 = dc2.value;
+        const dc3 = document.getElementById(`dc-size-sel-3-${flow}`);
+        if (dc3) state.drillstring.dcSize3 = dc3.value;
+        const dp1 = document.getElementById(`dp-size-sel-${flow}`);
+        if (dp1) state.drillstring.dpSize = dp1.value;
+        const dp2 = document.getElementById(`dp-size-sel-2-${flow}`);
+        if (dp2) state.drillstring.dpSize2 = dp2.value;
+        const dp3 = document.getElementById(`dp-size-sel-3-${flow}`);
+        if (dp3) state.drillstring.dpSize3 = dp3.value;
+
+        if (typeof renderDrillstringSetup === 'function') {
+          renderDrillstringSetup();
+        }
+        break;
+      }
+
+      case 'surface-ref-values':
+      case 'subsea-ref-values': {
+        const getVal = (id, fallback) => {
+          const el = document.getElementById(id);
+          if (!el || el.value === '') return fallback;
+          const num = parseFloat(String(el.value).replace(',', '.'));
+          return isNaN(num) ? fallback : num;
+        };
+        if (document.getElementById('cap-dp-input')) {
+          state.reference.capacities.DP = convertCapacityBack(getVal('cap-dp-input', convertCapacity(state.reference.capacities.DP, state.globalUnit)), state.globalUnit);
+        }
+        if (document.getElementById('cap-dp2-input')) {
+          state.reference.capacities.DP2 = convertCapacityBack(getVal('cap-dp2-input', convertCapacity(state.reference.capacities.DP2, state.globalUnit)), state.globalUnit);
+        }
+        if (document.getElementById('cap-dp3-input')) {
+          state.reference.capacities.DP3 = convertCapacityBack(getVal('cap-dp3-input', convertCapacity(state.reference.capacities.DP3, state.globalUnit)), state.globalUnit);
+        }
+        if (document.getElementById('cap-hwdp-input')) {
+          state.reference.capacities.HWDP = convertCapacityBack(getVal('cap-hwdp-input', convertCapacity(state.reference.capacities.HWDP, state.globalUnit)), state.globalUnit);
+        }
+        if (document.getElementById('cap-dc-input')) {
+          state.reference.capacities.DC = convertCapacityBack(getVal('cap-dc-input', convertCapacity(state.reference.capacities.DC, state.globalUnit)), state.globalUnit);
+        }
+        if (document.getElementById('cap-dc2-input')) {
+          state.reference.capacities.DC2 = convertCapacityBack(getVal('cap-dc2-input', convertCapacity(state.reference.capacities.DC2, state.globalUnit)), state.globalUnit);
+        }
+        if (document.getElementById('cap-dc3-input')) {
+          state.reference.capacities.DC3 = convertCapacityBack(getVal('cap-dc3-input', convertCapacity(state.reference.capacities.DC3, state.globalUnit)), state.globalUnit);
+        }
+        if (document.getElementById('pump-out-input')) {
+          state.reference.pumpOutput = convertPumpOutputBack(getVal('pump-out-input', convertPumpOutput(state.reference.pumpOutput, state.globalUnit)), state.globalUnit);
+        }
+
+        if (typeof renderReferenceValues === 'function') {
+          renderReferenceValues();
+        }
+        break;
+      }
+
+      case 'surface-calculations':
+      case 'subsea-calculations': {
+        const readInput = (id) => {
+          const el = document.getElementById(id);
+          return el ? el.value : null;
+        };
+        const htvd = readInput('hole-tvd-calc'); if (htvd !== null) state.calcInputs.holeTVD = htvd;
+        const hmd = readInput('hole-md-calc'); if (hmd !== null) state.calcInputs.holeMD = hmd;
+        const stvd = readInput('shoe-tvd-calc'); if (stvd !== null) state.calcInputs.shoeTVD = stvd;
+        const smd = readInput('shoe-md-calc'); if (smd !== null) state.calcInputs.shoeMD = smd;
+        const dclen = readInput('dc-len-calc'); if (dclen !== null) state.calcInputs.dcLength = dclen;
+        const dclen2 = readInput('dc-len-calc-2'); if (dclen2 !== null) state.calcInputs.dcLength2 = dclen2;
+        const dclen3 = readInput('dc-len-calc-3'); if (dclen3 !== null) state.calcInputs.dcLength3 = dclen3;
+        const hwdplen = readInput('hwdp-len-calc'); if (hwdplen !== null) state.calcInputs.hwdpLength = hwdplen;
+        const dplen = readInput('dp-len-calc'); if (dplen !== null) state.calcInputs.dpLength = dplen;
+        const dplen2 = readInput('dp-len-calc-2'); if (dplen2 !== null) state.calcInputs.dpLength2 = dplen2;
+        const dplen3 = readInput('dp-len-calc-3'); if (dplen3 !== null) state.calcInputs.dpLength3 = dplen3;
+        const spmVal = readInput('calc-spm-input'); if (spmVal !== null) state.calcInputs.spm = spmVal;
+        const rkbElev = readInput('rkb-elevation-calc'); if (rkbElev !== null) state.calcInputs.rkbGroundElevation = rkbElev;
+        const airGapVal = readInput('air-gap-calc'); if (airGapVal !== null) state.calcInputs.airGap = airGapVal;
+        const waterDepthVal = readInput('water-depth-calc'); if (waterDepthVal !== null) state.calcInputs.waterDepth = waterDepthVal;
+        const riserLenVal = readInput('riserlength-calc'); if (riserLenVal !== null) state.calcInputs.riserLength = riserLenVal;
+        const chokeLenVal = readInput('choke-len-calc'); if (chokeLenVal !== null) state.calcInputs.chokeLength = chokeLenVal;
+
+        if (typeof renderCalculations === 'function') {
+          renderCalculations();
+        }
+        if (state.calcInputs.hasRun && typeof runCalculationsEngine === 'function') {
+          runCalculationsEngine();
+        }
+        break;
+      }
+
+      case 'kill-data-sheet': {
+        const parseNumVal = (id) => {
+          const el = document.getElementById(id);
+          return el ? el.value : null;
+        };
+        const currentMw = parseNumVal('kd-current-mw');
+        if (currentMw !== null) state.calcInputs.killOMW_ppg = currentMw;
+        const lotMw = parseNumVal('kd-lot-mw');
+        if (lotMw !== null) state.calcInputs.killLotMw_ppg = lotMw;
+        const krpVal = parseNumVal('kd-krp');
+        if (krpVal !== null) state.calcInputs.killSCR_psi = krpVal;
+        const sidpVal = parseNumVal('kd-sidp');
+        if (sidpVal !== null) state.calcInputs.killSIDPP_psi = sidpVal;
+        const sicpVal = parseNumVal('kd-sicp');
+        if (sicpVal !== null) state.calcInputs.killSICP_psi = sicpVal;
+        const clfVal = parseNumVal('kd-clf');
+        if (clfVal !== null) state.calcInputs.killCLF_psi = clfVal;
+        const pitGain = parseNumVal('kd-pit-gain');
+        if (pitGain !== null) state.calcInputs.pitGain_bbl = pitGain;
+        const tripMargin = parseNumVal('kd-trip-margin');
+        if (tripMargin !== null) state.calcInputs.tripMargin_ppg = tripMargin;
+        const frictionToggle = document.getElementById('kd-friction-toggle');
+        if (frictionToggle) state.calcInputs.hasSurfaceFriction = frictionToggle.checked;
+        const surfFriction = parseNumVal('kd-surface-friction');
+        if (surfFriction !== null) state.calcInputs.surfaceFriction_psi = surfFriction;
+        const wdVal = parseNumVal('kd-water-depth');
+        if (wdVal !== null) state.calcInputs.waterDepth_m = wdVal;
+        const agVal = parseNumVal('kd-air-gap');
+        if (agVal !== null) state.calcInputs.airGap_m = agVal;
+        const swVal = parseNumVal('kd-seawater-density');
+        if (swVal !== null) state.calcInputs.seawaterDensity_ppg = swVal;
+        const jobName = parseNumVal('kd-job-name');
+        if (jobName !== null) state.calcInputs.jobName = jobName;
+
+        const resultsSection = document.getElementById('kd-results-section');
+        const resultsVisible = resultsSection && resultsSection.style.display !== 'none';
+        const ackCheckbox = document.getElementById('kd-ack-checkbox');
+        const wasAckChecked = ackCheckbox ? ackCheckbox.checked : false;
+
+        if (typeof renderKillDataSheet === 'function') {
+          renderKillDataSheet();
+        }
+
+        if (wasAckChecked) {
+          const newAck = document.getElementById('kd-ack-checkbox');
+          const newAckRow = document.getElementById('kd-ack-row');
+          const newGoBtn = document.getElementById('kd-go-btn');
+          if (newAck) newAck.checked = true;
+          if (newAckRow) newAckRow.classList.add('checked');
+          if (newGoBtn) {
+            newGoBtn.disabled = false;
+            newGoBtn.classList.remove('btn-disabled');
+            newGoBtn.style.opacity = '1';
+            newGoBtn.style.cursor = 'pointer';
+            newGoBtn.style.pointerEvents = 'auto';
+          }
+        }
+
+        if (resultsVisible) {
+          const goBtn = document.getElementById('kd-go-btn');
+          if (goBtn) goBtn.click();
+        }
+        break;
+      }
+
+      case 'history':
+        if (typeof window.renderHistoryScreen === 'function') {
+          window.renderHistoryScreen();
+        }
+        break;
+
+      case 'riser-margin':
+        if (typeof renderRiserMarginScreen === 'function') {
+          renderRiserMarginScreen();
+        }
+        break;
+
+      case 'settings':
+        if (typeof renderSettingsScreen === 'function') {
+          renderSettingsScreen();
+        }
+        break;
+    }
+  } catch (err) {
+    console.warn('Error refreshing screen on language change:', err);
+  }
 };
 
 const initDrawer = () => {
@@ -1325,6 +1663,9 @@ const initSettingsPage = (closeDrawer) => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang } }));
     }
+    if (typeof updateCalculationHubLanguage === 'function') {
+      updateCalculationHubLanguage(lang);
+    }
     // Update theme toggle UI text (Light Mode / Dark Mode)
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     if (typeof window.updateThemeToggleUI === 'function') {
@@ -1342,6 +1683,10 @@ const initSettingsPage = (closeDrawer) => {
     // Update settings screen if open
     if (typeof renderSettingsScreen === 'function') {
       renderSettingsScreen();
+    }
+    // Refresh current active screen dynamically
+    if (typeof window.refreshCurrentScreenOnLanguageChange === 'function') {
+      window.refreshCurrentScreenOnLanguageChange();
     }
   };
 
@@ -1369,6 +1714,24 @@ const initSettingsPage = (closeDrawer) => {
       applyLanguage(lang);
     });
   });
+
+  // Well Control KMW Rounding Control
+  const kmwRoundingControl = document.getElementById('settings-kmw-rounding-control');
+  if (kmwRoundingControl) {
+    kmwRoundingControl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-rounding]');
+      if (!btn) return;
+      const rounding = btn.getAttribute('data-rounding') || '0.1';
+      localStorage.setItem('kmwRoundingMode', rounding);
+      renderSettingsScreen();
+      const labels = {
+        '0.1': '+0.1 ppg (Default)',
+        '0.05': '+0.05 ppg',
+        'exact': 'Exact Calculated'
+      };
+      showToast(`Kill Mud Weight Rounding: ${labels[rounding] || rounding}`);
+    });
+  }
 };
 
 const renderSettingsScreen = () => {
@@ -1483,6 +1846,28 @@ const renderSettingsScreen = () => {
   if (bgNameEl) {
     const rawBg = bgNames[currentBg] || currentBg;
     bgNameEl.innerText = (window.t ? window.t(rawBg, rawBg) : rawBg);
+  }
+
+  // Update KMW Rounding control
+  const kmwRoundingControl = document.getElementById('settings-kmw-rounding-control');
+  const activeKmwEl = document.getElementById('active-kmw-rounding');
+  const currentRounding = localStorage.getItem('kmwRoundingMode') || '0.1';
+  if (kmwRoundingControl) {
+    kmwRoundingControl.querySelectorAll('button[data-rounding]').forEach(btn => {
+      if (btn.getAttribute('data-rounding') === currentRounding) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+  if (activeKmwEl) {
+    const labels = {
+      '0.1': '+0.1 ppg (Default)',
+      '0.05': '+0.05 ppg',
+      'exact': 'Exact Calculated'
+    };
+    activeKmwEl.innerText = labels[currentRounding] || currentRounding;
   }
 };
 
@@ -1948,14 +2333,21 @@ const initApp = () => {
       }
 
       // Refresh active screen if relevant
+      if (typeof syncRiserMarginUnitsToGlobal === 'function') {
+        syncRiserMarginUnitsToGlobal();
+      }
       if (state.currentScreen === 'api-tubular') {
         renderAPITubularScreen();
       } else if (state.currentScreen === 'surface-ref-values' || state.currentScreen === 'subsea-ref-values') {
         renderReferenceValues();
       } else if (state.currentScreen === 'surface-calculations' || state.currentScreen === 'subsea-calculations') {
         renderCalculations();
-      } else if (state.currentScreen === 'drilling-calc' && typeof adaptActiveCalculatorView === 'function') {
-        adaptActiveCalculatorView(newSys, prevSys);
+      } else if (state.currentScreen === 'drilling-calc') {
+        if (calcSubState.view === 'riser-margin') {
+          renderDrillingCalcScreen();
+        } else if (typeof adaptActiveCalculatorView === 'function') {
+          adaptActiveCalculatorView(newSys, prevSys);
+        }
       }
     });
 
@@ -2215,7 +2607,7 @@ function isWordFuzzyMatch(word, targetWord) {
 
 // Curated synonyms, abbreviations, and acronyms for drilling & well control terminology
 const curatedSynonymsMap = {
-  'leak_off': ['LOT', 'FIT', 'leakoff', 'leak-off', 'formation integrity', 'fracture gradient', 'shoe test', 'breakdown', 'mud weight limit'],
+  'leak_off': ['LOT', 'FIT', 'leakoff', 'leak-off', 'leak off', 'leak off test', 'formation integrity test', 'formation integrity', 'fracture gradient', 'shoe test', 'breakdown', 'mud weight limit', 'mw max'],
   'icp': ['ICP', 'initial circulating pressure', 'drillers method', 'kill operation', 'shut in drill pipe'],
   'fcp': ['FCP', 'final circulating pressure', 'drillers method', 'kill mud', 'circulation'],
   'kmw': ['KMW', 'kill mud weight', 'kill weight', 'formation pressure', 'reservoir balance'],
@@ -2247,6 +2639,7 @@ const curatedSynonymsMap = {
   'ecd_applied': ['ECD', 'equivalent circulating density', 'annular friction loss'],
   'dp_elongation': ['drill pipe stretch', 'pipe elongation', 'free point'],
   'neutral_point': ['neutral point', 'tension compression boundary', 'buckling point'],
+  'ds_weight': ['drill string weight', 'drill string weight air', 'string weight', 'buoyed weight', 'drill string weight mud', 'hook load in mud'],
   'ds_weight_air': ['drill string weight air', 'string weight'],
   'ds_weight_mud': ['buoyed weight', 'drill string weight mud', 'hook load in mud'],
   'buckling_load': ['critical buckling', 'sinusoidal buckling', 'helical buckling'],
@@ -2294,8 +2687,10 @@ const curatedSynonymsMap = {
   'pipe_disp': ['pipe displacement bbl/ft', 'pipe volume'],
   'rt_ton_mile': ['ton mile', 'round trip ton miles', 'wireline work'],
   'casing_ton_mile': ['casing ton mile', 'running casing ton miles'],
+  'pipe_pulled': ['feet of drill pipe pulled', 'pooh dry', 'pipe pulled dry', 'hole fill', 'pooh wet', 'pipe pulled wet', 'swab volume'],
   'pipe_pulled_dry': ['pooh dry', 'pipe pulled dry', 'hole fill'],
   'pipe_pulled_wet': ['pooh wet', 'pipe pulled wet', 'swab volume'],
+  'dp_pulled_lose': ['dp pulled lose', 'drill pipe pulled to lose hydrostatic pressure', 'hydrostatic loss', 'stands to pull', 'fluid level drop', 'pull dry', 'pull wet', 'lose hydrostatic pressure'],
   'dp_pulled_lose_dry': ['dp pulled lose dry', 'hydrostatic loss dry'],
   'dp_pulled_lose_wet': ['dp pulled lose wet', 'hydrostatic loss wet'],
   'slug_vol': ['slug volume', 'dry pipe slug', 'bbl of slug'],
@@ -2319,7 +2714,7 @@ const curatedSynonymsMap = {
   'washover_length': ['washover length', 'washpipe requirement'],
   'milling_time': ['milling time', 'section mill', 'pilot mill'],
   'spotting_time': ['spotting time', 'pill displacement time'],
-  'pipe_recovery_est': ['pipe recovery', 'recovery percentage'],
+  'pipe_recovery_est': ['pipe recovery', 'recovery percentage', 'free pipe percentage', 'free pipe percent'],
   'bf_ppg': ['buoyancy factor ppg', 'buoyancy factor', 'steel float'],
   'bf_lbs': ['buoyancy factor lb/ft3', 'density buoyancy'],
   'grad_to_mw': ['gradient to mud weight', 'psi/ft to ppg'],
@@ -2445,6 +2840,41 @@ function highlightMatches(text, rawQuery) {
   return safeText.replace(regex, '<mark class="search-highlight">$1</mark>');
 }
 
+// Opens a specific calculator directly from search with correct section and category context
+function openCalculatorFromSearch(formulaId, sectionKey, categoryKey) {
+  if (formulaId === 'riser_margin') {
+    openRiserMarginDirectly();
+    return;
+  }
+  const found = (typeof findCalculator === 'function') ? findCalculator(formulaId, categoryKey) : null;
+  const section = sectionKey || (found ? found.sectionKey : 'drilling');
+  const cat = categoryKey || (found ? found.category : 'calculations');
+
+  const currSection = (typeof calcSectionsConfig !== 'undefined' && calcSectionsConfig[section])
+    ? calcSectionsConfig[section]
+    : ((typeof calcSectionsConfig !== 'undefined') ? calcSectionsConfig.drilling : null);
+
+  let cardCatId = null;
+  if (currSection && currSection.groups) {
+    currSection.groups.forEach((sec, idx) => {
+      if (sec.items && sec.items.includes(formulaId)) {
+        cardCatId = 'calc-cat-' + idx;
+      }
+    });
+  }
+
+  calcSubState.view = 'formula';
+  calcSubState.section = section;
+  calcSubState.category = cat;
+  calcSubState.formulaId = formulaId;
+  calcSubState.expandedCategoryId = cardCatId;
+  calcSubState.listScrollTop = 0;
+  calcSubState.search = '';
+
+  navigateTo('drilling-calc');
+}
+window.openCalculatorFromSearch = openCalculatorFromSearch;
+
 // Builds the central unified search index from existing app databases
 function buildSearchRegistry() {
   const items = [];
@@ -2481,6 +2911,18 @@ function buildSearchRegistry() {
       icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8A4A28" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2.5 20.2 7.25 20.2 16.75 12 21.5 3.8 16.75 3.8 7.25"></polygon><path d="M15.5 8.5H9l3.5 3.5L9 15.5h6.5"></path></svg>`,
       keywords: ['calculation hub', 'drilling calculations', 'formulas', 'math', 'engineering', 'calculators', tr('Calculation Hub'), tr('CALCULATOR'), 'калькулятор', 'розрахунки', 'формули'],
       action: () => { calcSubState.view = 'categories'; navigateTo('drilling-calc'); }
+    },
+    {
+      id: 'riser_margin',
+      title: tr('Riser Margin Calculation'),
+      category: tr('Calculation Hub'),
+      desc: tr('IWCF subsea riser margin, weighted pill density & LMRP unlatch BHP analysis'),
+      bgColor: 'var(--circle-subsea)',
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path><path d="M2 21c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path><rect x="9" y="3" width="6" height="11" rx="1"></rect><line x1="12" y1="3" x2="12" y2="14"></line><circle cx="12" cy="8" r="1.5"></circle></svg>`,
+      keywords: ['riser margin', 'subsea riser', 'unlatch riser', 'lmrp', 'pill density', 'iwcf riser margin', tr('Riser Margin Calculation'), tr('Calculation Hub')],
+      action: () => {
+        openRiserMarginDirectly();
+      }
     },
     {
       id: 'cement_job_planner',
@@ -2668,12 +3110,7 @@ function buildSearchRegistry() {
           icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D6346" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
           keywords: [sec.name, formula.name, transTitle, transCat, ...extraKeywords],
           action: () => {
-            calcSubState.view = 'formula';
-            calcSubState.section = 'drilling';
-            calcSubState.category = 'calculations';
-            calcSubState.formulaId = formula.id;
-            calcSubState.search = '';
-            navigateTo('drilling-calc');
+            openCalculatorFromSearch(formula.id, 'drilling', 'calculations');
           }
         });
       });
@@ -2703,12 +3140,7 @@ function buildSearchRegistry() {
           icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A2C2C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>`,
           keywords: [sec.name, sec.category, formula.name, transTitle, transCat, ...extraKeywords],
           action: () => {
-            calcSubState.view = 'formula';
-            calcSubState.section = 'wellcontrol';
-            calcSubState.category = sec.category;
-            calcSubState.formulaId = formula.id;
-            calcSubState.search = '';
-            navigateTo('drilling-calc');
+            openCalculatorFromSearch(formula.id, 'wellcontrol', sec.category);
           }
         });
       });
@@ -2850,148 +3282,140 @@ function renderRecentSearches() {
 // Pure search function (prefix, multi-word, abbreviation, keyword, typo-tolerant, ranked)
 function searchTools(rawQuery, registry) {
   if (!rawQuery) return [];
-  const query = normalizeSearchString(rawQuery);
-  if (!query) return [];
+  const normQuery = normalizeSearchString(rawQuery);
+  if (!normQuery) return [];
 
-  const queryTokens = query.split(' ').filter(Boolean);
-  const queryCondensed = query.replace(/\s+/g, '');
-  const isSingleChar = query.length === 1;
+  const cleanQuery = normQuery.replace(/^\d+[\s.]*/, '').trim() || normQuery;
+  const queryTokens = normQuery.split(' ').filter(Boolean);
+  const qLen = normQuery.length;
+  const isShort = qLen <= 3;
+  const isSingleChar = qLen === 1;
 
   const scoredItems = [];
 
   for (let i = 0; i < registry.length; i++) {
     const item = registry[i];
     const normTitle = item.normTitle || (item.normTitle = normalizeSearchString(item.title));
-    const normCategory = item.normCategory || (item.normCategory = normalizeSearchString(item.category));
+    const cleanTitle = item.cleanTitle || (item.cleanTitle = normTitle.replace(/^\d+[\s.]*/, '').trim());
+    const titleTokens = item.titleTokens || (item.titleTokens = cleanTitle.split(' ').filter(Boolean));
+    const titleInitials = item.titleInitials || (item.titleInitials = titleTokens.map(t => t[0]).filter(Boolean).join(''));
+
+    const normCat = item.normCat || (item.normCat = normalizeSearchString(item.category));
+    const cleanCat = item.cleanCat || (item.cleanCat = normCat.replace(/^\d+[\s.]*/, '').trim());
+    const catTokens = item.catTokens || (item.catTokens = cleanCat.split(' ').filter(Boolean));
+
     const normDesc = item.normDesc || (item.normDesc = normalizeSearchString(item.desc));
-    const normKeywords = item.normKeywords || (item.normKeywords = (item.keywords || []).map(k => normalizeSearchString(k)));
-    const titleTokens = item.titleTokens || (item.titleTokens = normTitle.split(' ').filter(Boolean));
-    const condensedTitle = item.condensedTitle || (item.condensedTitle = normTitle.replace(/\s+/g, ''));
+    const descTokens = item.descTokens || (item.descTokens = normDesc.split(' ').filter(Boolean));
+
+    if (!item.exactAliases) {
+      item.exactAliases = (item.keywords || []).map(k => normalizeSearchString(k)).filter(Boolean);
+    }
+    const exactAliases = item.exactAliases;
+    const keywordTokens = item.keywordTokens || (item.keywordTokens = exactAliases.flatMap(k => k.split(' ')).filter(Boolean));
 
     let score = 0;
     let matched = false;
 
-    // 1. Single character search: exact prefix on title, title words, keywords, category
+    // Single character query: strictly title prefix, word prefix, or alias prefix
     if (isSingleChar) {
-      if (normTitle.startsWith(query)) {
+      if (cleanTitle.startsWith(normQuery)) {
         score = 1000;
         matched = true;
-      } else if (titleTokens.some(t => t.startsWith(query))) {
+      } else if (titleTokens.some(t => t.startsWith(normQuery))) {
         score = 700;
         matched = true;
-      } else if (normKeywords.some(k => k.startsWith(query))) {
+      } else if (exactAliases.some(a => a.startsWith(normQuery))) {
         score = 500;
         matched = true;
-      } else if (normCategory.startsWith(query)) {
-        score = 300;
-        matched = true;
       }
-      if (matched) {
-        scoredItems.push({ item, score });
-      }
+      if (matched) scoredItems.push({ item, score });
       continue;
     }
 
-    // 2. Exact matches & Title Acronyms
-    const titleInitials = titleTokens.map(t => t[0]).filter(Boolean).join('');
-    if (normTitle === query || condensedTitle === queryCondensed) {
-      score = 1300;
-      matched = true;
-    } else if (titleInitials === query || (query.length >= 3 && titleInitials.startsWith(query))) {
-      // Direct title acronym match (e.g. ICP -> Initial Circulating Pressure, KMW -> Kill Mud Weight)
-      score = 1250;
-      matched = true;
-    } else if (item.id && item.id.toLowerCase() === query) {
-      // Exact tool ID match
-      score = 1200;
-      matched = true;
-    } else if (normTitle.startsWith(query) || condensedTitle.startsWith(queryCondensed)) {
-      score = 1000;
-      matched = true;
-    } else if (normKeywords.some(k => k === query || k.replace(/\s+/g, '') === queryCondensed)) {
-      score = 900;
-      matched = true;
-    } else if (normKeywords.some(k => k.startsWith(query) || k.replace(/\s+/g, '').startsWith(queryCondensed))) {
-      score = 750;
-      matched = true;
-    } else if (titleTokens.some(t => t.startsWith(query))) {
-      score = 650;
-      matched = true;
-    } else if (normTitle.includes(query)) {
-      score = 500;
-      matched = true;
-    } else if (normCategory.startsWith(query)) {
-      score = 400;
-      matched = true;
-    } else if (normKeywords.some(k => k.includes(query))) {
-      score = 350;
-      matched = true;
-    } else if (normDesc.includes(query)) {
-      score = 250;
+    // 1. Exact Title Match
+    if (cleanTitle === cleanQuery || normTitle === normQuery) {
+      score = 2000;
       matched = true;
     }
-
-    // 3. Multi-word check
-    if (!matched) {
-      const allTokensMatch = queryTokens.every(qToken => {
-        if (titleTokens.some(t => t.startsWith(qToken) || t.includes(qToken))) return true;
-        if (normKeywords.some(k => k.includes(qToken) || k.startsWith(qToken))) return true;
-        if (normCategory.includes(qToken)) return true;
-        if (normDesc.includes(qToken)) return true;
-        if (qToken.length >= 4) {
-          if (titleTokens.some(t => isWordFuzzyMatch(qToken, t))) return true;
-          if (normKeywords.some(k => isWordFuzzyMatch(qToken, k))) return true;
+    // 2a. Exact Tool ID or Title Initials Match (e.g. "kmw" -> Kill Mud Weight, "icp" -> Initial Circulating Pressure)
+    else if (
+      (item.id && item.id.toLowerCase() === normQuery) ||
+      titleInitials === normQuery
+    ) {
+      score = 1950;
+      matched = true;
+    }
+    // 2b. Exact standalone alias or abbreviation match (whole-word)
+    else if (exactAliases.some(a => a === normQuery)) {
+      score = 1900;
+      matched = true;
+    }
+    // 2c. Exact alias word match in multi-word alias
+    else if (exactAliases.some(a => a.split(' ').includes(normQuery))) {
+      score = 1750;
+      matched = true;
+    }
+    // 3. Title starts with query
+    else if (cleanTitle.startsWith(normQuery) || normTitle.startsWith(normQuery)) {
+      score = 1500;
+      matched = true;
+    }
+    // 4. Word in title starts with query
+    else if (titleTokens.some(t => t.startsWith(normQuery))) {
+      score = 1200;
+      matched = true;
+    }
+    // 5. All query words appear in title or aliases (multi-word)
+    else if (queryTokens.length > 1) {
+      const allMatch = queryTokens.every(qToken => {
+        if (titleTokens.some(t => t.startsWith(qToken))) return true;
+        if (keywordTokens.some(k => k.startsWith(qToken))) return true;
+        if (catTokens.some(c => c.startsWith(qToken))) return true;
+        if (!isShort && qToken.length >= 4) {
+          const maxD = qToken.length > 6 ? 2 : 1;
+          if (titleTokens.some(t => getLevenshteinDistance(qToken, t.slice(0, qToken.length + 1)) <= maxD)) return true;
+          if (keywordTokens.some(k => getLevenshteinDistance(qToken, k.slice(0, qToken.length + 1)) <= maxD)) return true;
         }
         return false;
       });
-
-      if (allTokensMatch) {
+      if (allMatch) {
+        score = 1000;
+        if (cleanTitle.startsWith(queryTokens[0])) score += 100;
         matched = true;
-        score = 200;
-        if (normTitle.startsWith(queryTokens[0]) || titleTokens.some(t => t.startsWith(queryTokens[0]))) {
-          score += 150;
-        }
       }
     }
-
-    // 4. Fuzzy fallback (e.g. "leek off", "cemen")
-    if (!matched && queryTokens.length <= 3) {
-      let fuzzyScore = 0;
-      let allFuzzy = true;
-      for (const qToken of queryTokens) {
-        let tokenFuzzy = false;
-        if (qToken.length >= 4) {
-          for (const t of titleTokens) {
-            if (t.length >= 3) {
-              const d = getLevenshteinDistance(qToken, t.slice(0, qToken.length + 1));
-              const maxD = qToken.length > 6 ? 2 : 1;
-              if (d <= maxD) {
-                tokenFuzzy = true;
-                fuzzyScore += (80 - d * 20);
-                break;
-              }
-            }
-          }
-          if (!tokenFuzzy) {
-            for (const k of normKeywords) {
-              const d = getLevenshteinDistance(qToken, k.slice(0, qToken.length + 1));
-              const maxD = qToken.length > 6 ? 2 : 1;
-              if (d <= maxD) {
-                tokenFuzzy = true;
-                fuzzyScore += (70 - d * 20);
-                break;
-              }
-            }
-          }
-        }
-        if (!tokenFuzzy) {
-          allFuzzy = false;
-          break;
+    // 6. Keyword or category word-prefix match
+    else if (
+      keywordTokens.some(k => k.startsWith(normQuery)) ||
+      catTokens.some(c => c.startsWith(normQuery))
+    ) {
+      score = 600;
+      matched = true;
+    }
+    // 7. Description word-prefix match
+    else if (descTokens.some(d => d.startsWith(normQuery))) {
+      score = 300;
+      matched = true;
+    }
+    // 8. Typo tolerance (Levenshtein distance) - ONLY for queries >= 4 chars!
+    else if (!isShort && qLen >= 4) {
+      const maxDist = qLen > 6 ? 2 : 1;
+      let bestDist = 999;
+      for (const t of titleTokens) {
+        if (t.length >= 3) {
+          const d = getLevenshteinDistance(normQuery, t.slice(0, normQuery.length + 1));
+          if (d < bestDist) bestDist = d;
         }
       }
-      if (allFuzzy && fuzzyScore > 0) {
+      for (const a of exactAliases) {
+        if (a.length >= 3) {
+          const d = getLevenshteinDistance(normQuery, a.slice(0, normQuery.length + 1));
+          if (d < bestDist) bestDist = d;
+        }
+      }
+      if (bestDist <= maxDist) {
+        score = 250 - bestDist * 50;
         matched = true;
-        score = fuzzyScore;
       }
     }
 
@@ -3000,8 +3424,12 @@ function searchTools(rawQuery, registry) {
     }
   }
 
-  scoredItems.sort((a, b) => b.score - a.score);
-  return scoredItems.map(si => si.item);
+  scoredItems.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.item.title.localeCompare(b.item.title);
+  });
+
+  return scoredItems.slice(0, 25).map(si => si.item);
 }
 
 // Global search handling with debounce and clear button state
@@ -3096,6 +3524,8 @@ function handleSearch(e, immediate = false) {
       `;
 
       el.addEventListener('click', () => {
+        const searchInput = document.getElementById('home-search-input') || document.querySelector('.search-input');
+        if (searchInput) searchInput.blur();
         RecentSearchesStore.add(trimmed);
         state.openedFromHomeSearch = true;
         state.savedHomeSearchQuery = trimmed;
@@ -3111,7 +3541,7 @@ function handleSearch(e, immediate = false) {
     doSearch();
   } else {
     if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
-    _searchDebounceTimer = setTimeout(doSearch, 120);
+    _searchDebounceTimer = setTimeout(doSearch, 150);
   }
 }
 
@@ -3174,10 +3604,40 @@ function showToast(message) {
   }, 2500);
 }
 
-// Screen Rendering router
+// Scroll helper to smoothly scroll to calculation results section below the sticky header
+function scrollToResultsSection(targetElement, behavior = 'smooth') {
+  if (!targetElement) return;
+
+  const screenEl = targetElement.closest('.screen');
+  const scroller = targetElement.closest('.scroller') || 
+                   (screenEl ? screenEl.querySelector('.scroller') : null) || 
+                   document.querySelector('.scroller');
+
+  // Find the sticky header bar on the current active screen
+  const header = (screenEl ? screenEl.querySelector('.bar, header') : null) || 
+                 document.querySelector('.top-bar, .bar, header');
+
+  const headerHeight = header ? header.offsetHeight : 64;
+  const paddingBelowHeader = 16;
+  const totalOffset = headerHeight + paddingBelowHeader;
+
+  if (scroller && typeof scroller.scrollTo === 'function') {
+    const scrollerRect = scroller.getBoundingClientRect();
+    const targetRect = targetElement.getBoundingClientRect();
+    const currentScrollTop = scroller.scrollTop;
+    const targetRelativeTop = targetRect.top - scrollerRect.top + currentScrollTop;
+    const finalScrollTop = Math.max(0, targetRelativeTop - totalOffset);
+
+    scroller.scrollTo({
+      top: finalScrollTop,
+      behavior: behavior
+    });
+  } else {
+    targetElement.scrollIntoView({ behavior: behavior, block: 'start' });
+  }
+}
 
 // Screen Rendering router
-
 function renderScreen() {
   // Hide all screens
   const screens = document.querySelectorAll('.screen');
@@ -3365,7 +3825,43 @@ function renderHoleSizeSelection() {
   const container = document.getElementById(`hole-sizes-container-${state.flowType}`);
   container.innerHTML = '';
 
-  const standardSizes = [
+  if (state.flowType === 'surface') {
+    const rigToggleWrapper = document.createElement('div');
+    rigToggleWrapper.className = 'segmented-control';
+    rigToggleWrapper.style.marginBottom = '16px';
+    const curRig = state.rigType === 'JACKUP' ? 'JACKUP' : 'LAND';
+    rigToggleWrapper.innerHTML = `
+      <button type="button" class="segmented-control-btn ${curRig === 'LAND' ? 'active' : ''}" data-rig="LAND">${t('Land Rig', 'Land Rig')}</button>
+      <button type="button" class="segmented-control-btn ${curRig === 'JACKUP' ? 'active' : ''}" data-rig="JACKUP">${t('Jackup Rig', 'Jackup Rig')}</button>
+    `;
+    container.appendChild(rigToggleWrapper);
+
+    rigToggleWrapper.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const newRig = e.currentTarget.getAttribute('data-rig');
+        if (state.rigType === newRig) return;
+        state.rigType = newRig;
+        localStorage.setItem('rigType', newRig);
+        if (newRig === 'LAND' || parseFloat(state.selectedHoleSize) < 36) {
+          state.calcInputs.airGap = null;
+          state.calcInputs.waterDepth = null;
+          state.calcInputs.hasSurfaceConductor = false;
+        }
+        renderHoleSizeSelection();
+      });
+    });
+  } else {
+    state.rigType = 'SUBSEA_FLOATER';
+  }
+
+  const isJackup = (state.flowType === 'surface' && state.rigType === 'JACKUP');
+  const standardSizes = isJackup ? [
+    { label: '36"', val: '36' },
+    { label: '26"', val: '26' },
+    { label: '17 ½"', val: '17.5' },
+    { label: '12 ¼"', val: '12.25' },
+    { label: '8 ½"', val: '8.5' }
+  ] : [
     { label: '26"', val: '26' },
     { label: '17 ½"', val: '17.5' },
     { label: '12 ¼"', val: '12.25' },
@@ -3381,12 +3877,17 @@ function renderHoleSizeSelection() {
     card.className = `size-card ${state.selectedHoleSize === size.val && !state.customHoleSize ? 'active' : ''}`;
     card.innerHTML = `
       <div class="size-card-title">${size.label}</div>
-      <div class="size-card-subtitle">Standard Hole</div>
+      <div class="size-card-subtitle">${t('Standard Hole', 'Standard Hole')}</div>
     `;
     card.addEventListener('click', () => {
       state.selectedHoleSize = size.val;
       state.customHoleSize = '';
-      showToast(`Selected hole size: ${size.label}`);
+      if (parseFloat(size.val) < 36 || state.rigType === 'LAND') {
+        state.calcInputs.airGap = null;
+        state.calcInputs.waterDepth = null;
+        state.calcInputs.hasSurfaceConductor = false;
+      }
+      showToast(`${t('Selected hole size:', 'Selected hole size:')} ${size.label}`);
       navigateTo(`${state.flowType}-drillstring`);
     });
     grid.appendChild(card);
@@ -3397,8 +3898,8 @@ function renderHoleSizeSelection() {
   const hasCustom = !!state.customHoleSize;
   customCard.className = `size-card ${hasCustom ? 'active' : ''}`;
   customCard.innerHTML = `
-    <div class="size-card-title">${hasCustom ? state.customHoleSize + '"' : 'Custom'}</div>
-    <div class="size-card-subtitle">Custom Hole</div>
+    <div class="size-card-title">${hasCustom ? state.customHoleSize + '"' : t('Custom', 'Custom')}</div>
+    <div class="size-card-subtitle">${t('Custom Hole', 'Custom Hole')}</div>
   `;
 
   customCard.addEventListener('click', () => {
@@ -3426,11 +3927,11 @@ function renderHoleSizeSelection() {
   customGroup.className = 'form-group content-card';
   customGroup.style.display = hasCustom ? 'block' : 'none';
   customGroup.innerHTML = `
-    <label style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; display:block;">Custom Hole Size Input</label>
+    <label style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; display:block;">${t('Custom Hole Size Input', 'Custom Hole Size Input')}</label>
     <div style="display:flex; gap:10px;">
       <input type="number" step="0.01" class="form-input" id="custom-hole-input-${state.flowType}" 
              placeholder="e.g. 14.75" value="${state.customHoleSize}" style="margin-bottom:0; flex:1;">
-      <button class="btn btn-primary" id="custom-hole-go-${state.flowType}" style="padding:12px 24px; font-size:0.9rem; margin-bottom:0;">Next</button>
+      <button class="btn btn-primary" id="custom-hole-go-${state.flowType}" style="padding:12px 24px; font-size:0.9rem; margin-bottom:0;">${t('Next', 'Next')}</button>
     </div>
   `;
   container.appendChild(customGroup);
@@ -3440,6 +3941,11 @@ function renderHoleSizeSelection() {
     if (inputVal && parseFloat(inputVal) > 0) {
       state.selectedHoleSize = inputVal;
       state.customHoleSize = inputVal;
+      if (parseFloat(inputVal) < 36 || state.rigType === 'LAND') {
+        state.calcInputs.airGap = null;
+        state.calcInputs.waterDepth = null;
+        state.calcInputs.hasSurfaceConductor = false;
+      }
       showToast(`Custom hole size set: ${inputVal}"`);
       navigateTo(`${state.flowType}-drillstring`);
     } else {
@@ -3490,12 +3996,12 @@ function renderDrillstringSetup() {
   const wrapper = document.getElementById(`drillstring-form-wrapper-${flow}`);
   wrapper.innerHTML = `
     <div class="form-group">
-      <label>Type of DC</label>
+      <label>${t('Type of DC', 'Type of DC')}</label>
       <div class="select-wrapper">
         <select class="form-select" id="dc-type-sel-${flow}">
-          <option value="1" ${state.drillstring.dcType === '1' ? 'selected' : ''}>DC String Type 1</option>
-          <option value="2" ${state.drillstring.dcType === '2' ? 'selected' : ''}>DC String Type 2</option>
-          <option value="3" ${state.drillstring.dcType === '3' ? 'selected' : ''}>DC String Type 3</option>
+          <option value="1" ${state.drillstring.dcType === '1' ? 'selected' : ''}>${t('DC String Type 1', 'DC String Type 1')}</option>
+          <option value="2" ${state.drillstring.dcType === '2' ? 'selected' : ''}>${t('DC String Type 2', 'DC String Type 2')}</option>
+          <option value="3" ${state.drillstring.dcType === '3' ? 'selected' : ''}>${t('DC String Type 3', 'DC String Type 3')}</option>
         </select>
       </div>
     </div>
@@ -3503,7 +4009,7 @@ function renderDrillstringSetup() {
     <div id="dc-sizes-rows-container-${flow}"></div>
 
     <div class="form-group">
-      <label>HWDP Size (inches)</label>
+      <label>${t('HWDP Size (inches)', 'HWDP Size (inches)')}</label>
       <div class="select-wrapper">
         <select class="form-select" id="hwdp-size-sel-${flow}">
           <option value="6-5/8" ${state.drillstring.hwdpSize === '6-5/8' ? 'selected' : ''}>6-5/8"</option>
@@ -3516,12 +4022,12 @@ function renderDrillstringSetup() {
     </div>
 
     <div class="form-group">
-      <label>Type of DP</label>
+      <label>${t('Type of DP', 'Type of DP')}</label>
       <div class="select-wrapper">
         <select class="form-select" id="dp-type-sel-${flow}">
-          <option value="1" ${state.drillstring.dpType === '1' ? 'selected' : ''}>DP String Type 1</option>
-          <option value="2" ${state.drillstring.dpType === '2' ? 'selected' : ''}>DP String Type 2</option>
-          <option value="3" ${state.drillstring.dpType === '3' ? 'selected' : ''}>DP String Type 3</option>
+          <option value="1" ${state.drillstring.dpType === '1' ? 'selected' : ''}>${t('DP String Type 1', 'DP String Type 1')}</option>
+          <option value="2" ${state.drillstring.dpType === '2' ? 'selected' : ''}>${t('DP String Type 2', 'DP String Type 2')}</option>
+          <option value="3" ${state.drillstring.dpType === '3' ? 'selected' : ''}>${t('DP String Type 3', 'DP String Type 3')}</option>
         </select>
       </div>
     </div>
@@ -3538,7 +4044,7 @@ function renderDrillstringSetup() {
     for (let i = 1; i <= type; i++) {
       const fieldId = i === 1 ? `dc-size-sel-${flow}` : `dc-size-sel-${i}-${flow}`;
       const stateVal = i === 1 ? state.drillstring.dcSize : (i === 2 ? state.drillstring.dcSize2 : state.drillstring.dcSize3);
-      const labelText = type === 1 ? 'DC Size (inches)' : `DC Size ${i} (inches)`;
+      const labelText = type === 1 ? t('DC Size (inches)', 'DC Size (inches)') : `${t('DC Size', 'DC Size')} ${i} (${t('inches', 'inches')})`;
       const row = document.createElement('div');
       row.className = 'form-group';
       row.innerHTML = `
@@ -3564,7 +4070,7 @@ function renderDrillstringSetup() {
     for (let i = 1; i <= type; i++) {
       const fieldId = i === 1 ? `dp-size-sel-${flow}` : `dp-size-sel-${i}-${flow}`;
       const stateVal = i === 1 ? state.drillstring.dpSize : (i === 2 ? state.drillstring.dpSize2 : state.drillstring.dpSize3);
-      const labelText = type === 1 ? 'DP Size (inches)' : `DP Size ${i} (inches)`;
+      const labelText = type === 1 ? t('DP Size (inches)', 'DP Size (inches)') : `${t('DP Size', 'DP Size')} ${i} (${t('inches', 'inches')})`;
       const row = document.createElement('div');
       row.className = 'form-group';
       row.innerHTML = `
@@ -3860,13 +4366,13 @@ function renderReferenceValues() {
   if (state.flowType === 'subsea') {
     sec1Rows += `
       <tr>
-        <td>Marine Riser</td>
-        <td>Nominal</td>
+        <td>${t('Marine Riser', 'Marine Riser')}</td>
+        <td>${t('Nominal', 'Nominal')}</td>
         <td style="text-align:right"><input type="number" step="any" class="table-input" id="cap-riser-input" value="${convertCapacity(DB.pipeData.RISER.capacity || 0, state.globalUnit).toFixed(5)}"></td>
       </tr>
       <tr>
-        <td>Choke / Kill Line</td>
-        <td>Nominal</td>
+        <td>${t('Choke / Kill Line', 'Choke / Kill Line')}</td>
+        <td>${t('Nominal', 'Nominal')}</td>
         <td style="text-align:right"><input type="number" step="any" class="table-input" id="cap-choke-input" value="${convertCapacity(state.reference.chokeCapacity || 0, state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
@@ -3875,14 +4381,14 @@ function renderReferenceValues() {
   const sec1 = document.createElement('div');
   sec1.className = 'content-card';
   sec1.innerHTML = `
-    <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">Drillstring Type and Capacity (${unitLabel})</h3>
+    <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">${t('Drillstring Type and Capacity', 'Drillstring Type and Capacity')} (${unitLabel})</h3>
     <div class="table-responsive">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Tubular Segment</th>
-            <th>Nominal Size</th>
-            <th style="text-align:right">Capacity (${unitLabel})</th>
+            <th>${t('Tubular Segment', 'Tubular Segment')}</th>
+            <th>${t('Nominal Size', 'Nominal Size')}</th>
+            <th style="text-align:right">${t('Capacity', 'Capacity')} (${unitLabel})</th>
           </tr>
         </thead>
         <tbody>
@@ -3953,14 +4459,14 @@ function renderReferenceValues() {
   const sec2 = document.createElement('div');
   sec2.className = 'content-card';
   sec2.innerHTML = `
-    <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">Open Hole Annular Capacity (${state.selectedHoleSize}" Hole)</h3>
+    <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">${t('Open Hole Annular Capacity', 'Open Hole Annular Capacity')} (${state.selectedHoleSize}" Hole)</h3>
     <div class="table-responsive">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Tubular Segment</th>
-            <th>Hole OD</th>
-            <th style="text-align:right">Annular Capacity (${unitLabel})</th>
+            <th>${t('Tubular Segment', 'Tubular Segment')}</th>
+            <th>${t('Hole OD', 'Hole OD')}</th>
+            <th style="text-align:right">${t('Annular Capacity', 'Annular Capacity')} (${unitLabel})</th>
           </tr>
         </thead>
         <tbody>
@@ -4032,14 +4538,14 @@ function renderReferenceValues() {
   const sec3 = document.createElement('div');
   sec3.className = 'content-card';
   sec3.innerHTML = `
-    <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">Casing Annular Capacity (Auto-Detected Casing: ${prevCasing}")</h3>
+    <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">${t('Casing Annular Capacity', 'Casing Annular Capacity')} (${prevCasing}")</h3>
     <div class="table-responsive">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Tubular Segment</th>
-            <th>Casing size</th>
-            <th style="text-align:right">Annular Capacity (${unitLabel})</th>
+            <th>${t('Tubular Segment', 'Tubular Segment')}</th>
+            <th>${t('Casing size', 'Casing size')}</th>
+            <th style="text-align:right">${t('Annular Capacity', 'Annular Capacity')} (${unitLabel})</th>
           </tr>
         </thead>
         <tbody>
@@ -4055,19 +4561,19 @@ function renderReferenceValues() {
     const sec4Subsea = document.createElement('div');
     sec4Subsea.className = 'content-card';
     sec4Subsea.innerHTML = `
-      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">Riser & DP Annular Capacity</h3>
+      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">${t('Riser & DP Annular Capacity', 'Riser & DP Annular Capacity')}</h3>
       <div class="table-responsive">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Riser Annular Section</th>
-              <th>Reference Tubular</th>
-              <th style="text-align:right">Annular Capacity (${unitLabel})</th>
+              <th>${t('Riser Annular Section', 'Riser Annular Section')}</th>
+              <th>${t('Reference Tubular', 'Reference Tubular')}</th>
+              <th style="text-align:right">${t('Annular Capacity', 'Annular Capacity')} (${unitLabel})</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>Riser to DP Annulus</td>
+              <td>${t('Riser to DP Annulus', 'Riser to DP Annulus')}</td>
               <td>${state.drillstring.dpSize}" DP</td>
               <td style="text-align:right"><input type="number" step="any" class="table-input" id="riser-ann-input" value="${convertCapacity(state.reference.riserAnnular || 0, state.globalUnit).toFixed(5)}"></td>
             </tr>
@@ -4078,6 +4584,34 @@ function renderReferenceValues() {
     container.appendChild(sec4Subsea);
   }
 
+  // Conductor Annular Capacity for Jackup >= 36"
+  if (state.flowType === 'surface' && state.rigType === 'JACKUP' && (parseFloat(state.selectedHoleSize || state.customHoleSize) >= 36)) {
+    const secConductor = document.createElement('div');
+    secConductor.className = 'content-card';
+    secConductor.innerHTML = `
+      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600;">${t('Surface Conductor / Tie-Back Annular Capacity', 'Surface Conductor / Tie-Back Annular Capacity')}</h3>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>${t('Conductor Section', 'Conductor Section')}</th>
+              <th>${t('Reference Tubular', 'Reference Tubular')}</th>
+              <th style="text-align:right">${t('Annular Capacity', 'Annular Capacity')} (${unitLabel})</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${t('Conductor to DP Annulus', 'Conductor to DP Annulus')}</td>
+              <td>${state.drillstring.dpSize}" DP</td>
+              <td style="text-align:right"><input type="number" step="any" class="table-input" id="conductor-ann-input" value="${convertCapacity(state.reference.conductorAnnular || 164.50, state.globalUnit).toFixed(5)}"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    container.appendChild(secConductor);
+  }
+
   // SECTION 4/5: Pump Output
   const secPump = document.createElement('div');
   secPump.className = 'content-card';
@@ -4086,11 +4620,14 @@ function renderReferenceValues() {
   secPump.innerHTML = `
     <div class="form-group" style="margin-bottom: 0;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:15px;">
-        <label style="margin-bottom:0; flex-shrink:0;">Pump Output (${pumpUnitLabel})</label>
+        <label style="margin-bottom:0; flex-shrink:0;">${t('Pump Output', 'Pump Output')} (${pumpUnitLabel})</label>
         <div style="position:relative; width: 130px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           <input type="number" step="any" class="form-input" id="pump-out-input" value="${pumpDisplayValue}" style="padding-left:12px; padding-right:34px; text-align:left;">
         </div>
+      </div>
+      <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:6px; font-style:italic;">
+        ${t('Based on 100% pump efficiency. Actual strokes may vary with volumetric efficiency.', 'Based on 100% pump efficiency. Actual strokes may vary with volumetric efficiency.')}
       </div>
     </div>
   `;
@@ -4099,9 +4636,11 @@ function renderReferenceValues() {
   // Buttons Row
   const btns = document.createElement('div');
   btns.className = 'btn-group';
+  const saveLabel = window.t ? window.t('Save as Reference', 'Save as Reference') : 'Save as Reference';
+  const useLabel = window.t ? window.t('Use Reference', 'Use Reference') : 'Use Reference';
   btns.innerHTML = `
-    <button class="btn btn-primary" id="ref-save-new">Save as Reference</button>
-    <button class="btn btn-secondary" id="ref-use-btn">Use Reference</button>
+    <button type="button" class="btn btn-primary ref-save-btn" id="ref-save-new-${state.flowType}">${saveLabel}</button>
+    <button type="button" class="btn btn-secondary ref-use-btn" id="ref-use-btn-${state.flowType}" disabled>${useLabel}</button>
   `;
   container.appendChild(btns);
 
@@ -4182,6 +4721,11 @@ function renderReferenceValues() {
       }
     }
 
+    // Jackup conductor save
+    if (container.querySelector('#' + 'conductor-ann-input')) {
+      state.reference.conductorAnnular = convertCapacityBack(getVal('conductor-ann-input', convertCapacity(state.reference.conductorAnnular || 164.50, state.globalUnit)), state.globalUnit);
+    }
+
     // Save pump output (convert displayed unit back to L/stroke for internal storage)
     state.reference.pumpOutput = convertPumpOutputBack(getVal('pump-out-input', convertPumpOutput(state.reference.pumpOutput, state.globalUnit)), state.globalUnit);
     state.reference.pumpEfficiency = 100; // Permanently assumed 100% efficiency
@@ -4204,19 +4748,31 @@ function renderReferenceValues() {
     localStorage.setItem('drillingToolkitReferences', JSON.stringify(state.reference));
   };
 
-  const refSaveBtn = container.querySelector('#' + 'ref-save-new');
-  const refUseBtn = container.querySelector('#' + 'ref-use-btn');
+  const refSaveBtn = container.querySelector('.ref-save-btn');
+  const refUseBtn = container.querySelector('.ref-use-btn');
+
+  // Initial state: Save as Reference is highlighted and enabled; Use Reference is inactive/disabled
+  refSaveBtn.disabled = false;
+  refUseBtn.disabled = true;
 
   refSaveBtn.onclick = () => {
     handleSaveState();
-    showToast("Reference values updated in active state!");
-    refSaveBtn.classList.remove('btn-primary');
-    refSaveBtn.classList.add('btn-secondary');
+    showToast(window.t ? window.t("Reference values updated in active state!", "Reference values updated in active state!") : "Reference values updated in active state!");
+    
+    // Transition button states:
+    // 1. Use Reference becomes enabled / clickable and highlighted (primary/accent fill with high-contrast text)
+    refUseBtn.disabled = false;
     refUseBtn.classList.remove('btn-secondary');
     refUseBtn.classList.add('btn-primary');
+
+    // 2. Save as Reference transitions to a secondary/outlined or non-highlighted state (while remaining available if edits are made)
+    refSaveBtn.classList.remove('btn-primary');
+    refSaveBtn.classList.add('btn-secondary');
+    refSaveBtn.disabled = false;
   };
 
   refUseBtn.onclick = () => {
+    if (refUseBtn.disabled) return;
     handleSaveState();
     // Clear depth inputs to require manual entry on a fresh calculation
     state.calcInputs.holeTVD = '';
@@ -4232,8 +4788,12 @@ function renderReferenceValues() {
   // Revert styles when user modifies any input fields
   container.addEventListener('input', (e) => {
     if (e.target.classList.contains('table-input') || e.target.id === 'pump-out-input') {
+      // User made changes: Save as Reference must be clicked first before Use Reference is available
       refSaveBtn.classList.remove('btn-secondary');
       refSaveBtn.classList.add('btn-primary');
+      refSaveBtn.disabled = false;
+
+      refUseBtn.disabled = true;
       refUseBtn.classList.remove('btn-primary');
       refUseBtn.classList.add('btn-secondary');
     }
@@ -4257,12 +4817,18 @@ function renderCalculations() {
   const headerTitleEl = document.querySelector(`#screen-${state.flowType}-calculations .screen-title`);
   if (headerTitleEl) headerTitleEl.textContent = titleDisplay;
 
+  // Depth reference: RKB badge
+  const depthRefBadge = document.createElement('div');
+  depthRefBadge.style.cssText = 'display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; background:var(--surface-color); border:1px solid var(--border-color); font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:12px;';
+  depthRefBadge.innerHTML = `<span style="width:6px; height:6px; border-radius:50%; background:var(--accent-color);"></span>${t('Depth reference: RKB', 'Depth reference: RKB')}`;
+  container.appendChild(depthRefBadge);
+
   // Segmented Control for Well Type
   const wellTypeSelect = document.createElement('div');
   wellTypeSelect.className = 'well-type-selector segmented-control';
   wellTypeSelect.innerHTML = `
-    <button class="segmented-control-btn ${state.calcInputs.wellType === 'vertical' ? 'active' : ''}" data-type="vertical">Vertical Well</button>
-    <button class="segmented-control-btn ${state.calcInputs.wellType === 'horizontal' ? 'active' : ''}" data-type="horizontal">Horizontal Well</button>
+    <button class="segmented-control-btn ${state.calcInputs.wellType === 'vertical' ? 'active' : ''}" data-type="vertical">${t('Vertical Well', 'Vertical Well')}</button>
+    <button class="segmented-control-btn ${state.calcInputs.wellType === 'horizontal' ? 'active' : ''}" data-type="horizontal">${t('Horizontal Well', 'Horizontal Well')}</button>
   `;
   container.appendChild(wellTypeSelect);
 
@@ -4365,8 +4931,8 @@ function renderCalculations() {
       </div>
       <div style="display:flex; justify-content:flex-end; margin-top:2px;">
         ${state.calcInputs.dpLengthOverride ? `
-          <button id="reset-dp-auto" style="border:none; background:none; font-size:0.75rem; color:var(--accent-color); font-weight:600; cursor:pointer; padding:0;">Reset to Auto</button>
-        ` : `<span style="font-size:0.7rem; color:var(--text-secondary); font-style:italic">Auto-calculated (Tap field to override)</span>`}
+          <button id="reset-dp-auto" style="border:none; background:none; font-size:0.75rem; color:var(--accent-color); font-weight:600; cursor:pointer; padding:0;">${t('Reset to Auto', 'Reset to Auto')}</button>
+        ` : `<span style="font-size:0.7rem; color:var(--text-secondary); font-style:italic">${t('Auto-calculated (Tap field to override)', 'Auto-calculated (Tap field to override)')}</span>`}
       </div>
     </div>
   `;
@@ -4375,18 +4941,18 @@ function renderCalculations() {
   const formCard = document.createElement('div');
   formCard.className = 'content-card';
   formCard.innerHTML = `
-    <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600;">Wellbore and String Parameters</h3>
+    <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600;">${t('Wellbore and String Parameters', 'Wellbore and String Parameters')}</h3>
     
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
       <div class="form-group">
-        <label>Hole TVD (${dUnit})</label>
+        <label>${t('Hole TVD', 'Hole TVD')} (${dUnit})</label>
         <div style="position:relative; width:100%;">
           <input type="number" step="any" class="form-input" id="hole-tvd-calc" value="${state.calcInputs.holeTVD || defaultMD}" style="width:100%; padding-right:25px;">
           ${editIcon}
         </div>
       </div>
       <div class="form-group">
-        <label>Hole MD (${dUnit})</label>
+        <label>${t('Hole MD', 'Hole MD')} (${dUnit})</label>
         <div style="position:relative; width:100%;">
           <input type="number" step="any" class="form-input" id="hole-md-calc" value="${state.calcInputs.holeMD || defaultMD}" ${state.calcInputs.wellType === 'vertical' ? 'disabled style="background-color:var(--input-disabled-bg); width:100%;"' : 'style="width:100%; padding-right:25px;"'}>
           ${state.calcInputs.wellType === 'vertical' ? '' : editIcon}
@@ -4396,14 +4962,14 @@ function renderCalculations() {
 
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
       <div class="form-group">
-        <label>Shoe TVD (${dUnit})</label>
+        <label>${t('Shoe TVD', 'Shoe TVD')} (${dUnit})</label>
         <div style="position:relative; width:100%;">
           <input type="number" step="any" class="form-input" id="shoe-tvd-calc" value="${state.calcInputs.shoeTVD || defaultShoe}" style="width:100%; padding-right:25px;">
           ${editIcon}
         </div>
       </div>
       <div class="form-group">
-        <label>Shoe MD (${dUnit})</label>
+        <label>${t('Shoe MD', 'Shoe MD')} (${dUnit})</label>
         <div style="position:relative; width:100%;">
           <input type="number" step="any" class="form-input" id="shoe-md-calc" value="${state.calcInputs.shoeMD || defaultShoe}" ${state.calcInputs.wellType === 'vertical' ? 'disabled style="background-color:var(--input-disabled-bg); width:100%;"' : 'style="width:100%; padding-right:25px;"'}>
           ${state.calcInputs.wellType === 'vertical' ? '' : editIcon}
@@ -4415,9 +4981,51 @@ function renderCalculations() {
     ${hwdpInputsHtml}
     ${dpInputsHtml}
 
+    ${(state.flowType === 'surface' && (state.rigType === 'LAND' || !state.rigType)) ? `
+    <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
+      <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('RKB elevation above ground level', 'RKB elevation above ground level')} (${dUnit})</label>
+      <div style="position:relative; width:140px; display:inline-block;">
+        <input type="number" step="any" class="form-input" id="rkb-elevation-calc" value="${state.calcInputs.rkbGroundElevation || ''}" placeholder="Optional" style="width:100%; margin-bottom:0; padding-right:25px;">
+        ${editIcon}
+      </div>
+    </div>
+    ` : ''}
+
+    ${(state.flowType === 'surface' && state.rigType === 'JACKUP' && (parseFloat(state.selectedHoleSize || state.customHoleSize) >= 36)) ? `
+    <div id="jackup-marine-card" class="content-card" style="margin: 15px 0; border-left: 4px solid var(--accent-color); padding: 12px 14px; background: var(--bg-subtle);">
+      <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; margin-bottom:10px;">
+        ${t('Marine Elevations (Jackup)', 'Marine Elevations (Jackup)')}
+      </h4>
+      <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:15px;">
+        <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('Air Gap (RKB to MSL)', 'Air Gap (RKB to MSL)')} (${dUnit}) *</label>
+        <div style="position:relative; width:140px; display:inline-block;">
+          <input type="number" step="any" class="form-input" id="air-gap-calc" value="${state.calcInputs.airGap || ''}" placeholder="Required" style="width:100%; margin-bottom:0; padding-right:25px;">
+          ${editIcon}
+        </div>
+      </div>
+      <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:15px;">
+        <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('Water Depth', 'Water Depth')} (${dUnit}) *</label>
+        <div style="position:relative; width:140px; display:inline-block;">
+          <input type="number" step="any" class="form-input" id="water-depth-calc" value="${state.calcInputs.waterDepth || ''}" placeholder="Required" style="width:100%; margin-bottom:0; padding-right:25px;">
+          ${editIcon}
+        </div>
+      </div>
+      <div id="jackup-mudline-readout" style="padding:6px 10px; background:var(--card-bg); border-radius:6px; font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px; border:1px solid var(--border-color);">
+        ${t('Depth below mudline', 'Depth below mudline')}: <strong id="jackup-mudline-val">--</strong> ${dUnit}
+      </div>
+      <div class="switch-row" style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px dashed var(--border-color);">
+        <label style="margin-bottom:0; font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Surface Conductor / Tie-Back', 'Surface Conductor / Tie-Back')}</label>
+        <label class="switch" style="margin-bottom:0;">
+          <input type="checkbox" id="jackup-conductor-toggle" ${state.calcInputs.hasSurfaceConductor ? 'checked' : ''}>
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+    ` : ''}
+
     ${state.flowType === 'subsea' ? `
     <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
-      <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">Riser Length (${dUnit})</label>
+      <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('Riser Length', 'Riser Length')} (${dUnit})</label>
       <div style="position:relative; width:140px; display:inline-block;">
         <input type="number" step="any" class="form-input" id="riserlength-calc" value="${state.calcInputs.riserLength}" style="width:100%; margin-bottom:0; padding-right:25px;">
         ${editIcon}
@@ -4427,13 +5035,21 @@ function renderCalculations() {
 
     ${state.flowType === 'subsea' && state.calcInputs.bopStatus === 'closed' ? `
     <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
-      <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">Choke Line Length (${dUnit})</label>
+      <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('Choke Line Length', 'Choke Line Length')} (${dUnit})</label>
       <div style="position:relative; width:140px; display:inline-block;">
         <input type="number" step="any" class="form-input" id="choke-len-calc" value="${state.calcInputs.chokeLength}" style="width:100%; margin-bottom:0; padding-right:25px;">
         ${editIcon}
       </div>
     </div>
     ` : ''}
+
+    <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
+      <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('Pump Rate (SPM)', 'Pump Rate (SPM)')}</label>
+      <div style="position:relative; width:140px; display:inline-block;">
+        <input type="number" step="1" min="1" max="250" class="form-input" id="calc-spm-input" value="${state.calcInputs.spm || 60}" style="width:100%; margin-bottom:0; padding-right:25px;">
+        ${editIcon}
+      </div>
+    </div>
   `;
   container.appendChild(formCard);
 
@@ -4442,10 +5058,10 @@ function renderCalculations() {
   if (state.flowType === 'subsea') {
     bopToggleMarkup = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-        <button class="btn btn-primary" id="run-calc-btn" style="padding: 12px 20px; font-size: 0.9rem; margin-bottom: 0; white-space: nowrap;">Calculate</button>
+        <button class="btn btn-primary" id="run-calc-btn" style="padding: 12px 20px; font-size: 0.9rem; margin-bottom: 0; white-space: nowrap;">${t('Calculate', 'Calculate')}</button>
         <div class="bop-toggle-container" style="margin-bottom: 0; align-items: flex-end;">
           <span class="bop-toggle-label" style="margin-bottom: 5px;">
-            BOP: <strong style="color:var(--text-primary); font-weight:700;">${state.calcInputs.bopStatus === 'closed' ? 'CLOSED' : 'OPEN'}</strong>
+            ${t('BOP:', 'BOP:')} <strong style="color:var(--text-primary); font-weight:700;">${state.calcInputs.bopStatus === 'closed' ? t('CLOSED', 'CLOSED') : t('OPEN', 'OPEN')}</strong>
           </span>
           <label class="switch bop-switch" style="margin-top: 4px;">
             <input type="checkbox" id="bop-status-toggle" ${state.calcInputs.bopStatus === 'closed' ? 'checked' : ''}>
@@ -4478,7 +5094,7 @@ function renderCalculations() {
     calcBtn.id = 'run-calc-btn';
     calcBtn.style.width = '100%';
     calcBtn.style.marginBottom = '25px';
-    calcBtn.textContent = 'RUN CALCULATIONS';
+    calcBtn.textContent = t('RUN CALCULATIONS', 'RUN CALCULATIONS');
     container.appendChild(calcBtn);
   }
 
@@ -4587,10 +5203,35 @@ function renderCalculations() {
       if (state.calcInputs.bopStatus === 'closed') {
         state.calcInputs.chokeLength = getVal(container.querySelector('#' + 'choke-len-calc'));
       }
+    } else {
+      if (state.rigType === 'LAND' || !state.rigType) {
+        state.calcInputs.rkbGroundElevation = getVal(container.querySelector('#' + 'rkb-elevation-calc'));
+      } else if (state.rigType === 'JACKUP') {
+        const holeSizeVal = parseFloat(state.selectedHoleSize || state.customHoleSize) || 0;
+        if (holeSizeVal >= 36) {
+          state.calcInputs.airGap = getVal(container.querySelector('#' + 'air-gap-calc'));
+          state.calcInputs.waterDepth = getVal(container.querySelector('#' + 'water-depth-calc'));
+          const condToggle = container.querySelector('#' + 'jackup-conductor-toggle');
+          state.calcInputs.hasSurfaceConductor = condToggle ? condToggle.checked : false;
+        }
+      }
+    }
+
+    const spmEl = container.querySelector('#calc-spm-input');
+    if (spmEl) {
+      state.calcInputs.spm = parseFloat(spmEl.value) || 60;
     }
 
     localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
   };
+
+  const spmInputEl = container.querySelector('#calc-spm-input');
+  if (spmInputEl) {
+    spmInputEl.addEventListener('input', () => {
+      syncStateFromInputs();
+      runCalculationsEngine();
+    });
+  }
 
   // Sync inputs
   holeMEl.addEventListener('input', () => {
@@ -4697,6 +5338,53 @@ function renderCalculations() {
     };
   }
 
+  // Mudline Readout updater for Jackup
+  const updateMudlineReadout = () => {
+    const airGapVal = parseFloat(container.querySelector('#air-gap-calc')?.value) || 0;
+    const waterDepthVal = parseFloat(container.querySelector('#water-depth-calc')?.value) || 0;
+    const shoeTvdVal = parseFloat(container.querySelector('#shoe-tvd-calc')?.value) || 0;
+    const mudlineEl = container.querySelector('#jackup-mudline-val');
+    if (mudlineEl) {
+      if (shoeTvdVal > 0 && (airGapVal > 0 || waterDepthVal > 0)) {
+        const depthBelow = shoeTvdVal - airGapVal - waterDepthVal;
+        mudlineEl.textContent = depthBelow.toFixed(1);
+      } else {
+        mudlineEl.textContent = '--';
+      }
+    }
+  };
+  updateMudlineReadout();
+
+  const airGapEl = container.querySelector('#air-gap-calc');
+  if (airGapEl) {
+    airGapEl.addEventListener('input', () => {
+      syncStateFromInputs();
+      updateMudlineReadout();
+      runCalculationsEngine();
+    });
+  }
+  const waterDepthEl = container.querySelector('#water-depth-calc');
+  if (waterDepthEl) {
+    waterDepthEl.addEventListener('input', () => {
+      syncStateFromInputs();
+      updateMudlineReadout();
+      runCalculationsEngine();
+    });
+  }
+  const condToggleEl = container.querySelector('#jackup-conductor-toggle');
+  if (condToggleEl) {
+    condToggleEl.addEventListener('change', () => {
+      syncStateFromInputs();
+      runCalculationsEngine();
+    });
+  }
+  const rkbElevEl = container.querySelector('#rkb-elevation-calc');
+  if (rkbElevEl) {
+    rkbElevEl.addEventListener('input', () => {
+      syncStateFromInputs();
+    });
+  }
+
   // Run Calculations initially when button is clicked or after setup
   const runCalcBtn = container.querySelector('#' + 'run-calc-btn');
   if (runCalcBtn) {
@@ -4712,6 +5400,10 @@ function renderCalculations() {
       inputsList.forEach(input => {
         // Skip DP1 if it is auto-calculated and not overridden
         if (input.id === 'dp-len-calc' && !state.calcInputs.dpLengthOverride) {
+          return;
+        }
+        // Skip optional RKB elevation
+        if (input.id === 'rkb-elevation-calc') {
           return;
         }
 
@@ -4776,7 +5468,7 @@ function renderCalculations() {
               
               setTimeout(() => {
                 const wrapper = container.querySelector('#' + 'results-dashboard-wrapper');
-                if (wrapper) wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (wrapper) scrollToResultsSection(wrapper, 'smooth');
               }, 50);
             });
           });
@@ -4799,7 +5491,7 @@ function renderCalculations() {
   if (_navDirection === 'back' && state.calcInputs.hasRun) {
     setTimeout(() => {
       const resultsWrap = container.querySelector('#' + 'results-dashboard-wrapper');
-      if (resultsWrap) resultsWrap.scrollIntoView({ behavior: 'auto', block: 'start' });
+      if (resultsWrap) scrollToResultsSection(resultsWrap, 'auto');
     }, 50);
   }
 }
@@ -4898,6 +5590,7 @@ function runCalculationsEngine() {
 
   // Output results declarations
   let openHoleVolume = 0;
+  let casingAnnularVolume = 0;
   let annularVolume = 0;
   let riserVolume = 0;
   let chokeVolume = 0;
@@ -4920,19 +5613,53 @@ function runCalculationsEngine() {
       (dp3InOH * ohDpCap3) + (dp2InOH * ohDpCap2) + (dpInOH * ohDpCap);
 
     // Casing interval: [0, Shoe MD]
-    const dcInCas = getIntersect(dcStart, dcEnd, 0, shoeMD);
-    const dc2InCas = getIntersect(dc2Start, dc2End, 0, shoeMD);
-    const dc3InCas = getIntersect(dc3Start, dc3End, 0, shoeMD);
+    const isJackup = state.rigType === 'JACKUP';
+    const holeSizeVal = parseFloat(state.selectedHoleSize || state.customHoleSize) || 0;
+    const hasConductor = isJackup && holeSizeVal >= 36 && inputs.hasSurfaceConductor;
+    const mudlineDepth = hasConductor ? (toMeters(inputs.airGap || 0) + toMeters(inputs.waterDepth || 0)) : 0;
+    const condCap = (ref.conductorAnnular !== undefined && ref.conductorAnnular !== null) ? ref.conductorAnnular : casDpCap;
 
-    const hwdpInCas = getIntersect(hwdpStart, hwdpEnd, 0, shoeMD);
+    if (hasConductor && mudlineDepth > 0 && mudlineDepth < shoeMD) {
+      // Conductor interval [0, mudlineDepth]
+      const dcInCond = getIntersect(dcStart, dcEnd, 0, mudlineDepth);
+      const dc2InCond = getIntersect(dc2Start, dc2End, 0, mudlineDepth);
+      const dc3InCond = getIntersect(dc3Start, dc3End, 0, mudlineDepth);
+      const hwdpInCond = getIntersect(hwdpStart, hwdpEnd, 0, mudlineDepth);
+      const dp3InCond = getIntersect(dp3Start, dp3End, 0, mudlineDepth);
+      const dp2InCond = getIntersect(dp2Start, dp2End, 0, mudlineDepth);
+      const dpInCond = getIntersect(dpStart, dpEnd, 0, mudlineDepth);
 
-    const dp3InCas = getIntersect(dp3Start, dp3End, 0, shoeMD);
-    const dp2InCas = getIntersect(dp2Start, dp2End, 0, shoeMD);
-    const dpInCas = getIntersect(dpStart, dpEnd, 0, shoeMD);
+      const condVol = (dcInCond * condCap) + (dc2InCond * condCap) + (dc3InCond * condCap) +
+        (hwdpInCond * condCap) +
+        (dp3InCond * condCap) + (dp2InCond * condCap) + (dpInCond * condCap);
 
-    const casingAnnularVolume = (dcInCas * casDcCap) + (dc2InCas * casDcCap2) + (dc3InCas * casDcCap3) +
-      (hwdpInCas * casHwdpCap) +
-      (dp3InCas * casDpCap3) + (dp2InCas * casDpCap2) + (dpInCas * casDpCap);
+      // Casing interval [mudlineDepth, shoeMD]
+      const dcInCas = getIntersect(dcStart, dcEnd, mudlineDepth, shoeMD);
+      const dc2InCas = getIntersect(dc2Start, dc2End, mudlineDepth, shoeMD);
+      const dc3InCas = getIntersect(dc3Start, dc3End, mudlineDepth, shoeMD);
+      const hwdpInCas = getIntersect(hwdpStart, hwdpEnd, mudlineDepth, shoeMD);
+      const dp3InCas = getIntersect(dp3Start, dp3End, mudlineDepth, shoeMD);
+      const dp2InCas = getIntersect(dp2Start, dp2End, mudlineDepth, shoeMD);
+      const dpInCas = getIntersect(dpStart, dpEnd, mudlineDepth, shoeMD);
+
+      const casVol = (dcInCas * casDcCap) + (dc2InCas * casDcCap2) + (dc3InCas * casDcCap3) +
+        (hwdpInCas * casHwdpCap) +
+        (dp3InCas * casDpCap3) + (dp2InCas * casDpCap2) + (dpInCas * casDpCap);
+
+      casingAnnularVolume = condVol + casVol;
+    } else {
+      const dcInCas = getIntersect(dcStart, dcEnd, 0, shoeMD);
+      const dc2InCas = getIntersect(dc2Start, dc2End, 0, shoeMD);
+      const dc3InCas = getIntersect(dc3Start, dc3End, 0, shoeMD);
+      const hwdpInCas = getIntersect(hwdpStart, hwdpEnd, 0, shoeMD);
+      const dp3InCas = getIntersect(dp3Start, dp3End, 0, shoeMD);
+      const dp2InCas = getIntersect(dp2Start, dp2End, 0, shoeMD);
+      const dpInCas = getIntersect(dpStart, dpEnd, 0, shoeMD);
+
+      casingAnnularVolume = (dcInCas * casDcCap) + (dc2InCas * casDcCap2) + (dc3InCas * casDcCap3) +
+        (hwdpInCas * casHwdpCap) +
+        (dp3InCas * casDpCap3) + (dp2InCas * casDpCap2) + (dpInCas * casDpCap);
+    }
 
     annularVolume = openHoleVolume + casingAnnularVolume;
   } else {
@@ -4968,7 +5695,7 @@ function runCalculationsEngine() {
     const dp2InCas = getIntersect(dp2Start, dp2End, cStart, cEnd);
     const dpInCas = getIntersect(dpStart, dpEnd, cStart, cEnd);
 
-    const casingAnnularVolume = (dcInCas * casDcCap) + (dc2InCas * casDcCap2) + (dc3InCas * casDcCap3) +
+    casingAnnularVolume = (dcInCas * casDcCap) + (dc2InCas * casDcCap2) + (dc3InCas * casDcCap3) +
       (hwdpInCas * casHwdpCap) +
       (dp3InCas * casDpCap3) + (dp2InCas * casDpCap2) + (dpInCas * casDpCap);
 
@@ -5011,12 +5738,32 @@ function runCalculationsEngine() {
   // Total System Volume
   const totalSystemVolume = stringVolume + annularVolume;
 
+  const spm = parseFloat(state.calcInputs.spm) || 60;
+  const fmtTime = (stks) => {
+    const min = spm > 0 ? (stks / spm) : 0;
+    const h = Math.floor(min / 60);
+    const m = (min % 60).toFixed(1);
+    return h > 0 ? `${h}h ${m}m (${min.toFixed(1)} min)` : `${min.toFixed(1)} min`;
+  };
+
   // Strokes calculations (strictly checked: Volume in L divided by Pump Output in L/stroke)
   const surfaceToBitStrokes = effectivePumpOutput > 0 ? (stringVolume / effectivePumpOutput) : 0;
   const bitToShoeStrokes = effectivePumpOutput > 0 ? (openHoleVolume / effectivePumpOutput) : 0;
   const totalCycleStrokes = effectivePumpOutput > 0 ? (totalSystemVolume / effectivePumpOutput) : 0;
+  const bottomsUpStrokes = effectivePumpOutput > 0 ? (annularVolume / effectivePumpOutput) : 0;
+  const strokesToBop = effectivePumpOutput > 0 ? (annularVolBelowBop / effectivePumpOutput) : 0;
 
+  const chokeLenMeters = toMeters(inputs.chokeLength || (inputs.riserLength || 200));
+  const chokeLineVolLiters = chokeLenMeters * (ref.chokeCapacity || 3.167);
+  const chokeLineStrokes = effectivePumpOutput > 0 ? (chokeLineVolLiters / effectivePumpOutput) : 0;
+
+  const shoeToSurfaceStrokes = effectivePumpOutput > 0 ? (casingAnnularVolume / effectivePumpOutput) : 0;
   state.calcInputs.surfaceToBitStrokes = surfaceToBitStrokes;
+  state.calcInputs.bottomsUpStrokes = bottomsUpStrokes;
+  state.calcInputs.shoeToSurfaceStrokes = shoeToSurfaceStrokes;
+  state.calcInputs.stringVolumeBbl = stringVolume / 158.987294928;
+  state.calcInputs.annularVolumeBbl = annularVolume / 158.987294928;
+  state.calcInputs.totalSystemVolumeBbl = totalSystemVolume / 158.987294928;
 
   // Convert results volumes to user's selected display unit (Liters vs Barrels)
   const displayVol = (litersVal) => {
@@ -5028,544 +5775,1583 @@ function runCalculationsEngine() {
   // Render Result Cards HTML
   resultsWrapper.innerHTML = `
     <div class="result-card">
-      <span class="result-label">String Volume</span>
+      <span class="result-label">${t('String Volume', 'String Volume')}</span>
       <span class="result-value">${displayVol(stringVolume)}</span>
     </div>
 
     <div class="result-card">
-      <span class="result-label">Open Hole Volume</span>
+      <span class="result-label">${t('Open Hole Volume', 'Open Hole Volume')}</span>
       <span class="result-value">${displayVol(openHoleVolume)}</span>
     </div>
 
     <div class="result-card">
-      <span class="result-label">Annular Volume</span>
+      <span class="result-label">${t('Annular Volume', 'Annular Volume')}</span>
       <span class="result-value">${displayVol(annularVolume)}</span>
       ${state.flowType === 'subsea' ? `
         <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-          Below BOP: ${convertVolume(annularVolBelowBop, unit).toFixed(1)} ${isBbl ? 'bbl' : 'L'} | 
-          ${inputs.bopStatus === 'open' ? `Riser: ${convertVolume(riserVolume, unit).toFixed(1)}` : `Choke: ${convertVolume(chokeVolume, unit).toFixed(1)}`} ${isBbl ? 'bbl' : 'L'}
+          ${t('Below BOP', 'Below BOP')}: ${convertVolume(annularVolBelowBop, unit).toFixed(1)} ${isBbl ? 'bbl' : 'L'} | 
+          ${inputs.bopStatus === 'open' ? `${t('Riser', 'Riser')}: ${convertVolume(riserVolume, unit).toFixed(1)}` : `${t('Choke', 'Choke')}: ${convertVolume(chokeVolume, unit).toFixed(1)}`} ${isBbl ? 'bbl' : 'L'}
         </span>
       ` : ''}
     </div>
 
     <div class="result-card">
-      <span class="result-label">Total System Volume</span>
+      <span class="result-label">${t('Total System Volume', 'Total System Volume')}</span>
       <span class="result-value">${displayVol(totalSystemVolume)}</span>
     </div>
 
     <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-      <span class="result-label">Surface to Bit Strokes</span>
+      <span class="result-label">${t('Surface to Bit Strokes', 'Surface to Bit Strokes')}</span>
       <span class="result-value">${Math.round(surfaceToBitStrokes).toLocaleString()} <span class="unit-lbl">strokes</span></span>
       <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-        Time at 60 SPM: ${(surfaceToBitStrokes / 60).toFixed(1)} min
+        ${t('Time at', 'Time at')} ${spm} SPM: ${fmtTime(surfaceToBitStrokes)}
       </span>
     </div>
 
     <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-      <span class="result-label">Bit to Shoe Strokes</span>
+      <span class="result-label">${t('Bit to Shoe Strokes', 'Bit to Shoe Strokes')}</span>
       <span class="result-value">${Math.round(bitToShoeStrokes).toLocaleString()} <span class="unit-lbl">strokes</span></span>
       <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-        Time at 60 SPM: ${(bitToShoeStrokes / 60).toFixed(1)} min
+        ${t('Time at', 'Time at')} ${spm} SPM: ${fmtTime(bitToShoeStrokes)}
       </span>
     </div>
 
     <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-      <span class="result-label">Total Cycle Strokes</span>
+      <span class="result-label">${t('Bottoms-Up (Annulus)', 'Bottoms-Up (Annulus)')}</span>
+      <span class="result-value">${Math.round(bottomsUpStrokes).toLocaleString()} <span class="unit-lbl">strokes</span></span>
+      <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+        ${t('Time / Lag at', 'Time / Lag at')} ${spm} SPM: ${fmtTime(bottomsUpStrokes)}
+      </span>
+    </div>
+
+    ${state.flowType === 'surface' ? `
+    <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+      <span class="result-label">${t('Shoe to Surface Strokes', 'Shoe to Surface Strokes')}</span>
+      <span class="result-value">${Math.round(shoeToSurfaceStrokes).toLocaleString()} <span class="unit-lbl">strokes</span></span>
+      <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+        ${t('Time at', 'Time at')} ${spm} SPM: ${fmtTime(shoeToSurfaceStrokes)}
+      </span>
+    </div>
+    ` : ''}
+
+    ${state.flowType === 'subsea' ? `
+    <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+      <span class="result-label">${t('Bit to Subsea BOP Strokes', 'Bit to Subsea BOP Strokes')}</span>
+      <span class="result-value">${Math.round(strokesToBop).toLocaleString()} <span class="unit-lbl">strokes</span></span>
+      <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+        ${t('Time at', 'Time at')} ${spm} SPM: ${fmtTime(strokesToBop)}
+      </span>
+    </div>
+
+    <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+      <span class="result-label">${t('Choke / Kill Line Volume', 'Choke / Kill Line Volume')}</span>
+      <span class="result-value">${displayVol(chokeLineVolLiters)}</span>
+      <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+        ${Math.round(chokeLineStrokes).toLocaleString()} ${t('strokes', 'strokes')} (${fmtTime(chokeLineStrokes)})
+      </span>
+    </div>
+    ` : ''}
+
+    <div class="result-card" style="border-left: 4px solid var(--accent-color); grid-column: span 2;">
+      <span class="result-label">${t('Total Cycle Strokes', 'Total Cycle Strokes')}</span>
       <span class="result-value">${Math.round(totalCycleStrokes).toLocaleString()} <span class="unit-lbl">strokes</span></span>
       <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-        Time at 60 SPM: ${(totalCycleStrokes / 60).toFixed(1)} min
+        ${t('Time at', 'Time at')} ${spm} SPM: ${fmtTime(totalCycleStrokes)}
       </span>
+    </div>
+
+    <div class="wc-footer-advisory" style="grid-column: span 2;" data-i18n="Advisory only. Follow your well control manual.">
+      ${t('Advisory only. Follow your well control manual.', 'Advisory only. Follow your well control manual.')}
     </div>
   `;
 }
 
 // ==========================================
-// SCREEN: Kill Data Sheet Rendering & Logic
+// SCREEN: Upgraded Well Control Kill Data Sheet
 // ==========================================
+// Complete implementation of renderKillDataSheet
+
+// Helper to translate dynamic validation messages
+function translateAlertMessage(msg) {
+  if (!msg) return '';
+  if (typeof window !== 'undefined' && window.t) {
+    const direct = window.t(msg, '');
+    if (direct && direct !== msg) return direct;
+    
+    // Check template: 20" casing shoe at {depth} m is unusually deep. Verify casing programme.
+    const shoeMatch = msg.match(/^20" casing shoe at (\d+) m is unusually deep\. Verify casing programme\.$/);
+    if (shoeMatch) {
+      const template = window.t('20" casing shoe at {depth} m is unusually deep. Verify casing programme.', '20" casing shoe at {depth} m is unusually deep. Verify casing programme.');
+      return template.replace('{depth}', shoeMatch[1]);
+    }
+    
+    // Check template: Pump output is outside typical range ({min}-{max} bbl/stk).
+    const pumpMatch = msg.match(/^Pump output is outside typical range \(([\d\.]+)-([\d\.]+) bbl\/stk\)\.$/);
+    if (pumpMatch) {
+      const template = window.t('Pump output is outside typical range ({min}-{max} bbl/stk).', 'Pump output is outside typical range ({min}-{max} bbl/stk).');
+      return template.replace('{min}', pumpMatch[1]).replace('{max}', pumpMatch[2]);
+    }
+  }
+  return msg;
+}
+if (typeof window !== 'undefined') window.translateAlertMessage = translateAlertMessage;
+
 function renderKillDataSheet() {
   const container = document.getElementById('kill-data-sheet-container');
   if (!container) return;
   container.innerHTML = '';
 
-  const unit = state.globalUnit;
+  const unit = state.globalUnit || 'bbl/m';
   const isBblFt = (unit === 'bbl/ft');
+  const isMetric = (unit === 'm3/m');
 
-  // Enforce US units (PSI and PPG) for Kill Data Sheet
-  const dUnit = 'ft';
-  const mwUnit = 'ppg';
-  const pressUnit = 'psi';
+  // Determine active edge display units
+  const dUnit = isBblFt ? 'ft' : 'm';
+  const mwUnit = isMetric ? 'SG' : 'ppg';
+  const pressUnit = isMetric ? 'bar' : 'psi';
+  const volUnit = isMetric ? 'm³' : 'bbl';
 
-  // Get current active inputs from state and convert if necessary
-  let holeTVD = parseFloat(state.calcInputs.holeTVD) || 0;
-  let shoeTVD = parseFloat(state.calcInputs.shoeTVD) || 0;
-  const strokes = state.calcInputs.surfaceToBitStrokes !== undefined ? parseFloat(state.calcInputs.surfaceToBitStrokes) : 0;
+  // Read reference geometry from state
+  let holeTVD_m = parseFloat(state.calcInputs.holeTVD) || 0;
+  let shoeTVD_m = parseFloat(state.calcInputs.shoeTVD) || 0;
+  let holeMD_m = parseFloat(state.calcInputs.holeMD) || holeTVD_m;
+  let shoeMD_m = parseFloat(state.calcInputs.shoeMD) || shoeTVD_m;
 
-  // Convert TVD values to feet if global unit is metric
-  if (!isBblFt) {
-    holeTVD = holeTVD * 3.28084;
-    shoeTVD = shoeTVD * 3.28084;
+  // Convert TVD/MD to meters internally if entered in feet
+  if (isBblFt) {
+    holeTVD_m = holeTVD_m / 3.28084;
+    shoeTVD_m = shoeTVD_m / 3.28084;
+    holeMD_m = holeMD_m / 3.28084;
+    shoeMD_m = shoeMD_m / 3.28084;
   }
+
+  const strokes = state.calcInputs.surfaceToBitStrokes !== undefined ? parseFloat(state.calcInputs.surfaceToBitStrokes) : 0;
+  const pumpSpm = parseFloat(state.calcInputs.spm) || 60;
+
+  // String & Annulus volumes in bbl
+  const stringVolBbl = state.calcInputs.stringVolumeBbl !== undefined ? parseFloat(state.calcInputs.stringVolumeBbl) : 0;
+  const totalAnnulusVolBbl = state.calcInputs.annularVolumeBbl !== undefined ? parseFloat(state.calcInputs.annularVolumeBbl) : 0;
+  const totalSystemVolBbl = stringVolBbl + totalAnnulusVolBbl;
 
   const editIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
 
-  // Determine initial input values (read from specific US state fields, or convert from general fields, or use default)
-  let initialOMW = '';
-  if (state.calcInputs.killOMW_ppg !== undefined) {
-    initialOMW = state.calcInputs.killOMW_ppg;
-  } else if (state.calcInputs.killOMW !== undefined && state.calcInputs.killOMW !== '') {
-    initialOMW = isBblFt ? state.calcInputs.killOMW : state.calcInputs.killOMW * 8.33;
+  const rigType = state.rigType || (state.flowType === 'subsea' ? 'SUBSEA_FLOATER' : 'LAND');
+  const isSubsea = (rigType === 'SUBSEA_FLOATER' || state.flowType === 'subsea');
+  const isJackup = (rigType === 'JACKUP');
+  const isLand = (rigType === 'LAND');
+  const isSurface = !isSubsea;
+
+  let rigBadgeText = 'Subsea Stack';
+  let rigBadgeClass = 'badge-primary';
+  if (isLand) {
+    rigBadgeText = 'Land Rig (Surface BOP)';
+    rigBadgeClass = 'badge-secondary';
+  } else if (isJackup) {
+    rigBadgeText = 'Jackup Rig (Surface BOP)';
+    rigBadgeClass = 'badge-secondary';
   }
 
-  let initialLotMw = '';
-  if (state.calcInputs.killLotMw_ppg !== undefined) {
-    initialLotMw = state.calcInputs.killLotMw_ppg;
-  } else if (state.calcInputs.killLotMw !== undefined && state.calcInputs.killLotMw !== '') {
-    initialLotMw = isBblFt ? state.calcInputs.killLotMw : state.calcInputs.killLotMw * 8.33;
-  }
+  const pumpOutputBbl = state.reference ? (state.reference.pumpOutput * 0.00628981) : 0.1176;
+  const shoeToSurfaceStrokes = state.calcInputs.shoeToSurfaceStrokes !== undefined 
+    ? parseFloat(state.calcInputs.shoeToSurfaceStrokes) 
+    : (pumpOutputBbl > 0 && totalAnnulusVolBbl > 1767.5 ? (totalAnnulusVolBbl - 1767.5) / pumpOutputBbl : 0);
+  const bottomsUpStrokes = state.calcInputs.bottomsUpStrokes !== undefined 
+    ? parseFloat(state.calcInputs.bottomsUpStrokes) 
+    : (pumpOutputBbl > 0 ? (totalAnnulusVolBbl / pumpOutputBbl) : 0);
 
-  let initialSCR = '';
-  if (state.calcInputs.killSCR_psi !== undefined) {
-    initialSCR = state.calcInputs.killSCR_psi;
-  } else if (state.calcInputs.killSCR !== undefined && state.calcInputs.killSCR !== '') {
-    initialSCR = isBblFt ? state.calcInputs.killSCR : state.calcInputs.killSCR * 14.5038;
-  }
+  // Stored inputs
+  let initialOMW_ppg = state.calcInputs.killOMW_ppg !== undefined ? parseFloat(state.calcInputs.killOMW_ppg) : (parseFloat(state.calcInputs.killOMW) || 9.2);
+  let initialLotMw_ppg = state.calcInputs.killLotMw_ppg !== undefined ? parseFloat(state.calcInputs.killLotMw_ppg) : (parseFloat(state.calcInputs.killLotMw) || 12.0);
+  let initialSCR_psi = state.calcInputs.killSCR_psi !== undefined ? parseFloat(state.calcInputs.killSCR_psi) : (parseFloat(state.calcInputs.killSCR) || 23);
+  let initialSIDPP_psi = state.calcInputs.killSIDPP_psi !== undefined ? parseFloat(state.calcInputs.killSIDPP_psi) : (parseFloat(state.calcInputs.killSIDPP) || 250);
+  let initialSICP_psi = state.calcInputs.killSICP_psi !== undefined ? parseFloat(state.calcInputs.killSICP_psi) : (parseFloat(state.calcInputs.killSICP) || 222);
+  let initialCLF_psi = state.calcInputs.killCLF_psi !== undefined ? parseFloat(state.calcInputs.killCLF_psi) : 140;
+  let initialPitGain = state.calcInputs.pitGain_bbl !== undefined ? parseFloat(state.calcInputs.pitGain_bbl) : 10;
+  let initialWaterDepth_m = state.calcInputs.waterDepth_m !== undefined ? parseFloat(state.calcInputs.waterDepth_m) : 1000;
+  let initialAirGap_m = state.calcInputs.airGap_m !== undefined ? parseFloat(state.calcInputs.airGap_m) : 25;
+  let initialSeawater_ppg = state.calcInputs.seawaterDensity_ppg !== undefined ? parseFloat(state.calcInputs.seawaterDensity_ppg) : 8.55;
+  let initialTripMargin_ppg = state.calcInputs.tripMargin_ppg !== undefined ? parseFloat(state.calcInputs.tripMargin_ppg) : 0;
+  let initialSurfaceFriction_psi = state.calcInputs.surfaceFriction_psi !== undefined ? parseFloat(state.calcInputs.surfaceFriction_psi) : 0;
+  let hasSurfaceFriction = state.calcInputs.hasSurfaceFriction !== undefined ? !!state.calcInputs.hasSurfaceFriction : false;
 
-  let initialSIDPP = '';
-  if (state.calcInputs.killSIDPP_psi !== undefined) {
-    initialSIDPP = state.calcInputs.killSIDPP_psi;
-  } else if (state.calcInputs.killSIDPP !== undefined && state.calcInputs.killSIDPP !== '') {
-    initialSIDPP = isBblFt ? state.calcInputs.killSIDPP : state.calcInputs.killSIDPP * 14.5038;
+  let activeMethod = state.killMethod || 'wait_and_weight';
+  let activeStepFreq = state.killStepFreq || '100';
+  let activeLotSf = state.lotSafetyFactor !== undefined ? state.lotSafetyFactor : 1.0;
+  if (activeLotSf !== 0.85 && activeLotSf !== 0.80) {
+    activeLotSf = 1.0;
+    state.lotSafetyFactor = 1.0;
   }
+  let activeTapered = !!state.killTaperedString;
+  let warningsAcknowledged = false;
+  let lastCalcResults = null;
+  let lastSchedule = null;
 
-  let initialSICP = '';
-  if (state.calcInputs.killSICP_psi !== undefined) {
-    initialSICP = state.calcInputs.killSICP_psi;
-  } else if (state.calcInputs.killSICP !== undefined && state.calcInputs.killSICP !== '') {
-    initialSICP = isBblFt ? state.calcInputs.killSICP : state.calcInputs.killSICP * 14.5038;
-  }
-
-  let initialCLF = '';
-  if (state.calcInputs.killCLF_psi !== undefined) {
-    initialCLF = state.calcInputs.killCLF_psi;
-  }
-
-  // Helper to format values
-  const fmt = (val, round = false) => {
-    if (val === '') return '';
-    return round ? Math.round(val) : parseFloat(val).toFixed(2);
+  const resetWarningsAck = () => {
+    warningsAcknowledged = false;
+    const ackCheckbox = document.getElementById('kd-ack-checkbox');
+    const ackRow = document.getElementById('kd-ack-row');
+    const goBtn = document.getElementById('kd-go-btn');
+    if (ackCheckbox) {
+      ackCheckbox.checked = false;
+      if (ackRow) ackRow.classList.remove('checked');
+      if (goBtn) {
+        goBtn.disabled = true;
+        goBtn.classList.add('btn-disabled');
+        goBtn.style.opacity = '0.45';
+        goBtn.style.cursor = 'not-allowed';
+        goBtn.style.pointerEvents = 'none';
+      }
+    }
   };
 
-  // Render cards
-  const clfInputHtml = state.flowType === 'subsea' ? `
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('CLF', 'CLF')} (${pressUnit})</label>
-          <div style="position:relative; width:110px;">
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-clf" value="${fmt(initialCLF, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
-            ${editIcon}
-          </div>
-        </div>
-  ` : '';
+  // Helpers to convert to display units
+  const toDisplayDepth = (m) => isBblFt ? (m * 3.28084) : m;
+  const toDisplayMw = (ppg) => isMetric ? (ppg / 8.3454) : ppg;
+  const fromDisplayMw = (val) => isMetric ? (val * 8.3454) : val;
+  const toDisplayPress = (psi) => isMetric ? (psi * 0.0689476) : psi;
+  const fromDisplayPress = (val) => isMetric ? (val / 0.0689476) : val;
+  const toDisplayVol = (bbl) => isMetric ? (bbl * 0.158987) : bbl;
+  const fromDisplayVol = (val) => isMetric ? (val / 0.158987) : val;
 
-  const subseaResultCards = state.flowType === 'subsea' ? `
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('Dynamic MAASP', 'Dynamic MAASP')}</span>
-          <span class="result-value" id="kd-out-dyn-maasp">-</span>
-        </div>
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('Initial Dynamic SICP', 'Initial Dynamic SICP')}</span>
-          <span class="result-value" id="kd-out-dyn-sicp">-</span>
-        </div>
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('Riser Displacement', 'Riser Displacement')}</span>
-          <span class="result-value" id="kd-out-riser-disp">-</span>
-        </div>
-  ` : '';
+  const fmtDisplay = (num, dec = 2) => (num !== null && !isNaN(num) && num !== '') ? parseFloat(num).toFixed(dec) : '';
 
-  container.innerHTML = `
+  // Render container markup
+  let html = `
+    <!-- 1. JOB HEADER & REFERENCE DATA -->
     <div class="content-card compact-card" style="border-top: 4px solid var(--accent-color); margin-bottom:12px; padding: 12px 14px;">
-      <h3 style="font-size:0.85rem; margin-bottom:10px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">${t('Reference Parameters', 'Reference Parameters')}</h3>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;">
-          <span style="font-weight:600; color:var(--text-secondary);">${t('Hole TVD', 'Hole TVD')}</span>
-          <span style="font-weight:700; color:var(--text-primary);">${holeTVD.toFixed(1)} ${dUnit}</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin:0;">
+          ${t('Reference Parameters', 'Reference Parameters')}
+        </h3>
+        <span class="badge ${rigBadgeClass}" style="font-size:0.7rem; font-weight:700; text-transform:uppercase;">
+          ${t(rigBadgeText, rigBadgeText)}
+        </span>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:4px 8px; background:var(--bg-subtle); border-radius:6px; font-size:0.72rem;">
+        <span style="color:var(--text-secondary); font-weight:600;">${t('Depth reference', 'Depth reference')}: <strong style="color:var(--text-primary);">${t('RKB', 'RKB')}</strong></span>
+        ${isLand && state.calcInputs.rkbGroundElevation ? `<span style="color:var(--text-secondary);">${t('RKB Elevation above Ground', 'RKB Elevation above Ground')}: <strong>${state.calcInputs.rkbGroundElevation} m</strong></span>` : ''}
+        ${isJackup && state.calcInputs.depthBelowMudline_m ? `<span style="color:var(--text-secondary);">${t('Depth below mudline', 'Depth below mudline')}: <strong>${parseFloat(state.calcInputs.depthBelowMudline_m).toFixed(1)} m</strong></span>` : ''}
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">${t('Job / Well Identifier', 'Job / Well Identifier')}</label>
+        <div style="position:relative;">
+          <input type="text" class="form-input" id="kd-job-name" value="${state.calcInputs.jobName || 'Well #1 Kill Sheet'}" placeholder="e.g. Well 101 Kill Operation" style="width:100%; font-size:0.85rem; padding:8px 10px;">
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; border-top: 1px solid #efeae6; padding-top: 6px;">
-          <span style="font-weight:600; color:var(--text-secondary);">${t('Shoe TVD', 'Shoe TVD')}</span>
-          <span style="font-weight:700; color:var(--text-primary);">${shoeTVD.toFixed(1)} ${dUnit}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; border-top: 1px solid #efeae6; padding-top: 6px;">
-          <span style="font-weight:600; color:var(--text-secondary);">${t('String Volume Strokes', 'String Volume Strokes')}</span>
-          <span style="font-weight:700; color:var(--text-primary);">${Math.round(strokes).toLocaleString()} stks</span>
-        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.8rem; background:var(--bg-subtle); padding:10px; border-radius:8px; border:1px solid var(--border-subtle);">
+        <div><span style="color:var(--text-secondary);">${t('Hole TVD', 'Hole TVD')}:</span> <strong>${fmtDisplay(toDisplayDepth(holeTVD_m), 1)} ${dUnit}</strong></div>
+        <div><span style="color:var(--text-secondary);">${t('Shoe TVD', 'Shoe TVD')}:</span> <strong>${fmtDisplay(toDisplayDepth(shoeTVD_m), 1)} ${dUnit}</strong></div>
+        <div><span style="color:var(--text-secondary);">${t('Surface to Bit', 'Surface to Bit')}:</span> <strong>${Math.round(strokes).toLocaleString()} stks</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">(${(strokes / pumpSpm).toFixed(1)} min)</span></div>
+        <div><span style="color:var(--text-secondary);">${t('String Volume', 'String Volume')}:</span> <strong>${fmtDisplay(toDisplayVol(stringVolBbl), 1)} ${volUnit}</strong></div>
+        ${isSurface ? `
+        <div><span style="color:var(--text-secondary);">${t('Shoe to Surface Strokes', 'Shoe to Surface Strokes')}:</span> <strong>${Math.round(shoeToSurfaceStrokes).toLocaleString()} stks</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">(${(shoeToSurfaceStrokes / pumpSpm).toFixed(1)} min)</span></div>
+        <div><span style="color:var(--text-secondary);">${t('Bottoms-Up (Annulus)', 'Bottoms-Up (Annulus)')}:</span> <strong>${Math.round(bottomsUpStrokes).toLocaleString()} stks</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">(${(bottomsUpStrokes / pumpSpm).toFixed(1)} min)</span></div>
+        ` : ''}
       </div>
     </div>
 
+    <!-- 2. INPUT WELL CONTROL DATA -->
     <div class="content-card compact-card" style="margin-bottom:12px; padding: 12px 14px;">
-      <h3 style="font-size:0.85rem; margin-bottom:12px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">${t('Input Well Control Data', 'Input Well Control Data')}</h3>
-      
+      <h3 style="font-size:0.85rem; margin-bottom:12px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">
+        ${t('Input Well Control Data', 'Input Well Control Data')}
+      </h3>
+
       <div style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Current Mud Wt -->
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Current Mud Wt', 'Current Mud Wt')} (${mwUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Current Mud Wt (OMW)', 'Current Mud Wt (OMW)')} (${mwUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-current-mw" value="${fmt(initialOMW, false)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-current-mw" value="${fmtDisplay(toDisplayMw(initialOMW_ppg), 2)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
 
+        <!-- LOT / FIT EMW with Info & Safety Factor -->
+        <div style="background:var(--bg-subtle); padding:10px; border-radius:8px; border:1px solid var(--border-subtle);">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:15px; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:6px; flex:1;">
+              <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary);">${t('LOT / FIT EMW', 'LOT / FIT EMW')} (${mwUnit})</label>
+              <button type="button" id="kd-lot-info-btn" style="background:none; border:none; color:var(--accent-color); padding:0; cursor:pointer;" aria-label="LOT EMW Info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              </button>
+            </div>
+            <div style="position:relative; width:110px;">
+              <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-lot-mw" value="${fmtDisplay(toDisplayMw(initialLotMw_ppg), 2)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+              ${editIcon}
+            </div>
+          </div>
+
+          <!-- Safety Factor Selector -->
+          <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.75rem; margin-top:6px; padding-top:6px; border-top:1px dashed var(--border-subtle);">
+            <span style="color:var(--text-secondary); font-weight:600;">${t('Safety Factor', 'Safety Factor')}:</span>
+            <div class="segmented-control" id="kd-lot-sf-group" style="margin-bottom:0; max-width:210px;">
+              <button type="button" class="segmented-control-btn ${activeLotSf === 1.0 ? 'active' : ''}" data-sf="1.0" style="padding:5px 8px; font-size:0.75rem;">100%</button>
+              <button type="button" class="segmented-control-btn ${activeLotSf === 0.85 ? 'active' : ''}" data-sf="0.85" style="padding:5px 8px; font-size:0.75rem;">85%</button>
+              <button type="button" class="segmented-control-btn ${activeLotSf === 0.80 ? 'active' : ''}" data-sf="0.80" style="padding:5px 8px; font-size:0.75rem;">80%</button>
+            </div>
+          </div>
+          <div id="kd-eff-lot-label" style="text-align:right; font-size:0.7rem; color:var(--text-secondary); margin-top:4px;">
+            ${t('Effective LOT EMW', 'Effective LOT EMW')}: <strong id="kd-eff-lot-val">${fmtDisplay(toDisplayMw(initialLotMw_ppg * activeLotSf), 2)} ${mwUnit}</strong>
+          </div>
+        </div>
+
+        <!-- KRP -->
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('LOT in Max MW', 'LOT in Max MW')} (${mwUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Kill Rate Pressure (KRP / SCR)', 'Kill Rate Pressure (KRP / SCR)')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-lot-mw" value="${fmt(initialLotMw, false)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-krp" value="${fmtDisplay(toDisplayPress(initialSCR_psi), 0)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
 
+        <!-- Subsea Choke Line Friction (CLF) -->
+        ${isSubsea ? `
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('KRP', 'KRP')} (${pressUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Choke Line Friction (CLF)', 'Choke Line Friction (CLF)')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-krp" value="${fmt(initialSCR, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-clf" value="${fmtDisplay(toDisplayPress(initialCLF_psi), 0)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
-        ${clfInputHtml}
+        ` : ''}
 
+        <!-- SIDP -->
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('SIDP', 'SIDP')} (${pressUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Shut-In Drillpipe Pressure (SIDP)', 'Shut-In Drillpipe Pressure (SIDP)')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-sidp" value="${fmt(initialSIDPP, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-sidp" value="${fmtDisplay(toDisplayPress(initialSIDPP_psi), 0)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
 
+        <!-- SICP -->
         <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('SICP', 'SICP')} (${pressUnit})</label>
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Shut-In Casing Pressure (SICP)', 'Shut-In Casing Pressure (SICP)')} (${pressUnit})</label>
           <div style="position:relative; width:110px;">
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-sicp" value="${fmt(initialSICP, true)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-sicp" value="${fmtDisplay(toDisplayPress(initialSICP_psi), 0)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
             ${editIcon}
           </div>
         </div>
+
+        <!-- Pit Gain (for Kick Classification) -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Pit Gain (Kick Volume)', 'Pit Gain (Kick Volume)')} (${volUnit})</label>
+          <div style="position:relative; width:110px;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-pit-gain" value="${fmtDisplay(toDisplayVol(initialPitGain), 1)}" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            ${editIcon}
+          </div>
+        </div>
+
+        <!-- Trip Margin (Optional Mud Weight Safety Margin) -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); flex:1;">${t('Trip Margin', 'Trip Margin')} (${mwUnit})</label>
+          <div style="position:relative; width:110px;">
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-trip-margin" value="${fmtDisplay(toDisplayMw(initialTripMargin_ppg), 2)}" placeholder="0.00" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+            ${editIcon}
+          </div>
+        </div>
+
+        <!-- Surface Choke Manifold / Line Friction (Surface Rigs Only) -->
+        ${isSurface ? `
+        <div style="background:var(--bg-subtle); padding:10px; border-radius:8px; border:1px solid var(--border-subtle); margin-top:2px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label for="kd-friction-toggle" style="margin-bottom:0; font-size:0.8rem; font-weight:600; color:var(--text-primary); cursor:pointer;">
+              ${t('Surface choke manifold/line friction', 'Surface choke manifold/line friction')}
+            </label>
+            <label class="switch" style="margin:0;">
+              <input type="checkbox" id="kd-friction-toggle" ${hasSurfaceFriction ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div id="kd-friction-input-row" style="display:${hasSurfaceFriction ? 'flex' : 'none'}; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle);">
+            <span style="font-size:0.75rem; color:var(--text-secondary);">${t('Manifold Friction Loss', 'Manifold Friction Loss')} (${pressUnit})</span>
+            <div style="position:relative; width:110px;">
+              <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-surface-friction" value="${fmtDisplay(toDisplayPress(initialSurfaceFriction_psi), 0)}" placeholder="0" style="width:100%; padding-right:25px; margin-bottom:0; text-align:right;">
+              ${editIcon}
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Subsea Margin Inputs (Water Depth, Air Gap, Seawater) -->
+        ${isSubsea ? `
+        <div style="background:rgba(59, 130, 246, 0.05); padding:10px; border-radius:8px; border:1px solid rgba(59, 130, 246, 0.2); display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--text-primary); text-transform:uppercase;">${t('Subsea Water & Air Margins', 'Subsea Water & Air Margins')}</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:2px; display:block;">${t('Water Depth', 'Water Depth')} (${dUnit})</label>
+              <div style="position:relative;">
+                <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-water-depth" value="${fmtDisplay(toDisplayDepth(initialWaterDepth_m), 0)}" style="width:100%; font-size:0.8rem; padding:6px 25px 6px 8px; margin-bottom:0; text-align:right;">
+                ${editIcon}
+              </div>
+            </div>
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:2px; display:block;">${t('Air Gap', 'Air Gap')} (${dUnit})</label>
+              <div style="position:relative;">
+                <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-air-gap" value="${fmtDisplay(toDisplayDepth(initialAirGap_m), 0)}" style="width:100%; font-size:0.8rem; padding:6px 25px 6px 8px; margin-bottom:0; text-align:right;">
+                ${editIcon}
+              </div>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:2px; display:block;">${t('Seawater Density', 'Seawater Density')} (${mwUnit})</label>
+            <div style="position:relative;">
+              <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input" id="kd-seawater-density" value="${fmtDisplay(toDisplayMw(initialSeawater_ppg), 2)}" style="width:100%; font-size:0.8rem; padding:6px 25px 6px 8px; margin-bottom:0; text-align:right;">
+              ${editIcon}
+            </div>
+          </div>
+        </div>
+        ` : ''}
       </div>
-
-      <button class="btn btn-primary" id="kd-go-btn" style="width:100%; margin-top:15px; margin-bottom:0;">${t('GO', 'GO')}</button>
     </div>
 
-    <!-- Output Section (Initially hidden, populated after GO click) -->
-    <div class="content-card compact-card" id="kd-results-card" style="display:none; border-left: 4px solid var(--accent-color); margin-bottom:12px;">
-      <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600; color:var(--text-primary);">${t('Calculated Results', 'Calculated Results')}</h3>
-      <div class="results-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('Current MAASP', 'Current MAASP')}</span>
-          <span class="result-value" id="kd-out-maasp">-</span>
+    <!-- 3. KILL OPTIONS (Method & Step Intervals) -->
+    <div class="content-card compact-card" style="margin-bottom:12px; padding: 12px 14px;">
+      <h3 style="font-size:0.85rem; margin-bottom:10px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">
+        ${t('Kill Method & Schedule Options', 'Kill Method & Schedule Options')}
+      </h3>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">${t('Kill Method', 'Kill Method')}</label>
+        <div class="segmented-control" id="kd-kill-method-group" style="margin-bottom:0;">
+          <button type="button" class="segmented-control-btn ${activeMethod === 'wait_and_weight' ? 'active' : ''}" data-method="wait_and_weight" style="padding:8px 12px; font-size:0.82rem;">
+            ${t('Wait & Weight', 'Wait & Weight')}
+          </button>
+          <button type="button" class="segmented-control-btn ${activeMethod === 'drillers' ? 'active' : ''}" data-method="drillers" style="padding:8px 12px; font-size:0.82rem;">
+            ${t("Driller's Method", "Driller's Method")}
+          </button>
         </div>
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('Kill Mud Weight', 'Kill Mud Weight')}</span>
-          <span class="result-value" id="kd-out-kmw">-</span>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;">
+        <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:0;">${t('Step Frequency', 'Step Frequency')}</label>
+        <div class="segmented-control" id="kd-step-freq-group" style="margin-bottom:0; max-width:260px;">
+          <button type="button" class="segmented-control-btn ${activeStepFreq === '100' ? 'active' : ''}" data-freq="100" style="padding:5px 8px; font-size:0.75rem;">100 ${t('stks', 'stks')}</button>
+          <button type="button" class="segmented-control-btn ${activeStepFreq === '50' ? 'active' : ''}" data-freq="50" style="padding:5px 8px; font-size:0.75rem;">50 ${t('stks', 'stks')}</button>
+          <button type="button" class="segmented-control-btn ${activeStepFreq === '200' ? 'active' : ''}" data-freq="200" style="padding:5px 8px; font-size:0.75rem;">200 ${t('stks', 'stks')}</button>
+          <button type="button" class="segmented-control-btn ${activeStepFreq === '5min' ? 'active' : ''}" data-freq="5min" style="padding:5px 8px; font-size:0.75rem;">5 ${t('min', 'min')}</button>
         </div>
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('ICP', 'ICP')}</span>
-          <span class="result-value" id="kd-out-icp">-</span>
-        </div>
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('FCP', 'FCP')}</span>
-          <span class="result-value" id="kd-out-fcp">-</span>
-        </div>
-        ${subseaResultCards}
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
-          <span class="result-label">${t('MAASP After Kill', 'MAASP After Kill')}</span>
-          <span class="result-value" id="kd-out-maasp-after">-</span>
-        </div>
-        <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px; grid-column: span 2;">
-          <span class="result-label">${t('Pressure Drop / 100 Stks', 'Pressure Drop / 100 Stks')}</span>
-          <span class="result-value" id="kd-out-pres-drop">-</span>
-        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border-subtle);">
+        <label for="kd-tapered-toggle" style="font-size:0.75rem; font-weight:600; color:var(--text-primary); margin-bottom:0;">
+          ${t('Tapered String Step-Down', 'Tapered String Step-Down')}
+        </label>
+        <input type="checkbox" id="kd-tapered-toggle" ${activeTapered ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--accent-color);">
       </div>
     </div>
 
-    <!-- Step Down Chart and Schedule Table -->
-    <div class="content-card compact-card" id="kd-chart-card" style="display:none; margin-bottom:20px; padding: 12px 14px;">
-      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600; color:var(--text-primary);">${t('Drill Pipe Pressure Step-Down Schedule', 'Drill Pipe Pressure Step-Down Schedule')}</h3>
-      
-      <!-- SVG Chart Wrapper -->
-      <div id="kd-chart-svg-wrapper" style="width:100%; display:flex; justify-content:center; margin-bottom:15px; background:var(--card-bg); border-radius:12px; padding:10px 5px; border: 1px solid var(--border-subtle);"></div>
-      
-      <!-- Table Schedule -->
-      <div style="overflow-x:auto; border: 1px solid var(--border-subtle); border-radius:8px;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
-          <thead>
-            <tr style="background-color:var(--bg-subtle); border-bottom: 1px solid var(--border-subtle);">
-              <th style="padding: 8px 12px; font-weight:600; color:var(--text-secondary);">${t('Cumulative Strokes', 'Cumulative Strokes')}</th>
-              <th style="padding: 8px 12px; font-weight:600; color:var(--text-secondary); text-align: right;">${t('Drill Pipe Pressure', 'Drill Pipe Pressure')}</th>
-            </tr>
-          </thead>
-          <tbody id="kd-schedule-table-body"></tbody>
-        </table>
+    <!-- 4. VALIDATION ALERTS CONTAINER -->
+    <div id="kd-validation-container" style="margin-bottom:12px;"></div>
+
+    <!-- GO / CALCULATE BUTTON -->
+    <button class="btn btn-primary" id="kd-go-btn" style="width:100%; margin-bottom:16px; padding:12px; font-weight:700; font-size:0.95rem; border-radius:12px;">
+      ${t('Calculate Kill Sheet', 'Calculate Kill Sheet')}
+    </button>
+
+    <!-- 5. OUTPUT SECTION (POPULATED AFTER CALCULATION) -->
+    <div id="kd-results-section" style="display:none;">
+      <!-- Main Results Card -->
+      <div class="content-card compact-card" style="border-left: 4px solid var(--accent-color); margin-bottom:12px; padding:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-primary); margin:0;">
+            ${t('Calculated Results', 'Calculated Results')}
+          </h3>
+          <span id="kd-method-badge" class="badge badge-secondary" style="font-size:0.7rem; font-weight:700;">
+            ${activeMethod === 'wait_and_weight' ? t('Wait & Weight', 'Wait & Weight') : t("Driller's Method", "Driller's Method")}
+          </span>
+        </div>
+
+        <div class="results-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
+          <!-- Current MAASP -->
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span class="result-label">${t('Current MAASP', 'Current MAASP')}</span>
+              <span id="kd-maasp-status" class="wc-status-badge safe">Safe</span>
+            </div>
+            <span class="result-value" id="kd-out-maasp">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);" id="kd-out-maasp-margin">-</span>
+          </div>
+
+          <!-- Kill Mud Weight -->
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span class="result-label">${t('Kill Mud Weight', 'Kill Mud Weight')}</span>
+              <span id="kd-kmw-status" class="wc-status-badge safe">Safe</span>
+            </div>
+            <span class="result-value" id="kd-out-kmw">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);" id="kd-out-kmw-exact">-</span>
+          </div>
+
+          <!-- ICP -->
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <span class="result-label">${t('Initial Circ. Pressure (ICP)', 'Initial Circ. Pressure (ICP)')}</span>
+            <span class="result-value" id="kd-out-icp">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);">SIDP + KRP</span>
+          </div>
+
+          <!-- FCP (1 decimal place) -->
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <span class="result-label">${t('Final Circ. Pressure (FCP)', 'Final Circ. Pressure (FCP)')}</span>
+            <span class="result-value" id="kd-out-fcp">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);">KRP × (KMW / OMW)</span>
+          </div>
+
+          <!-- Subsea Dynamic Outputs -->
+          ${isSubsea ? `
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span class="result-label">${t('Dynamic MAASP', 'Dynamic MAASP')}</span>
+              <span id="kd-dyn-maasp-status" class="wc-status-badge safe">Safe</span>
+            </div>
+            <span class="result-value" id="kd-out-dyn-maasp">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);">MAASP - CLF</span>
+          </div>
+
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span class="result-label">${t('Initial Dynamic SICP', 'Initial Dynamic SICP')}</span>
+              <span id="kd-dyn-sicp-status" class="wc-status-badge safe">Safe</span>
+            </div>
+            <span class="result-value" id="kd-out-dyn-sicp">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);">SICP - CLF</span>
+          </div>
+
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <span class="result-label">${t('Riser Displacement', 'Riser Displacement')}</span>
+            <span class="result-value" id="kd-out-riser-disp">-</span>
+          </div>
+
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <span class="result-label">${t('Riser Margin', 'Riser Margin')}</span>
+            <span class="result-value" id="kd-out-riser-margin">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);" id="kd-out-bhp-reduction">-</span>
+          </div>
+          ` : `
+          <!-- Surface Stack Dynamic / Choke Outputs -->
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span class="result-label">${t('Initial Choke Pressure', 'Initial Choke Pressure')}</span>
+              <span id="kd-init-choke-status" class="wc-status-badge safe">Safe</span>
+            </div>
+            <span class="result-value" id="kd-out-init-choke">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);" id="kd-out-init-choke-sub">${t('Holds at SICP', 'Holds at SICP')}</span>
+          </div>
+
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span class="result-label">${t('Dynamic MAASP', 'Dynamic MAASP')}</span>
+              <span id="kd-dyn-maasp-status" class="wc-status-badge safe">Safe</span>
+            </div>
+            <span class="result-value" id="kd-out-dyn-maasp">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);">${t('= MAASP (No CLF deduction)', '= MAASP (No CLF deduction)')}</span>
+          </div>
+
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <span class="result-label">${t('Recommended Mud Weight', 'Recommended Mud Weight')}</span>
+            <span class="result-value" id="kd-out-rec-mw">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);" id="kd-out-rec-mw-sub">${t('KMW + Trip Margin', 'KMW + Trip Margin')}</span>
+          </div>
+          `}
+
+          <!-- MAASP After Kill -->
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px;">
+            <span class="result-label">${t('MAASP After Kill', 'MAASP After Kill')}</span>
+            <span class="result-value" id="kd-out-maasp-after">-</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary);" id="kd-out-maasp-exact">-</span>
+          </div>
+
+          <!-- Pressure Drop / 100 Stks -->
+          <div class="result-card" style="padding: 12px 14px; border-radius: 12px; gap: 2px; ${state.flowType === 'subsea' ? 'grid-column: span 2;' : ''}">
+            <span class="result-label">${t('Pressure Drop / 100 Stks', 'Pressure Drop / 100 Stks')}</span>
+            <span class="result-value" id="kd-out-pres-drop">-</span>
+          </div>
+        </div>
+
+        <!-- Subsea Disconnect Warning Banner -->
+        <div id="kd-disconnect-banner" style="display:none; margin-top:12px;"></div>
       </div>
+
+      <!-- 6. KICK DATA & KICK TOLERANCE CARD -->
+      <div class="content-card compact-card" style="margin-bottom:12px; padding:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h3 style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin:0;">
+            ${t('Kick Analysis & Tolerance', 'Kick Analysis & Tolerance')}
+          </h3>
+          <span id="kd-kick-class-badge" class="badge" style="font-size:0.7rem; font-weight:700;">-</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.8rem; background:var(--bg-subtle); padding:10px; border-radius:8px; border:1px solid var(--border-subtle); margin-bottom:10px;">
+          <div><span style="color:var(--text-secondary);">${t('Influx Height', 'Influx Height')}:</span> <strong id="kd-out-influx-ht">-</strong></div>
+          <div><span style="color:var(--text-secondary);">${t('Influx Gradient', 'Influx Gradient')}:</span> <strong id="kd-out-influx-grad">-</strong></div>
+          <div><span style="color:var(--text-secondary);">${t('Influx Density', 'Influx Density')}:</span> <strong id="kd-out-influx-dens">-</strong></div>
+          <div><span style="color:var(--text-secondary);">${t('Kick Tolerance', 'Kick Tolerance')}:</span> <strong id="kd-out-kt-vol">-</strong></div>
+        </div>
+
+        <div id="kd-kt-status-banner" style="font-size:0.75rem; padding:8px 10px; border-radius:6px; display:flex; align-items:center; gap:8px;"></div>
+      </div>
+
+      <!-- 7. BARITE PREPARATION CARD -->
+      <div class="content-card compact-card" style="margin-bottom:12px; padding:14px;">
+        <h3 style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin:0 0 10px;">
+          ${t('Barite & Kill Mud Mixing', 'Barite & Kill Mud Mixing')}
+        </h3>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.8rem; background:var(--bg-subtle); padding:10px; border-radius:8px; border:1px solid var(--border-subtle); margin-bottom:8px;">
+          <div><span style="color:var(--text-secondary);">${t('Sacks / 100 bbl', 'Sacks / 100 bbl')}:</span> <strong id="kd-out-barite-100">-</strong></div>
+          <div><span style="color:var(--text-secondary);">${t('Volume to Mix', 'Volume to Mix')}:</span> <strong id="kd-out-mix-vol">-</strong></div>
+          <div><span style="color:var(--text-secondary);">${t('Total Sacks (100 lb)', 'Total Sacks (100 lb)')}:</span> <strong id="kd-out-total-sacks">-</strong></div>
+          <div><span style="color:var(--text-secondary);">${t('Total Tonnes', 'Total Tonnes')}:</span> <strong id="kd-out-total-tonnes">-</strong></div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-secondary);">
+          <input type="checkbox" id="kd-reserve-checkbox" checked style="width:16px; height:16px; accent-color:var(--accent-color);">
+          <label for="kd-reserve-checkbox" style="margin-bottom:0; cursor:pointer;">${t('Include +20% Surface Active Reserve in total mix volume', 'Include +20% Surface Active Reserve in total mix volume')}</label>
+        </div>
+      </div>
+
+      <!-- 8. STEP DOWN CHART & SCHEDULE TABLE -->
+      <div class="content-card compact-card" id="kd-chart-card" style="margin-bottom:14px; padding: 14px 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:0.88rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin:0;">
+            ${t('Drill Pipe Pressure Step-Down Schedule', 'Drill Pipe Pressure Step-Down Schedule')}
+          </h3>
+        </div>
+        
+        <!-- SVG Chart Container -->
+        <div id="kd-chart-svg-wrapper" style="width:100%; display:flex; justify-content:center; margin-bottom:16px; background:var(--card-bg); border-radius:12px; padding:12px 6px; border: 1.5px solid var(--border-subtle); box-shadow:0 1px 3px rgba(0,0,0,0.04);"></div>
+        
+        <!-- Table Schedule -->
+        <div style="overflow-x:auto; border: 1.5px solid var(--border-subtle); border-radius:10px; max-height:380px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+          <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left; min-width:520px;">
+            <thead>
+              <tr style="background-color:var(--bg-subtle); border-bottom: 2px solid var(--border-subtle); position:sticky; top:0; z-index:2;">
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em;">${t('Strokes', 'Strokes')}</th>
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em;">${t('Time', 'Time')}</th>
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; text-align: right;">${t('DP Press', 'DP Press')}</th>
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; text-align: right;">${t('Choke Press', 'Choke Press')}</th>
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; text-align: center;">${t('Status', 'Status')}</th>
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; text-align: center;">${t('Actual DP', 'Actual DP')}</th>
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; text-align: center;">${t('Actual Choke', 'Actual Choke')}</th>
+                <th style="padding: 10px 8px; font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; text-align: center;">${t('Pit Level', 'Pit Level')}</th>
+              </tr>
+            </thead>
+            <tbody id="kd-schedule-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 9. GENERATE JOB RECORD (PDF) ACTION BUTTON -->
+      <div style="margin-top:16px; margin-bottom:16px;">
+        <button type="button" class="btn btn-report-pdf" id="btn-generate-kill-record-pdf" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:13px 18px; font-size:0.92rem; font-weight:700; border-radius:14px;">
+          <svg class="btn-pdf-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span class="btn-pdf-text">${t('Generate Job Record (PDF)', 'Generate Job Record (PDF)')}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 10. FOOTER ADVISORY NOTE -->
+    <div class="wc-footer-advisory" data-i18n="Advisory only. Follow your well control manual.">
+      ${t('Advisory only. Follow your well control manual.', 'Advisory only. Follow your well control manual.')}
     </div>
   `;
 
-  // Bind GO button click handler
-  const goBtn = document.getElementById('kd-go-btn');
-  goBtn.onclick = () => {
-    // Validation Check: Find missing data entries
-    let hasError = false;
-    const killContainer = document.getElementById('kill-data-sheet-container');
-    const inputsList = killContainer.querySelectorAll('.form-input:not([disabled])');
+  container.innerHTML = html;
 
-    inputsList.forEach(input => {
-      if (input.value === '' || input.value === null || input.value === undefined) {
-        input.style.border = '2px solid var(--accent-color)';
-        hasError = true;
-      } else {
-        input.style.border = ''; // restore to CSS default
-      }
-    });
-
-    if (hasError) {
-      showToast(t("Required input missing", "Required input missing"));
-      return;
-    }
-
-    // Read input values
+  // Function to read all inputs from UI in canonical internal units (m, psi, ppg, bbl)
+  const readCanonicalInputs = () => {
     const parseNum = (id) => {
       const el = document.getElementById(id);
       return el ? (parseFloat(String(el.value).replace(',', '.')) || 0) : 0;
     };
-    const currentMw = parseNum('kd-current-mw');
-    const lotMw = parseNum('kd-lot-mw');
-    const krp = parseNum('kd-krp');
-    const sidp = parseNum('kd-sidp');
-    const sicp = parseNum('kd-sicp');
-    const clf = state.flowType === 'subsea' ? parseNum('kd-clf') : 0;
 
-    // Save to state in US units
-    state.calcInputs.killOMW_ppg = currentMw;
-    state.calcInputs.killLotMw_ppg = lotMw;
-    state.calcInputs.killSCR_psi = krp;
-    state.calcInputs.killSIDPP_psi = sidp;
-    state.calcInputs.killSICP_psi = sicp;
-    if (state.flowType === 'subsea') {
-      state.calcInputs.killCLF_psi = clf;
-    }
+    const currentMwDisplay = parseNum('kd-current-mw');
+    const lotMwDisplay = parseNum('kd-lot-mw');
+    const krpDisplay = parseNum('kd-krp');
+    const sidpDisplay = parseNum('kd-sidp');
+    const sicpDisplay = parseNum('kd-sicp');
+    const clfDisplay = parseNum('kd-clf');
+    const pitGainDisplay = parseNum('kd-pit-gain');
+    const tripMarginDisplay = parseNum('kd-trip-margin');
+    const surfaceFrictionDisplay = parseNum('kd-surface-friction');
+    const hasSurfaceFrictionChecked = document.getElementById('kd-friction-toggle')?.checked ?? false;
 
-    localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
-    saveCalculationToHistory('kill_sheet');
+    const waterDepthDisplay = parseNum('kd-water-depth');
+    const airGapDisplay = parseNum('kd-air-gap');
+    const seawaterDisplay = parseNum('kd-seawater-density');
 
-    const factor = 0.052; // Always use US factor for calculations on this sheet
+    return {
+      holeTVD_m: holeTVD_m,
+      shoeTVD_m: shoeTVD_m,
+      holeMD_m: holeMD_m,
+      shoeMD_m: shoeMD_m,
+      omw_ppg: fromDisplayMw(currentMwDisplay),
+      lotEmw_ppg: fromDisplayMw(lotMwDisplay),
+      lotSafetyFactor: activeLotSf,
+      krp_psi: fromDisplayPress(krpDisplay),
+      clf_psi: isSubsea ? fromDisplayPress(clfDisplay) : 0,
+      sidp_psi: fromDisplayPress(sidpDisplay),
+      sicp_psi: fromDisplayPress(sicpDisplay),
+      strokes: strokes,
+      rigType: rigType,
+      flowType: state.flowType,
+      pitGain_bbl: fromDisplayVol(pitGainDisplay),
+      waterDepth_m: isSubsea ? (isBblFt ? (waterDepthDisplay / 3.28084) : waterDepthDisplay) : 0,
+      airGap_m: isSubsea ? (isBblFt ? (airGapDisplay / 3.28084) : airGapDisplay) : 0,
+      seawaterDensity_ppg: isSubsea ? fromDisplayMw(seawaterDisplay) : 8.55,
+      pumpOutput_bbl_stk: pumpOutputBbl,
+      casingSize: state.selectedHoleSize || '20',
+      stringVolume_bbl: stringVolBbl,
+      annulusVolume_bbl: totalAnnulusVolBbl,
+      totalSystemVolume_bbl: totalSystemVolBbl,
+      addReserve: document.getElementById('kd-reserve-checkbox')?.checked ?? true,
+      roundingMode: state.kmwRoundingMode || '0.1',
+      tripMargin: fromDisplayMw(tripMarginDisplay),
+      hasSurfaceManifoldFriction: hasSurfaceFrictionChecked,
+      surfaceManifoldFriction: fromDisplayPress(surfaceFrictionDisplay)
+    };
+  };
 
-    // 1. Current MAASP = (LOT - Current Mud Wt) * factor * Shoe TVD
-    const currentMaasp = Math.max(0, (lotMw - currentMw) * factor * shoeTVD);
-
-    // 2. Kill Mud Weight = Current Mud Wt + (SIDP / (factor * Hole TVD)) -> Rounded up to 1 decimal place
-    const rawKmw = holeTVD > 0 ? (currentMw + (sidp / (factor * holeTVD))) : currentMw;
-    const kmw = Math.ceil(rawKmw * 10) / 10;
-
-    // 3. ICP = SIDP + KRP
-    const icp = sidp + krp;
-
-    // 4. FCP = KRP * (KMW / Current Mud Wt)
-    const fcp = currentMw > 0 ? krp * (kmw / currentMw) : 0;
-
-    // 5. MAASP After Kill = (LOT - KMW) * factor * Shoe TVD
-    const maaspAfter = Math.max(0, (lotMw - kmw) * factor * shoeTVD);
-
-    // 6. Pressure Drop per 100 Strokes = (ICP - FCP) / strokes * 100
-    const pressDropTotal = icp - fcp;
-    const pressDrop100 = strokes > 0 ? (pressDropTotal / strokes) * 100 : 0;
-
-    // 7. Subsea specific calculations: Dynamic MAASP and Initial Dynamic SICP
-    const dynMaasp = Math.max(0, currentMaasp - clf);
-    const dynSicp = Math.max(0, sicp - clf);
-
-    // Update UI outputs
-    document.getElementById('kd-out-maasp').innerHTML = `${Math.floor(currentMaasp * 100) / 100} <span class="unit-lbl">${pressUnit}</span>`;
-    document.getElementById('kd-out-kmw').innerHTML = `${kmw.toFixed(1)} <span class="unit-lbl">${mwUnit}</span>`;
-    document.getElementById('kd-out-icp').innerHTML = `${Math.round(icp)} <span class="unit-lbl">${pressUnit}</span>`;
-    document.getElementById('kd-out-fcp').innerHTML = `${Math.round(fcp)} <span class="unit-lbl">${pressUnit}</span>`;
-    document.getElementById('kd-out-maasp-after').innerHTML = `${Math.floor(maaspAfter * 100) / 100} <span class="unit-lbl">${pressUnit}</span>`;
-
-    if (state.flowType === 'subsea') {
-      document.getElementById('kd-out-dyn-maasp').innerHTML = `${Math.floor(dynMaasp * 100) / 100} <span class="unit-lbl">${pressUnit}</span>`;
-      document.getElementById('kd-out-dyn-sicp').innerHTML = `${Math.round(dynSicp)} <span class="unit-lbl">${pressUnit}</span>`;
-
-      const isBblFt = (state.globalUnit === 'bbl/ft');
-      const riserLengthMeters = isBblFt ? (parseFloat(state.calcInputs.riserLength || 0) / 3.28084) : parseFloat(state.calcInputs.riserLength || 0);
-      const riserVolLiters = riserLengthMeters * (state.reference.riserAnnular || 0);
-      const riserVolSelectedUnit = convertVolume(riserVolLiters, state.globalUnit);
-      const riserStrokes = state.reference.pumpOutput > 0 ? (riserVolLiters / state.reference.pumpOutput) : 0;
-      const volLabel = (state.globalUnit === 'bbl/m' || state.globalUnit === 'bbl/ft') ? 'bbl' : 'L';
-
-      document.getElementById('kd-out-riser-disp').innerHTML = `
-        <div style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.2;">
-          <span>${Math.round(riserStrokes)} <span class="unit-lbl">stks</span></span>
-          <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px; font-weight:500;">${riserVolSelectedUnit.toFixed(1)} ${volLabel}</span>
+  // LOT Info Modal Trigger
+  const infoBtn = document.getElementById('kd-lot-info-btn');
+  if (infoBtn) {
+    infoBtn.onclick = () => {
+      showModal(
+        t('LOT / FIT Equivalent Mud Weight', 'LOT / FIT Equivalent Mud Weight'),
+        `
+        <div style="font-size:0.85rem; line-height:1.5; color:var(--text-primary);">
+          <p><strong>Leak-Off Test (LOT) / Formation Integrity Test (FIT):</strong></p>
+          <p>Determines maximum pressure or equivalent mud weight that the formation immediately beneath the casing shoe can withstand before fracturing.</p>
+          <p style="margin-top:8px;"><strong>Safety Factor Selection:</strong></p>
+          <ul style="margin:4px 0 8px 16px; padding:0;">
+            <li><strong>100%:</strong> Uses full breakdown limit (no safety margin).</li>
+            <li><strong>95%:</strong> Industry standard 5% reduction to absorb swab/surge and choke fluctuations.</li>
+            <li><strong>90%:</strong> Conservative margin for weak or depleted formations.</li>
+          </ul>
+          <p style="margin-top:10px; font-weight:600; color:var(--accent-color);">ℹ️ Convert LOT to EMW using the shoe TVD from RKB so MAASP stays consistent.</p>
         </div>
-      `;
-    }
+        `
+      );
+    };
+  }
 
-    // Format press drop avoiding round up
-    document.getElementById('kd-out-pres-drop').innerHTML = `${Math.floor(pressDrop100 * 10) / 10} <span class="unit-lbl">${pressUnit}/100 stks</span>`;
+  // Surface Manifold Friction Toggle & Input Live Updates
+  const frictionToggle = document.getElementById('kd-friction-toggle');
+  if (frictionToggle) {
+    frictionToggle.onchange = () => {
+      const row = document.getElementById('kd-friction-input-row');
+      if (row) row.style.display = frictionToggle.checked ? 'flex' : 'none';
+      if (lastCalcResults) {
+        executeCalculationFlow();
+      }
+    };
+  }
 
-    // Reveal results card
-    const resultsCard = document.getElementById('kd-results-card');
-    resultsCard.style.display = 'block';
-    setTimeout(() => {
-      resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
+  // Safety Factor Buttons
+  const sfGroup = document.getElementById('kd-lot-sf-group');
+  if (sfGroup) {
+    sfGroup.querySelectorAll('.segmented-control-btn, .segment-btn').forEach(btn => {
+      btn.onclick = () => {
+        sfGroup.querySelectorAll('.segmented-control-btn, .segment-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeLotSf = parseFloat(btn.dataset.sf) || 1.0;
+        state.lotSafetyFactor = activeLotSf;
 
-    // 7. Generate Step-down Chart and Table
-    const tableBody = document.getElementById('kd-schedule-table-body');
-    const svgWrapper = document.getElementById('kd-chart-svg-wrapper');
+        const lotMwDisplay = parseFloat(document.getElementById('kd-lot-mw')?.value) || 0;
+        const effLotEl = document.getElementById('kd-eff-lot-val');
+        if (effLotEl) {
+          effLotEl.textContent = `${fmtDisplay(lotMwDisplay * activeLotSf, 2)} ${mwUnit}`;
+        }
 
-    if (tableBody && svgWrapper && strokes > 0) {
-      const totalStrokes = Math.round(strokes);
-      const strokeInterval = 100;
+        if (document.getElementById('kd-results-section')?.style.display !== 'none') {
+          executeCalculationFlow();
+        }
+      };
+    });
+  }
 
-      let tableRows = '';
-      let points = [];
+  // LOT input live update for effective label
+  const lotInput = document.getElementById('kd-lot-mw');
+  if (lotInput) {
+    lotInput.oninput = () => {
+      const lotMwDisplay = parseFloat(lotInput.value) || 0;
+      const effLotEl = document.getElementById('kd-eff-lot-val');
+      if (effLotEl) {
+        effLotEl.textContent = `${fmtDisplay(lotMwDisplay * activeLotSf, 2)} ${mwUnit}`;
+      }
+    };
+  }
 
-      // Initial point
-      tableRows += `
-        <tr style="border-bottom: 1px solid var(--border-subtle);">
-          <td style="padding: 8px 12px; font-weight: 700; color: var(--text-primary);">0</td>
-          <td style="padding: 8px 12px; font-weight: 700; text-align: right; color: var(--accent-color);">${Math.round(icp)} psi</td>
-        </tr>
-      `;
-      points.push({ s: 0, p: icp });
+  // Kill Method Buttons
+  const methodGroup = document.getElementById('kd-kill-method-group');
+  if (methodGroup) {
+    methodGroup.querySelectorAll('.segmented-control-btn, .segment-btn').forEach(btn => {
+      btn.onclick = () => {
+        methodGroup.querySelectorAll('.segmented-control-btn, .segment-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeMethod = btn.dataset.method;
+        state.killMethod = activeMethod;
 
-      let currentStroke = strokeInterval;
-      const dropPerStroke = (icp - fcp) / totalStrokes;
+        const badge = document.getElementById('kd-method-badge');
+        if (badge) {
+          badge.textContent = activeMethod === 'wait_and_weight' ? t('Wait & Weight', 'Wait & Weight') : t("Driller's Method", "Driller's Method");
+        }
 
-      while (currentStroke < totalStrokes) {
-        const currentPress = icp - (dropPerStroke * currentStroke);
-        tableRows += `
-          <tr style="border-bottom: 1px solid var(--border-subtle);">
-            <td style="padding: 8px 12px; color: var(--text-secondary);">${currentStroke}</td>
-            <td style="padding: 8px 12px; text-align: right; color: var(--text-primary); font-weight: 600;">${Math.round(currentPress)} psi</td>
+        if (lastCalcResults) {
+          renderScheduleAndChart(lastCalcResults);
+        }
+      };
+    });
+  }
+
+  // Step Frequency Buttons
+  const stepGroup = document.getElementById('kd-step-freq-group');
+  if (stepGroup) {
+    stepGroup.querySelectorAll('.segmented-control-btn, .segment-btn').forEach(btn => {
+      btn.onclick = () => {
+        stepGroup.querySelectorAll('.segmented-control-btn, .segment-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeStepFreq = btn.dataset.freq;
+        state.killStepFreq = activeStepFreq;
+
+        if (lastCalcResults) {
+          renderScheduleAndChart(lastCalcResults);
+        }
+      };
+    });
+  }
+
+  // Tapered String Toggle
+  const taperedToggle = document.getElementById('kd-tapered-toggle');
+  if (taperedToggle) {
+    taperedToggle.onchange = () => {
+      activeTapered = taperedToggle.checked;
+      state.killTaperedString = activeTapered;
+      if (lastCalcResults) {
+        renderScheduleAndChart(lastCalcResults);
+      }
+    };
+  }
+
+  // Active Reserve Checkbox
+  const reserveCheckbox = document.getElementById('kd-reserve-checkbox');
+  if (reserveCheckbox) {
+    reserveCheckbox.onchange = () => {
+      if (lastCalcResults) {
+        executeCalculationFlow();
+      }
+    };
+  }
+
+  // Schedule & SVG Chart Renderer
+  const renderScheduleAndChart = (calcResults) => {
+    if (!calcResults) return;
+
+    let stepInterval = 100;
+    if (activeStepFreq === '50') stepInterval = 50;
+    if (activeStepFreq === '200') stepInterval = 200;
+    if (activeStepFreq === '5min') stepInterval = 5;
+
+    const schedule = WellControlEngine.generateStepDownSchedule({
+      method: activeMethod,
+      totalStrokes: strokes,
+      icp: calcResults.icp,
+      fcp: calcResults.fcp,
+      sicp: calcResults.sicp,
+      spm: pumpSpm,
+      stepInterval: stepInterval,
+      isTapered: activeTapered,
+      maasp: calcResults.maasp
+    });
+
+    lastSchedule = schedule;
+
+    // Render table
+    const tbody = document.getElementById('kd-schedule-table-body');
+    if (tbody) {
+      let rowsHtml = '';
+      schedule.forEach((row, idx) => {
+        const isBit = row.note && row.note.includes('Bit');
+        const isEnd = idx === schedule.length - 1;
+        const rowBg = isBit ? 'background:rgba(16, 185, 129, 0.12); font-weight:700;' : (isEnd ? 'background:var(--bg-subtle); font-weight:600;' : '');
+        const alertBadge = row.shoePressureExceeded
+          ? `<span class="wc-status-badge danger" style="font-size:0.68rem; padding:3px 6px; font-weight:700;">Exceeds MAASP</span>`
+          : `<span style="color:#10B981; font-weight:700; font-size:0.8rem;">✓ Normal</span>`;
+
+        rowsHtml += `
+          <tr style="border-bottom: 1px solid var(--border-subtle); ${rowBg}">
+            <td style="padding: 9px 8px; color:var(--text-primary); font-weight:600;">
+              ${(row.stroke !== undefined ? row.stroke : (row.strokes || 0)).toLocaleString()}
+              ${row.note ? `<span style="font-size:0.7rem; font-weight:700; color:var(--accent-color); margin-left:4px;">(${row.note})</span>` : ''}
+            </td>
+            <td style="padding: 9px 8px; color:var(--text-secondary); font-weight:500;">${row.timeFormatted}</td>
+            <td style="padding: 9px 8px; text-align:right; font-weight:700; color:var(--accent-color);">
+              ${fmtDisplay(toDisplayPress(row.dpPressure !== undefined ? row.dpPressure : row.drillPipePressure), 0)} <span style="font-size:0.72rem; font-weight:500; color:var(--text-secondary);">${pressUnit}</span>
+            </td>
+            <td style="padding: 9px 8px; text-align:right; font-weight:600; color:var(--text-primary);">
+              ${fmtDisplay(toDisplayPress(row.chokePressure), 0)} <span style="font-size:0.72rem; font-weight:500; color:var(--text-secondary);">${pressUnit}</span>
+            </td>
+            <td style="padding: 9px 8px; text-align:center;">${alertBadge}</td>
+            <td style="padding: 9px 8px; text-align:center;"><span style="display:inline-block; width:34px; border-bottom:1px dashed var(--border-subtle);">&nbsp;</span></td>
+            <td style="padding: 9px 8px; text-align:center;"><span style="display:inline-block; width:34px; border-bottom:1px dashed var(--border-subtle);">&nbsp;</span></td>
+            <td style="padding: 9px 8px; text-align:center;"><span style="display:inline-block; width:34px; border-bottom:1px dashed var(--border-subtle);">&nbsp;</span></td>
           </tr>
         `;
-        points.push({ s: currentStroke, p: currentPress });
-        currentStroke += strokeInterval;
-      }
+      });
+      tbody.innerHTML = rowsHtml;
+    }
 
-      // Final point
-      tableRows += `
-        <tr style="background-color: var(--bg-subtle);">
-          <td style="padding: 8px 12px; font-weight: 700; color: var(--text-primary); border-bottom-left-radius: 8px;">${totalStrokes} (${t('Bit', 'Bit')})</td>
-          <td style="padding: 8px 12px; font-weight: 700; text-align: right; color: #10B981; border-bottom-right-radius: 8px;">${Math.round(fcp)} psi</td>
-        </tr>
-      `;
-      points.push({ s: totalStrokes, p: fcp });
-
-      tableBody.innerHTML = tableRows;
-
-      // Draw SVG Chart
-      const width = 300;
-      const height = 150;
-      const padLeft = 45;
-      const padRight = 15;
-      const padTop = 15;
-      const padBottom = 25;
+    // Render SVG Chart
+    const svgWrapper = document.getElementById('kd-chart-svg-wrapper');
+    if (svgWrapper && schedule.length > 0) {
+      const width = 360;
+      const height = 230;
+      const padLeft = 56;
+      const padRight = 24;
+      const padTop = 32;
+      const padBottom = 38;
 
       const chartW = width - padLeft - padRight;
       const chartH = height - padTop - padBottom;
 
-      const maxY = Math.ceil(icp / 100) * 100;
-      const maxX = totalStrokes;
+      const maxPress = Math.max(...schedule.map(s => (s.dpPressure !== undefined ? s.dpPressure : s.drillPipePressure)), calcResults.icp) * 1.15;
+      const maxStk = schedule[schedule.length - 1].stroke || schedule[schedule.length - 1].strokes || strokes;
 
-      // Generate SVG path points
       let dPath = '';
-      let pointCircles = '';
-      let gridLines = '';
+      let areaPath = '';
+      let markers = '';
 
-      // Draw grid lines (horizontal pressure lines)
-      const gridLevels = 3;
-      for (let i = 0; i <= gridLevels; i++) {
-        const val = (maxY / gridLevels) * i;
-        const y = padTop + chartH - (val / maxY) * chartH;
-        gridLines += `
-          <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="3,3" />
-          <text x="${padLeft - 6}" y="${y + 3}" font-size="7" fill="var(--text-secondary)" text-anchor="end">${Math.round(val)}</text>
-        `;
-      }
+      schedule.forEach((pt, i) => {
+        const stk = pt.stroke !== undefined ? pt.stroke : (pt.strokes || 0);
+        const dp = pt.dpPressure !== undefined ? pt.dpPressure : (pt.drillPipePressure || 0);
+        const x = padLeft + (stk / maxStk) * chartW;
+        const y = padTop + chartH - (dp / maxPress) * chartH;
 
-      // Draw vertical grid lines (stroke intervals)
-      const vertGridCount = 4;
-      for (let i = 0; i <= vertGridCount; i++) {
-        const strokeVal = Math.round((maxX / vertGridCount) * i);
-        const x = padLeft + (strokeVal / maxX) * chartW;
-        gridLines += `
-          <line x1="${x}" y1="${padTop}" x2="${x}" y2="${padTop + chartH}" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="3,3" />
-          <text x="${x}" y="${padTop + chartH + 12}" font-size="7" fill="var(--text-secondary)" text-anchor="middle">${strokeVal}</text>
-        `;
-      }
-
-      points.forEach((pt, index) => {
-        const x = padLeft + (pt.s / maxX) * chartW;
-        const y = padTop + chartH - (pt.p / maxY) * chartH;
-
-        if (index === 0) {
+        if (i === 0) {
           dPath += `M ${x} ${y}`;
+          areaPath += `M ${x} ${padTop + chartH} L ${x} ${y}`;
+          const icpVal = Math.round(toDisplayPress(dp));
+          markers += `
+            <g>
+              <rect x="${x - 4}" y="${y - 25}" width="74" height="18" rx="4" fill="#EF4444" />
+              <polygon points="${x + 6},${y - 7} ${x + 10},${y - 2} ${x + 14},${y - 7}" fill="#EF4444" />
+              <text x="${x + 33}" y="${y - 13}" font-size="8" font-weight="700" fill="#FFFFFF" text-anchor="middle">ICP ${icpVal} ${pressUnit}</text>
+              <circle cx="${x}" cy="${y}" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2" />
+            </g>
+          `;
         } else {
           dPath += ` L ${x} ${y}`;
+          areaPath += ` L ${x} ${y}`;
         }
 
-        // Add small interactive circles for key schedule points
-        pointCircles += `
-          <circle cx="${x}" cy="${y}" r="3.5" fill="var(--bg-subtle)" stroke="var(--accent-color)" stroke-width="2" />
-        `;
+        if (pt.note && pt.note.includes('Bit') && i !== schedule.length - 1 && i !== 0) {
+          markers += `
+            <g>
+              <circle cx="${x}" cy="${y}" r="4" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5" />
+              <rect x="${x - 14}" y="${y - 20}" width="28" height="14" rx="3" fill="#10B981" />
+              <text x="${x}" y="${y - 10}" font-size="7.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">BIT</text>
+            </g>
+          `;
+        }
+
+        if (i === schedule.length - 1) {
+          areaPath += ` L ${x} ${padTop + chartH} Z`;
+          const fcpVal = Math.round(toDisplayPress(dp));
+          markers += `
+            <g>
+              <rect x="${x - 70}" y="${y - 25}" width="74" height="18" rx="4" fill="#0284C7" />
+              <polygon points="${x - 14},${y - 7} ${x - 10},${y - 2} ${x - 6},${y - 7}" fill="#0284C7" />
+              <text x="${x - 33}" y="${y - 13}" font-size="8" font-weight="700" fill="#FFFFFF" text-anchor="middle">FCP ${fcpVal} ${pressUnit}</text>
+              <circle cx="${x}" cy="${y}" r="4.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2" />
+            </g>
+          `;
+        } else if (i > 0 && i < schedule.length - 1) {
+          markers += `<circle cx="${x}" cy="${y}" r="3" fill="var(--accent-color)" stroke="#FFFFFF" stroke-width="1.2" />`;
+        }
       });
 
-      const svgContent = `
-        <svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; overflow:visible;">
-          <!-- Grid Lines and labels -->
+      // Pressure Grid Lines (Y-axis)
+      let gridLines = '';
+      for (let i = 0; i <= 4; i++) {
+        const val = (maxPress / 4) * i;
+        const y = padTop + chartH - (val / maxPress) * chartH;
+        gridLines += `
+          <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="var(--border-subtle)" stroke-width="1.2" stroke-dasharray="3,3" />
+          <text x="${padLeft - 6}" y="${y + 3}" font-size="8" font-weight="600" fill="var(--text-secondary)" text-anchor="end">${Math.round(toDisplayPress(val))}</text>
+        `;
+      }
+
+      // Strokes Grid Lines (X-axis)
+      for (let i = 0; i <= 3; i++) {
+        const stk = Math.round((maxStk / 3) * i);
+        const x = padLeft + (stk / maxStk) * chartW;
+        gridLines += `
+          <line x1="${x}" y1="${padTop}" x2="${x}" y2="${padTop + chartH}" stroke="var(--border-subtle)" stroke-width="1.2" stroke-dasharray="3,3" />
+          <text x="${x}" y="${padTop + chartH + 14}" font-size="8" font-weight="600" fill="var(--text-secondary)" text-anchor="middle">${stk.toLocaleString()}</text>
+        `;
+      }
+
+      svgWrapper.innerHTML = `
+        <svg id="kd-schedule-svg" viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="kdAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--accent-color)" stop-opacity="0.25" />
+              <stop offset="100%" stop-color="var(--accent-color)" stop-opacity="0.02" />
+            </linearGradient>
+          </defs>
+
           ${gridLines}
-          
-          <!-- Axis Lines -->
-          <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${padTop + chartH}" stroke="var(--text-secondary)" stroke-width="1.5" />
-          <line x1="${padLeft}" y1="${padTop + chartH}" x2="${width - padRight}" y2="${padTop + chartH}" stroke="var(--text-secondary)" stroke-width="1.5" />
-          
-          <!-- Chart Line -->
+
+          <!-- Area fill -->
+          <path d="${areaPath}" fill="url(#kdAreaGrad)" />
+
+          <!-- Axes -->
+          <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${padTop + chartH}" stroke="var(--border-subtle)" stroke-width="2" />
+          <line x1="${padLeft}" y1="${padTop + chartH}" x2="${width - padRight}" y2="${padTop + chartH}" stroke="var(--border-subtle)" stroke-width="2" />
+
+          <!-- Curve -->
           <path d="${dPath}" stroke="var(--accent-color)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-          
-          <!-- Circles -->
-          ${pointCircles}
-          
-          <!-- Y-Axis Title -->
-          <text x="10" y="${padTop + chartH / 2}" font-size="8" fill="var(--text-primary)" transform="rotate(-90 10 ${padTop + chartH / 2})" text-anchor="middle" font-weight="600">${t('Pressure (psi)', 'Pressure (psi)')}</text>
-          
-          <!-- X-Axis Title -->
-          <text x="${padLeft + chartW / 2}" y="${height - 2}" font-size="8" fill="var(--text-primary)" text-anchor="middle" font-weight="600">${t('Strokes', 'Strokes')}</text>
+
+          <!-- Markers -->
+          ${markers}
+
+          <!-- Axis Titles -->
+          <text x="14" y="${padTop + chartH / 2}" font-size="9" font-weight="700" fill="var(--text-secondary)" transform="rotate(-90 14 ${padTop + chartH / 2})" text-anchor="middle">${t('Pressure', 'Pressure')} (${pressUnit})</text>
+          <text x="${padLeft + chartW / 2}" y="${height - 4}" font-size="9" font-weight="700" fill="var(--text-secondary)" text-anchor="middle">${t('Strokes to Bit', 'Strokes to Bit')} (${t('stks', 'stks')})</text>
         </svg>
       `;
-
-      svgWrapper.innerHTML = svgContent;
-
-      // Reveal the chart card
-      document.getElementById('kd-chart-card').style.display = 'block';
     }
-
-    // Show a toast message
-    showToast(t("Kill sheet calculations completed!", "Kill sheet calculations completed!"));
   };
 
-  // Enforce manual click on GO button to show results, do not auto-run calculations on screen load
+  // Core Calculation and Validation Execution Flow
+  const executeCalculationFlow = () => {
+    const inputs = readCanonicalInputs();
 
-  // Auto-sync Kill Sheet inputs to local storage on change
+    // 1. Validate inputs
+    const validation = WellControlEngine.validateWellControlInputs(inputs);
+    const validContainer = document.getElementById('kd-validation-container');
+    const resultsSection = document.getElementById('kd-results-section');
+
+    if (validation.hasError) {
+      if (validContainer) {
+        validContainer.innerHTML = `
+          <div class="wc-alert-card error">
+            <div style="font-weight:700; margin-bottom:6px; font-size:0.85rem;">⛔ ${t('Calculation Blocked - Critical Errors', 'Calculation Blocked - Critical Errors')}:</div>
+            <ul style="margin:0 0 0 16px; padding:0; font-size:0.78rem;">
+              ${validation.alerts.filter(a => a.severity === 'ERROR').map(e => `<li><strong>${t(e.field, e.field)}:</strong> ${(window.translateAlertMessage ? window.translateAlertMessage(e.message) : t(e.message, e.message))}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+      if (resultsSection) resultsSection.style.display = 'none';
+      return;
+    }
+
+    if (validation.hasWarning && !warningsAcknowledged) {
+      if (validContainer) {
+        validContainer.innerHTML = `
+          <div class="wc-alert-card warning">
+            <div style="font-weight:700; margin-bottom:6px; font-size:0.85rem;" data-i18n="Well Control Safety Warnings">⚠️ ${t('Well Control Safety Warnings', 'Well Control Safety Warnings')}:</div>
+            <ul style="margin:0 0 10px 16px; padding:0; font-size:0.78rem;">
+              ${validation.alerts.filter(a => a.severity === 'WARNING').map(w => `<li>${(window.translateAlertMessage ? window.translateAlertMessage(w.message) : t(w.message, w.message))}</li>`).join('')}
+            </ul>
+            <label class="wc-ack-row" id="kd-ack-row" for="kd-ack-checkbox">
+              <input type="checkbox" id="kd-ack-checkbox" class="wc-ack-input" />
+              <span class="wc-ack-box" aria-hidden="true">
+                <svg class="wc-ack-checkmark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span class="wc-ack-label" data-i18n="I have re-checked the data">${t('I have re-checked the data', 'I have re-checked the data')}</span>
+            </label>
+          </div>
+        `;
+
+        const ackCheckbox = document.getElementById('kd-ack-checkbox');
+        const ackRow = document.getElementById('kd-ack-row');
+        const goBtn = document.getElementById('kd-go-btn');
+
+        const setAckState = (checked) => {
+          warningsAcknowledged = checked;
+          if (ackCheckbox) ackCheckbox.checked = checked;
+          if (ackRow) ackRow.classList.toggle('checked', checked);
+          if (goBtn) {
+            goBtn.disabled = !checked;
+            if (checked) {
+              goBtn.classList.remove('btn-disabled');
+              goBtn.style.opacity = '1';
+              goBtn.style.cursor = 'pointer';
+              goBtn.style.pointerEvents = 'auto';
+            } else {
+              goBtn.classList.add('btn-disabled');
+              goBtn.style.opacity = '0.45';
+              goBtn.style.cursor = 'not-allowed';
+              goBtn.style.pointerEvents = 'none';
+            }
+          }
+        };
+
+        if (ackCheckbox) {
+          ackCheckbox.onchange = (e) => {
+            setAckState(e.target.checked);
+          };
+        }
+        if (ackRow) {
+          ackRow.onclick = (e) => {
+            if (e.target !== ackCheckbox) {
+              e.preventDefault();
+              setAckState(!ackCheckbox.checked);
+            }
+          };
+        }
+
+        // Gate the Calculate Kill Sheet button: disabled when unchecked
+        if (goBtn) {
+          goBtn.disabled = true;
+          goBtn.classList.add('btn-disabled');
+          goBtn.style.opacity = '0.45';
+          goBtn.style.cursor = 'not-allowed';
+          goBtn.style.pointerEvents = 'none';
+        }
+      }
+      if (resultsSection) resultsSection.style.display = 'none';
+      return;
+    }
+
+    // Warnings acknowledged or none
+    const goBtn = document.getElementById('kd-go-btn');
+    if (goBtn) {
+      goBtn.disabled = false;
+      goBtn.classList.remove('btn-disabled');
+      goBtn.style.opacity = '1';
+      goBtn.style.cursor = 'pointer';
+      goBtn.style.pointerEvents = 'auto';
+    }
+
+    if (validContainer) {
+      if (validation.hasWarning) {
+        validContainer.innerHTML = `
+          <div style="padding:8px 12px; background:rgba(245, 158, 11, 0.12); border:1px solid #F59E0B; border-radius:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;">
+            <span style="color:#D97706; font-weight:700;">✓ ${t('Safety warnings acknowledged', 'Safety warnings acknowledged')} (${validation.alerts.filter(a => a.severity === 'WARNING').length})</span>
+            <span style="color:var(--text-secondary); font-size:0.7rem;">${t('Verified by supervisor', 'Verified by supervisor')}</span>
+          </div>
+        `;
+      } else {
+        validContainer.innerHTML = '';
+      }
+    }
+
+    // 2. Perform Complete Calculation
+    const results = WellControlEngine.calculateKillSheet(inputs, {
+      roundingMode: inputs.roundingMode,
+      lotSafetyFactor: inputs.lotSafetyFactor
+    });
+    lastCalcResults = results;
+
+    // 3. Update UI Outputs
+    const methodBadge = document.getElementById('kd-method-badge');
+    if (methodBadge) {
+      methodBadge.textContent = activeMethod === 'wait_and_weight' ? t('Wait & Weight', 'Wait & Weight') : t("Driller's Method", "Driller's Method");
+    }
+    document.getElementById('kd-out-maasp').innerHTML = `${fmtDisplay(toDisplayPress(results.maasp), 1)} <span class="unit-lbl">${pressUnit}</span>`;
+    const maaspMarginPsi = results.maasp - results.sicp;
+    document.getElementById('kd-out-maasp-margin').textContent = `${t('Margin:', 'Margin:')} ${fmtDisplay(toDisplayPress(maaspMarginPsi), 0)} ${pressUnit}`;
+    const maaspBadge = document.getElementById('kd-maasp-status');
+    if (maaspBadge) {
+      maaspBadge.className = `wc-status-badge ${results.statuses.sicpStatus.status.toLowerCase()}`;
+      maaspBadge.textContent = results.statuses.sicpStatus.status;
+    }
+
+    // Kill Mud Weight
+    document.getElementById('kd-out-kmw').innerHTML = `${fmtDisplay(toDisplayMw(results.kmwUsed), 2)} <span class="unit-lbl">${mwUnit}</span>`;
+    document.getElementById('kd-out-kmw-exact').textContent = `${t('Exact:', 'Exact:')} ${fmtDisplay(toDisplayMw(results.rawKmw), 3)} (+${results.extraOverbalancePsi.toFixed(0)} psi OB)`;
+    const kmwBadge = document.getElementById('kd-kmw-status');
+    if (kmwBadge) {
+      kmwBadge.className = `wc-status-badge ${results.statuses.kmwVsLotStatus.status.toLowerCase()}`;
+      kmwBadge.textContent = results.statuses.kmwVsLotStatus.status;
+    }
+
+    // ICP & FCP
+    document.getElementById('kd-out-icp').innerHTML = `${fmtDisplay(toDisplayPress(results.icp), 0)} <span class="unit-lbl">${pressUnit}</span>`;
+    document.getElementById('kd-out-fcp').innerHTML = `${fmtDisplay(toDisplayPress(results.fcp), 1)} <span class="unit-lbl">${pressUnit}</span>`;
+
+    // MAASP After Kill
+    document.getElementById('kd-out-maasp-after').innerHTML = `${fmtDisplay(toDisplayPress(results.maaspAfterKillRounded), 1)} <span class="unit-lbl">${pressUnit}</span>`;
+    document.getElementById('kd-out-maasp-exact').textContent = `${t('Exact:', 'Exact:')} ${fmtDisplay(toDisplayPress(results.maaspAfterKillExact), 1)} ${pressUnit}`;
+
+    // Pressure Drop
+    document.getElementById('kd-out-pres-drop').innerHTML = `${fmtDisplay(toDisplayPress(results.pressDrop100), 1)} <span class="unit-lbl">${pressUnit}/100 stks</span>`;
+
+    // Subsea vs Surface Outputs
+    if (isSubsea) {
+      const dynMaaspEl = document.getElementById('kd-out-dyn-maasp');
+      if (dynMaaspEl) dynMaaspEl.innerHTML = `${fmtDisplay(toDisplayPress(results.dynMaasp), 1)} <span class="unit-lbl">${pressUnit}</span>`;
+      const dynSicpEl = document.getElementById('kd-out-dyn-sicp');
+      if (dynSicpEl) dynSicpEl.innerHTML = `${fmtDisplay(toDisplayPress(results.dynSicp), 0)} <span class="unit-lbl">${pressUnit}</span>`;
+
+      const dynMaaspBadge = document.getElementById('kd-dyn-maasp-status');
+      if (dynMaaspBadge) {
+        dynMaaspBadge.className = `wc-status-badge ${results.statuses.dynSicpStatus.status.toLowerCase()}`;
+        dynMaaspBadge.textContent = results.statuses.dynSicpStatus.status;
+      }
+
+      const dynSicpBadge = document.getElementById('kd-dyn-sicp-status');
+      if (dynSicpBadge) {
+        dynSicpBadge.className = `wc-status-badge ${results.statuses.dynSicpStatus.status.toLowerCase()}`;
+        dynSicpBadge.textContent = results.statuses.dynSicpStatus.status;
+      }
+
+      // Riser Displacement
+      const riserLengthMeters = isBblFt ? (parseFloat(state.calcInputs.riserLength || 0) / 3.28084) : parseFloat(state.calcInputs.riserLength || 0);
+      const riserVolLiters = riserLengthMeters * (state.reference ? state.reference.riserAnnular : 0);
+      const riserVolBbl = riserVolLiters * 0.00628981;
+      const pumpOutputLiters = state.reference ? state.reference.pumpOutput : 18.7;
+      const riserStrokes = pumpOutputLiters > 0 ? (riserVolLiters / pumpOutputLiters) : 0;
+
+      const riserDispEl = document.getElementById('kd-out-riser-disp');
+      if (riserDispEl) {
+        riserDispEl.innerHTML = `
+          <span>${Math.round(riserStrokes).toLocaleString()} <span class="unit-lbl">stks</span></span>
+          <span style="font-size:0.7rem; color:var(--text-secondary);">${fmtDisplay(toDisplayVol(riserVolBbl), 1)} ${volUnit}</span>
+        `;
+      }
+
+      // Riser Margin
+      const riserMarginEl = document.getElementById('kd-out-riser-margin');
+      if (riserMarginEl) {
+        riserMarginEl.innerHTML = `${fmtDisplay(toDisplayMw(results.subseaMargins.riserMarginPpg), 2)} <span class="unit-lbl">${mwUnit}</span>`;
+      }
+      const bhpRedEl = document.getElementById('kd-out-bhp-reduction');
+      if (bhpRedEl) {
+        bhpRedEl.textContent = `ΔBHP: -${fmtDisplay(toDisplayPress(results.subseaMargins.bhpReductionPsi), 0)} ${pressUnit}`;
+      }
+
+      // Disconnect Banner
+      const disBanner = document.getElementById('kd-disconnect-banner');
+      if (disBanner) {
+        if (results.subseaMargins.disconnectWarning) {
+          disBanner.style.display = 'block';
+          disBanner.className = 'wc-subsea-banner';
+          disBanner.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <div>${results.subseaMargins.disconnectWarning}</div>
+          `;
+        } else {
+          disBanner.style.display = 'none';
+        }
+      }
+    } else {
+      // Surface Stack Outputs
+      const initChokeEl = document.getElementById('kd-out-init-choke');
+      if (initChokeEl) initChokeEl.innerHTML = `${fmtDisplay(toDisplayPress(results.initialChokePressure), 0)} <span class="unit-lbl">${pressUnit}</span>`;
+      const initChokeSub = document.getElementById('kd-out-init-choke-sub');
+      if (initChokeSub) initChokeSub.textContent = `Holds at SICP (${fmtDisplay(toDisplayPress(results.sicp), 0)} ${pressUnit})`;
+      const initChokeBadge = document.getElementById('kd-init-choke-status');
+      if (initChokeBadge) {
+        initChokeBadge.className = `wc-status-badge ${results.statuses.sicpStatus.status.toLowerCase()}`;
+        initChokeBadge.textContent = results.statuses.sicpStatus.status;
+      }
+
+      const dynMaaspEl = document.getElementById('kd-out-dyn-maasp');
+      if (dynMaaspEl) dynMaaspEl.innerHTML = `${fmtDisplay(toDisplayPress(results.dynMaasp), 1)} <span class="unit-lbl">${pressUnit}</span>`;
+      const dynMaaspBadge = document.getElementById('kd-dyn-maasp-status');
+      if (dynMaaspBadge) {
+        dynMaaspBadge.className = `wc-status-badge ${results.statuses.sicpStatus.status.toLowerCase()}`;
+        dynMaaspBadge.textContent = results.statuses.sicpStatus.status;
+      }
+
+      const recMwEl = document.getElementById('kd-out-rec-mw');
+      if (recMwEl) {
+        recMwEl.innerHTML = `${fmtDisplay(toDisplayMw(results.recommendedMudWeightPpg), 2)} <span class="unit-lbl">${mwUnit}</span>`;
+      }
+      const recMwSub = document.getElementById('kd-out-rec-mw-sub');
+      if (recMwSub) {
+        recMwSub.textContent = (results.tripMarginPpg > 0)
+          ? `KMW ${fmtDisplay(toDisplayMw(results.kmwUsed), 2)} + Margin ${fmtDisplay(toDisplayMw(results.tripMarginPpg), 2)} ${mwUnit}`
+          : t('KMW (No Trip Margin added)', 'KMW (No Trip Margin added)');
+      }
+    }
+
+    // 4. Kick Data & Tolerance
+    const kickBadge = document.getElementById('kd-kick-class-badge');
+    if (kickBadge) {
+      kickBadge.textContent = results.kickData.classification;
+      if (results.kickData.classification.includes('Gas')) {
+        kickBadge.className = 'badge badge-primary';
+        kickBadge.style.backgroundColor = '#EF4444';
+        kickBadge.style.color = '#FFFFFF';
+      } else if (results.kickData.classification.includes('Oil')) {
+        kickBadge.className = 'badge badge-secondary';
+        kickBadge.style.backgroundColor = '#F59E0B';
+        kickBadge.style.color = '#FFFFFF';
+      } else {
+        kickBadge.className = 'badge badge-secondary';
+      }
+    }
+
+    document.getElementById('kd-out-influx-ht').textContent = `${fmtDisplay(toDisplayDepth(results.kickData.influxHeight_ft * 0.3048), 1)} ${dUnit}`;
+    document.getElementById('kd-out-influx-grad').textContent = `${fmtDisplay(results.kickData.influxGradient_psi_ft, 3)} psi/ft`;
+    document.getElementById('kd-out-influx-dens').textContent = `${fmtDisplay(toDisplayMw(results.kickData.influxDensity_ppg), 2)} ${mwUnit}`;
+    document.getElementById('kd-out-kt-vol').textContent = `${fmtDisplay(toDisplayVol(results.kickData.kickTolerance_bbl), 1)} ${volUnit}`;
+
+    const ktBanner = document.getElementById('kd-kt-status-banner');
+    if (ktBanner) {
+      if (results.kickData.isExceeded) {
+        ktBanner.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+        ktBanner.style.color = '#DC2626';
+        ktBanner.innerHTML = `<strong>⚠️ EXCEEDS KICK TOLERANCE:</strong> Pit gain (${fmtDisplay(toDisplayVol(inputs.pitGain_bbl), 1)} ${volUnit}) exceeds kick tolerance (${fmtDisplay(toDisplayVol(results.kickData.kickTolerance_bbl), 1)} ${volUnit}). Shoe fracturing risk during circulation!`;
+      } else {
+        ktBanner.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+        ktBanner.style.color = '#059669';
+        ktBanner.innerHTML = `<strong>✓ Within Kick Tolerance:</strong> Pit gain (${fmtDisplay(toDisplayVol(inputs.pitGain_bbl), 1)} ${volUnit}) is within allowable maximum (${fmtDisplay(toDisplayVol(results.kickData.kickTolerance_bbl), 1)} ${volUnit}).`;
+      }
+    }
+
+    // 5. Barite Preparation
+    document.getElementById('kd-out-barite-100').textContent = `${fmtDisplay(results.bariteSacksPer100Bbl, 2)} sk`;
+    document.getElementById('kd-out-mix-vol').textContent = `${fmtDisplay(toDisplayVol(results.volToMix_bbl), 1)} ${volUnit}`;
+    document.getElementById('kd-out-total-sacks').textContent = `${Math.round(results.totalBariteSacks).toLocaleString()} sk`;
+    document.getElementById('kd-out-total-tonnes').textContent = `${fmtDisplay(results.totalBariteTonnes, 1)} t`;
+
+    // 6. Generate Schedule & Chart
+    renderScheduleAndChart(results);
+
+    // 7. Save Snapshot to History
+    saveCalculationToHistory('kill_sheet', results, validation.alerts.filter(a => a.severity === 'WARNING'));
+
+    // Reveal results and smoothly scroll
+    if (resultsSection) {
+      resultsSection.style.display = 'block';
+      setTimeout(() => {
+        scrollToResultsSection(resultsSection, 'smooth');
+      }, 50);
+    }
+
+    showToast(t('Kill sheet calculated successfully!', 'Kill sheet calculated successfully!'));
+  };
+
+  // Bind GO Button
+  const goBtn = document.getElementById('kd-go-btn');
+  if (goBtn) {
+    goBtn.onclick = () => {
+      executeCalculationFlow();
+    };
+  }
+
+  // Bind PDF Generation Button
+  const pdfBtn = document.getElementById('btn-generate-kill-record-pdf');
+  if (pdfBtn) {
+    pdfBtn.onclick = async () => {
+      if (!lastCalcResults) {
+        showToast(t('Please calculate results first.', 'Please calculate results first.'));
+        return;
+      }
+
+      pdfBtn.classList.add('loading');
+      const originalText = pdfBtn.querySelector('.btn-pdf-text')?.textContent || '';
+      if (pdfBtn.querySelector('.btn-pdf-text')) {
+        pdfBtn.querySelector('.btn-pdf-text').textContent = 'Generating PDF...';
+      }
+
+      try {
+        let chartImageData = null;
+        try {
+          const svgEl = document.getElementById('kd-schedule-svg');
+          if (svgEl) {
+            chartImageData = await new Promise((resolve) => {
+              const xml = new XMLSerializer().serializeToString(svgEl);
+              const svg64 = btoa(unescape(encodeURIComponent(xml)));
+              const image64 = 'data:image/svg+xml;base64,' + svg64;
+              const img = new Image();
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 720;
+                canvas.height = 460;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/png'));
+              };
+              img.onerror = () => resolve(null);
+              img.src = image64;
+            });
+          }
+        } catch (chartErr) {
+          console.warn('Could not serialize SVG chart for PDF:', chartErr);
+        }
+
+        const reportData = {
+          jobName: document.getElementById('kd-job-name')?.value || 'Well #1 Kill Operation',
+          rigType: rigType,
+          isSurface: isSurface,
+          flowType: state.flowType,
+          holeTVD: holeTVD_m,
+          shoeTVD: shoeTVD_m,
+          holeMD: holeMD_m,
+          shoeMD: shoeMD_m,
+          casingSize: state.selectedHoleSize || '20"',
+          holeSize: '17.5"',
+          surfaceToBitStrokes: strokes,
+          shoeToSurfaceStrokes: shoeToSurfaceStrokes,
+          bottomsUpStrokes: bottomsUpStrokes,
+          spm: pumpSpm,
+          stringVolume: stringVolBbl,
+          openHoleVolume: 1767.5,
+          annularVolume: totalAnnulusVolBbl,
+          totalSystemVolume: totalSystemVolBbl,
+          pumpOutput: pumpOutputBbl,
+          omw: lastCalcResults.omw,
+          lotEmw: lastCalcResults.lotEmw,
+          lotSafetyFactor: activeLotSf,
+          krp: lastCalcResults.krp,
+          clf: lastCalcResults.clf,
+          surfaceFriction: lastCalcResults.surfaceFriction || 0,
+          sidp: lastCalcResults.sidp,
+          sicp: lastCalcResults.sicp,
+          initialChokePressure: lastCalcResults.initialChokePressure,
+          kmwExact: lastCalcResults.rawKmw,
+          kmwUsed: lastCalcResults.kmwUsed,
+          tripMarginPpg: lastCalcResults.tripMarginPpg || 0,
+          recommendedMudWeightPpg: lastCalcResults.recommendedMudWeightPpg || lastCalcResults.kmwUsed,
+          extraOverbalancePsi: lastCalcResults.extraOverbalancePsi,
+          icp: lastCalcResults.icp,
+          fcp: lastCalcResults.fcp,
+          maasp: lastCalcResults.maasp,
+          dynMaasp: lastCalcResults.dynMaasp,
+          dynSicp: lastCalcResults.dynSicp,
+          maaspAfterKillRounded: lastCalcResults.maaspAfterKillRounded,
+          maaspAfterKillExact: lastCalcResults.maaspAfterKillExact,
+          pressDrop100: lastCalcResults.pressDrop100,
+          riserMarginPpg: lastCalcResults.subseaMargins?.riserMarginPpg || 0,
+          bhpReductionPsi: lastCalcResults.subseaMargins?.bhpReductionPsi || 0,
+          pitGain: fromDisplayVol(parseFloat(document.getElementById('kd-pit-gain')?.value) || 10),
+          waterDepth_m: isBblFt ? (parseFloat(document.getElementById('kd-water-depth')?.value || 0) / 3.28084) : (parseFloat(document.getElementById('kd-water-depth')?.value || 0)),
+          airGap_m: isBblFt ? (parseFloat(document.getElementById('kd-air-gap')?.value || 0) / 3.28084) : (parseFloat(document.getElementById('kd-air-gap')?.value || 0)),
+          seawaterDensity_ppg: fromDisplayMw(parseFloat(document.getElementById('kd-seawater-density')?.value || 0)),
+          rkbGroundElevation: state.calcInputs.rkbGroundElevation || null,
+          depthBelowMudline_m: state.calcInputs.depthBelowMudline_m || null,
+          hasSurfaceConductor: !!state.calcInputs.hasSurfaceConductor,
+          influxGradientPsiFt: lastCalcResults.kickData.influxGradient_psi_ft,
+          influxDensityPpg: lastCalcResults.kickData.influxDensity_ppg,
+          influxClassification: lastCalcResults.kickData.classification,
+          kickToleranceBbl: lastCalcResults.kickData.kickTolerance_bbl,
+          baritePer100Bbl: lastCalcResults.bariteSacksPer100Bbl,
+          volToMix: lastCalcResults.volToMix_bbl,
+          totalBariteSacks: lastCalcResults.totalBariteSacks,
+          totalBariteTonnes: lastCalcResults.totalBariteTonnes,
+          method: activeMethod,
+          stepFrequency: activeStepFreq,
+          schedule: lastSchedule || []
+        };
+
+        const result = await WellControlPdf.generateWellControlReport(reportData, { chartImageData });
+        const fileName = result.fileName || 'Well_Control_Kill_Sheet.pdf';
+        const doc = result.doc;
+        const pdfBase64 = result.pdfBase64 || doc.output('datauristring');
+
+        try {
+          if (typeof window !== 'undefined' && window.CementingPDF && typeof window.CementingPDF.saveReportToFile === 'function') {
+            const saved = await window.CementingPDF.saveReportToFile(pdfBase64, fileName, true, 'application/pdf');
+            if (typeof window.showReportReadyDialog === 'function') {
+              window.showReportReadyDialog(saved);
+              return;
+            }
+            if (typeof window.CementingPDF.shareReportFile === 'function') {
+              await window.CementingPDF.shareReportFile(saved);
+              return;
+            }
+          }
+          doc.save(fileName);
+        } catch (saveErr) {
+          console.warn('Native report save failed, falling back to download:', saveErr);
+          doc.save(fileName);
+        }
+      } catch (err) {
+        console.error('PDF Generation Error:', err);
+        showToast('PDF Export Error: ' + (err.message || err));
+      } finally {
+        pdfBtn.classList.remove('loading');
+        if (pdfBtn.querySelector('.btn-pdf-text')) {
+          pdfBtn.querySelector('.btn-pdf-text').textContent = originalText;
+        }
+      }
+    };
+  }
+
+  // Input persistence to state & local storage
   container.addEventListener('input', (e) => {
     if (e.target.classList.contains('form-input')) {
       const id = e.target.id;
-      const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-      if (id === 'kd-current-mw') state.calcInputs.killOMW_ppg = val;
-      if (id === 'kd-lot-mw') state.calcInputs.killLotMw_ppg = val;
-      if (id === 'kd-krp') state.calcInputs.killSCR_psi = val;
-      if (id === 'kd-sidp') state.calcInputs.killSIDPP_psi = val;
-      if (id === 'kd-sicp') state.calcInputs.killSICP_psi = val;
-      if (id === 'kd-clf' && state.flowType === 'subsea') state.calcInputs.killCLF_psi = val;
+      const rawVal = parseFloat(e.target.value.replace(',', '.')) || 0;
+
+      if (id === 'kd-job-name') state.calcInputs.jobName = e.target.value;
+      if (id === 'kd-current-mw') state.calcInputs.killOMW_ppg = fromDisplayMw(rawVal);
+      if (id === 'kd-lot-mw') state.calcInputs.killLotMw_ppg = fromDisplayMw(rawVal);
+      if (id === 'kd-krp') state.calcInputs.killSCR_psi = fromDisplayPress(rawVal);
+      if (id === 'kd-sidp') state.calcInputs.killSIDPP_psi = fromDisplayPress(rawVal);
+      if (id === 'kd-sicp') state.calcInputs.killSICP_psi = fromDisplayPress(rawVal);
+      if (id === 'kd-clf') state.calcInputs.killCLF_psi = fromDisplayPress(rawVal);
+      if (id === 'kd-pit-gain') state.calcInputs.pitGain_bbl = fromDisplayVol(rawVal);
+      if (id === 'kd-water-depth') state.calcInputs.waterDepth_m = isBblFt ? (rawVal / 3.28084) : rawVal;
+      if (id === 'kd-air-gap') state.calcInputs.airGap_m = isBblFt ? (rawVal / 3.28084) : rawVal;
+      if (id === 'kd-seawater-density') state.calcInputs.seawaterDensity_ppg = fromDisplayMw(rawVal);
 
       localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
+
+      // Reset warnings acknowledgement whenever inputs change
+      resetWarningsAck();
+
+      const validBox = document.getElementById('kd-validation-container');
+      if (validBox && validBox.innerHTML.trim() !== '') {
+        const liveInputs = readCanonicalInputs();
+        const liveVal = WellControlEngine.validateWellControlInputs(liveInputs);
+        const goBtn = document.getElementById('kd-go-btn');
+        if (liveVal.hasError) {
+          validBox.innerHTML = `
+            <div class="wc-alert-card error">
+              <div style="font-weight:700; margin-bottom:6px; font-size:0.85rem;">⛔ ${t('Calculation Blocked - Critical Errors', 'Calculation Blocked - Critical Errors')}:</div>
+              <ul style="margin:0 0 0 16px; padding:0; font-size:0.78rem;">
+                ${liveVal.alerts.filter(a => a.severity === 'ERROR').map(err => `<li><strong>${err.field}:</strong> ${err.message}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+          if (goBtn) {
+            goBtn.disabled = true;
+            goBtn.classList.add('btn-disabled');
+            goBtn.style.opacity = '0.45';
+            goBtn.style.cursor = 'not-allowed';
+            goBtn.style.pointerEvents = 'none';
+          }
+        } else if (liveVal.hasWarning) {
+          const list = validBox.querySelector('ul');
+          if (list) {
+            list.innerHTML = liveVal.alerts.filter(a => a.severity === 'WARNING').map(w => `<li>${w.message}</li>`).join('');
+          }
+        } else {
+          validBox.innerHTML = '';
+          if (goBtn) {
+            goBtn.disabled = false;
+            goBtn.classList.remove('btn-disabled');
+            goBtn.style.opacity = '1';
+            goBtn.style.cursor = 'pointer';
+            goBtn.style.pointerEvents = 'auto';
+          }
+        }
+      }
     }
   });
 }
+
 
 // ==========================================
 // BONUS FEATURE 1: API Tubular Data
@@ -6512,6 +8298,2580 @@ quickRefSubState = {
   subseaTab: 'overview' // 'overview', 'running', 'retrieving'
 };
 
+/**
+ * Shared pure calculation engine for Stuck Pipe Free Length & Free Point Constant (FPC).
+ * Engineering basis:
+ *   As = 0.7854 * (OD^2 - ID^2) [in^2]
+ *   FPC = 2500 * As [dimensionless field constant]
+ *   dP = (P_final - P_initial) / 1000 [klb]
+ *   L = (Stretch_in * FPC) / dP [ft]
+ * References: API RP 7G / Drilling Formulas / Wild Well Control rules of thumb.
+ */
+function calcFreePoint(params = {}) {
+  const errors = [];
+  const { od, id, stretchIn, pullInitialLb, pullFinalLb, pullIncrementKlb, fpcOverride, totalStringLengthFt } = params;
+
+  const fpcMan = (fpcOverride !== undefined && fpcOverride !== null && String(fpcOverride).trim() !== '')
+    ? parseFloat(String(fpcOverride).replace(',', '.')) : null;
+
+  let as = null, fpc = null;
+  if (fpcMan !== null) {
+    if (isNaN(fpcMan) || fpcMan <= 0) {
+      errors.push({ field: 'fpc_manual', message: 'Manual FPC must be greater than 0' });
+    } else {
+      fpc = fpcMan;
+      as = fpcMan / 2500;
+    }
+  } else {
+    const odNum = (od !== undefined && od !== null && String(od).trim() !== '') ? parseFloat(String(od).replace(',', '.')) : NaN;
+    const idNum = (id !== undefined && id !== null && String(id).trim() !== '') ? parseFloat(String(id).replace(',', '.')) : NaN;
+    if (isNaN(odNum) || odNum <= 0) errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+    if (isNaN(idNum) || idNum <= 0) errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+    else if (!isNaN(odNum) && odNum > 0 && idNum >= odNum) errors.push({ field: 'id', message: 'Pipe ID must be less than Pipe OD' });
+
+    if (errors.length === 0) {
+      as = (Math.pow(odNum, 2) - Math.pow(idNum, 2)) * 0.7854;
+      fpc = as * 2500;
+    }
+  }
+
+  let dP = null;
+  if (pullIncrementKlb !== undefined && pullIncrementKlb !== null && String(pullIncrementKlb).trim() !== '') {
+    const dpNum = parseFloat(String(pullIncrementKlb).replace(',', '.'));
+    if (isNaN(dpNum) || dpNum <= 0) errors.push({ field: 'pull', message: 'Pull force increment must be greater than 0' });
+    else dP = dpNum;
+  } else if (pullInitialLb !== undefined || pullFinalLb !== undefined) {
+    const pInit = (pullInitialLb !== undefined && pullInitialLb !== null && String(pullInitialLb).trim() !== '') ? parseFloat(String(pullInitialLb).replace(',', '.')) : NaN;
+    const pFinal = (pullFinalLb !== undefined && pullFinalLb !== null && String(pullFinalLb).trim() !== '') ? parseFloat(String(pullFinalLb).replace(',', '.')) : NaN;
+    if (isNaN(pInit) || pInit < 0) errors.push({ field: 'pull_initial', message: 'Initial pull must be 0 or greater' });
+    if (isNaN(pFinal) || pFinal <= 0) errors.push({ field: 'pull_final', message: 'Final pull must be greater than 0' });
+    else if (!isNaN(pInit) && pFinal <= pInit) errors.push({ field: 'pull_final', message: 'Final pull must be greater than initial pull' });
+
+    if (!isNaN(pInit) && !isNaN(pFinal) && pFinal > pInit) dP = (pFinal - pInit) / 1000;
+  }
+
+  let stretch = null;
+  if (stretchIn !== undefined && stretchIn !== null && String(stretchIn).trim() !== '') {
+    const sNum = parseFloat(String(stretchIn).replace(',', '.'));
+    if (isNaN(sNum) || sNum <= 0) errors.push({ field: 'stretch', message: 'Stretch must be greater than 0' });
+    else stretch = sNum;
+  }
+
+  let freeLengthFt = null;
+  if (fpc !== null && dP !== null && stretch !== null && errors.length === 0) {
+    freeLengthFt = (stretch * fpc) / dP;
+  }
+
+  let percentFree = null, warning = null;
+  if (totalStringLengthFt !== undefined && totalStringLengthFt !== null && String(totalStringLengthFt).trim() !== '') {
+    const totalFt = parseFloat(String(totalStringLengthFt).replace(',', '.'));
+    if (!isNaN(totalFt) && totalFt > 0) {
+      if (freeLengthFt !== null) {
+        percentFree = (freeLengthFt / totalFt) * 100;
+        if (freeLengthFt > totalFt) warning = 'Result exceeds string length - check inputs, pipe may be free';
+      }
+    } else if (!isNaN(totalFt) && totalFt < 0) {
+      errors.push({ field: 'total_length', message: 'Total length must be greater than 0' });
+    }
+  }
+
+  return {
+    as,
+    fpc,
+    pullIncrementKlb: dP,
+    freeLengthFt,
+    percentFree,
+    warning,
+    errors,
+    isValid: errors.length === 0 && freeLengthFt !== null,
+    valueOf() { return this.freeLengthFt !== null ? this.freeLengthFt : 0; }
+  };
+}
+
+/**
+ * Shared pure calculation engine for Stuck Pipe Free Length via Pipe Weight Method.
+ * Engineering basis:
+ *   W = weightLbFt || 2.67 * (OD^2 - ID^2) [lb/ft]
+ *   L = (735294 * Stretch_in * W) / Pull_lb [ft]
+ * Reference: Drilling Formulas / Wild Well Control rules of thumb.
+ */
+function calcFreePointWeight(params = {}) {
+  const errors = [];
+  const { stretchIn, pullLb, weightLbFt, od, id, mode } = params;
+
+  let activeMode = mode;
+  if (!activeMode) {
+    if (weightLbFt !== undefined && weightLbFt !== null && String(weightLbFt).trim() !== '' && (od === undefined || od === null || String(od).trim() === '')) {
+      activeMode = 'weight';
+    } else {
+      activeMode = 'od_id';
+    }
+  }
+
+  let stretch = null;
+  const sNum = (stretchIn !== undefined && stretchIn !== null && String(stretchIn).trim() !== '') ? parseFloat(String(stretchIn).replace(',', '.')) : NaN;
+  if (isNaN(sNum) || sNum <= 0) errors.push({ field: 'stretch', message: 'Pipe stretch must be greater than 0' });
+  else stretch = sNum;
+
+  let pull = null;
+  const pNum = (pullLb !== undefined && pullLb !== null && String(pullLb).trim() !== '') ? parseFloat(String(pullLb).replace(',', '.')) : NaN;
+  if (isNaN(pNum) || pNum <= 0) errors.push({ field: 'pull', message: 'Pull increment must be greater than 0' });
+  else pull = pNum;
+
+  let W = null;
+  let isDerived = false;
+
+  if (activeMode === 'weight') {
+    const wNum = (weightLbFt !== undefined && weightLbFt !== null && String(weightLbFt).trim() !== '') ? parseFloat(String(weightLbFt).replace(',', '.')) : NaN;
+    if (isNaN(wNum) || wNum <= 0) errors.push({ field: 'pipe_weight', message: 'Pipe weight must be greater than 0' });
+    else W = wNum;
+  } else {
+    const odNum = (od !== undefined && od !== null && String(od).trim() !== '') ? parseFloat(String(od).replace(',', '.')) : NaN;
+    const idNum = (id !== undefined && id !== null && String(id).trim() !== '') ? parseFloat(String(id).replace(',', '.')) : NaN;
+    if (isNaN(odNum) || odNum <= 0) errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+    if (isNaN(idNum) || idNum <= 0) errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+    else if (!isNaN(odNum) && odNum > 0 && idNum >= odNum) errors.push({ field: 'id', message: 'Pipe ID must be less than Pipe OD' });
+
+    if (!isNaN(odNum) && !isNaN(idNum) && odNum > 0 && idNum > 0 && idNum < odNum) {
+      W = 2.67 * (Math.pow(odNum, 2) - Math.pow(idNum, 2));
+      isDerived = true;
+    }
+  }
+
+  let freeLengthFt = null;
+  if (stretch !== null && pull !== null && W !== null && errors.length === 0) {
+    freeLengthFt = (735294 * stretch * W) / pull;
+  }
+
+  return {
+    mode: activeMode,
+    weightUsed: W,
+    isDerived,
+    stretch,
+    pullLb: pull,
+    freeLengthFt,
+    errors,
+    isValid: errors.length === 0 && freeLengthFt !== null,
+    valueOf() { return this.freeLengthFt !== null ? this.freeLengthFt : 0; }
+  };
+}
+calcFreePoint.byWeight = calcFreePointWeight;
+
+/**
+ * Configurable drag increase thresholds for trend monitoring vs baseline.
+ * App defaults, adjust per operator procedure (not industry standards).
+ */
+const DRAG_ALERT_THRESHOLDS = {
+  NORMAL_MAX: 10000, // < 10k lb increase: Normal
+  WATCH_MAX: 25000   // 10k - 25k lb increase: Watch, > 25k lb increase: Alert
+};
+
+/**
+ * Shared pure calculation engine for Mechanical Sticking Analysis (Drag Analysis).
+ */
+function calcDragAnalysis(params = {}) {
+  const errors = [];
+  const { puw, sow, rw, baselineUp, baselineDown } = params;
+
+  const pu = (puw !== undefined && puw !== null && String(puw).trim() !== '') ? parseFloat(String(puw).replace(',', '.')) : NaN;
+  const so = (sow !== undefined && sow !== null && String(sow).trim() !== '') ? parseFloat(String(sow).replace(',', '.')) : NaN;
+  const rot = (rw !== undefined && rw !== null && String(rw).trim() !== '') ? parseFloat(String(rw).replace(',', '.')) : NaN;
+
+  if (isNaN(pu) || pu <= 0) errors.push({ field: 'puw', message: 'Pick-up weight must be greater than 0' });
+  if (isNaN(so) || so <= 0) errors.push({ field: 'sow', message: 'Slack-off weight must be greater than 0' });
+  if (isNaN(rot) || rot <= 0) errors.push({ field: 'rw', message: 'Rotating weight must be greater than 0' });
+
+  if (!isNaN(pu) && !isNaN(so) && !isNaN(rot) && pu > 0 && so > 0 && rot > 0) {
+    if (so >= pu) {
+      errors.push({ field: 'sow', message: 'Slack-off weight must be less than pick-up weight' });
+    } else if (rot <= so || rot >= pu) {
+      errors.push({ field: 'rw', message: 'Rotating weight should be between slack-off and pick-up weight' });
+    }
+  }
+
+  let bUp = null, bDown = null;
+  if (baselineUp !== undefined && baselineUp !== null && String(baselineUp).trim() !== '') {
+    const bUpNum = parseFloat(String(baselineUp).replace(',', '.'));
+    if (isNaN(bUpNum) || bUpNum < 0) errors.push({ field: 'base_up', message: 'Baseline up drag must be 0 or greater' });
+    else if (bUpNum > 0) bUp = bUpNum;
+  }
+  if (baselineDown !== undefined && baselineDown !== null && String(baselineDown).trim() !== '') {
+    const bDownNum = parseFloat(String(baselineDown).replace(',', '.'));
+    if (isNaN(bDownNum) || bDownNum < 0) errors.push({ field: 'base_down', message: 'Baseline down drag must be 0 or greater' });
+    else if (bDownNum > 0) bDown = bDownNum;
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, valueOf() { return 0; } };
+  }
+
+  const upDrag = pu - rot;
+  const downDrag = rot - so;
+  const totalDrag = pu - so;
+  const upDragPct = (upDrag / rot) * 100;
+  const downDragPct = (downDrag / rot) * 100;
+  const asymmetry = upDrag - downDrag;
+
+  let baselineUpChange = null, baselineUpChangePct = null;
+  let baselineDownChange = null, baselineDownChangePct = null;
+  let status = null;
+
+  if (bUp !== null || bDown !== null) {
+    let maxInc = -Infinity;
+    if (bUp !== null) {
+      baselineUpChange = upDrag - bUp;
+      baselineUpChangePct = (baselineUpChange / bUp) * 100;
+      if (baselineUpChange > maxInc) maxInc = baselineUpChange;
+    }
+    if (bDown !== null) {
+      baselineDownChange = downDrag - bDown;
+      baselineDownChangePct = (baselineDownChange / bDown) * 100;
+      if (baselineDownChange > maxInc) maxInc = baselineDownChange;
+    }
+
+    if (maxInc < DRAG_ALERT_THRESHOLDS.NORMAL_MAX) status = 'Normal';
+    else if (maxInc <= DRAG_ALERT_THRESHOLDS.WATCH_MAX) status = 'Watch';
+    else status = 'Alert';
+  }
+
+  return {
+    upDrag,
+    downDrag,
+    totalDrag,
+    upDragPct,
+    downDragPct,
+    asymmetry,
+    baselineUp: bUp,
+    baselineDown: bDown,
+    baselineUpChange,
+    baselineUpChangePct,
+    baselineDownChange,
+    baselineDownChangePct,
+    status,
+    errors,
+    isValid: true,
+    valueOf() { return this.totalDrag; }
+  };
+}
+
+/**
+ * Shared pure calculation engine for Free Pipe Percentage.
+ */
+function calcFreePipePercentage(params = {}) {
+  const errors = [];
+  const { total, free, totalLengthFt, freeLengthFt } = params;
+
+  const tInput = totalLengthFt !== undefined ? totalLengthFt : total;
+  const fInput = freeLengthFt !== undefined ? freeLengthFt : free;
+
+  const totalVal = (tInput !== undefined && tInput !== null && String(tInput).trim() !== '') ? parseFloat(String(tInput).replace(',', '.')) : NaN;
+  const freeVal = (fInput !== undefined && fInput !== null && String(fInput).trim() !== '') ? parseFloat(String(fInput).replace(',', '.')) : NaN;
+
+  if (isNaN(totalVal) || totalVal <= 0) errors.push({ field: 'total', message: 'Total drillstring length must be greater than 0' });
+  if (isNaN(freeVal) || freeVal < 0) errors.push({ field: 'free', message: 'Free pipe length cannot be negative' });
+  else if (!isNaN(totalVal) && totalVal > 0 && freeVal > totalVal) {
+    errors.push({ field: 'free', message: 'Free length cannot exceed total drillstring length' });
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, valueOf() { return 0; } };
+  }
+
+  const freePipePct = (freeVal / totalVal) * 100;
+  const stuckLengthFt = totalVal - freeVal;
+  const stuckPct = 100 - freePipePct;
+
+  return {
+    totalLengthFt: totalVal,
+    freeLengthFt: freeVal,
+    freePipePct,
+    stuckLengthFt,
+    stuckPct,
+    errors,
+    isValid: true,
+    valueOf() { return this.freePipePct; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcFreePoint = calcFreePoint;
+  window.calcFreePointWeight = calcFreePointWeight;
+  window.calcDragAnalysis = calcDragAnalysis;
+  window.DRAG_ALERT_THRESHOLDS = DRAG_ALERT_THRESHOLDS;
+  window.calcFreePipePercentage = calcFreePipePercentage;
+}
+if (typeof global !== 'undefined') {
+  global.calcFreePoint = calcFreePoint;
+  global.calcFreePointWeight = calcFreePointWeight;
+  global.calcDragAnalysis = calcDragAnalysis;
+  global.DRAG_ALERT_THRESHOLDS = DRAG_ALERT_THRESHOLDS;
+  global.calcFreePipePercentage = calcFreePipePercentage;
+}
+
+/**
+ * Configurable utilization status thresholds for Fishing String Load.
+ * App defaults, adjust per operator policy / safety margins.
+ */
+const FISHING_LOAD_THRESHOLDS = {
+  OK_MAX: 80,       // Under 80% -> OK
+  CAUTION_MAX: 100  // 80% - 100% -> Caution, over 100% -> Exceeds limit
+};
+
+/**
+ * Configurable engineering constants and design factors for Drilling Engineering Calculators.
+ * Defaults are standard industry / application baselines; adjustable per operator policy.
+ */
+const DRILLING_CALC_CONFIG = {
+  STEEL_DENSITY_PPG: 65.5,                 // Steel density in ppg (489.5 lb/cu ft / 7.4805)
+  HYDROSTATIC_FACTOR: 0.052,               // Hydrostatic pressure constant psi / (ppg * ft)
+  YOUNGS_MODULUS_STEEL_PSI: 30000000,      // Modulus of elasticity for steel (psi)
+  API_WALL_TOLERANCE_FACTOR: 0.875,        // API specification 5CT/5D 12.5% wall tolerance factor
+  SAFETY_FACTOR_REQUIRED_DEFAULT: 1.25,    // Default required safety factor
+  LUBINSKI_CRITICAL_FACTOR: 1.94,          // Lubinski vertical buckling coefficient
+  TENSILE_DESIGN_FACTOR_DEFAULT: 0.90,     // Default design factor for pipe yield
+  TENSILE_UTILIZATION_THRESHOLDS: {
+    OK_MAX: 80,                            // Under 80% -> OK
+    CAUTION_MAX: 100                       // 80% - 100% -> Caution, over 100% -> Warning
+  },
+  DC_SAFETY_FACTOR_DEFAULT: 1.15,          // 15% safety factor on WOB
+  DC_JOINT_LENGTH_DEFAULT_FT: 30,          // Standard collar joint length (ft)
+  DEVIATION_HIGH_INCLINATION_WARN_DEG: 75, // Inclination above 75° shows sensitivity warning
+  MOP_DESIGN_FACTOR_DEFAULT: 0.90,         // Design factor for margin of overpull
+  MOP_CAUTION_THRESHOLD_LB: 50000,         // Margin with DF under 50,000 lb -> Caution
+  HOOK_LOAD_ALERT_THRESHOLDS: {
+    CAUTION: 0.85, // app defaults, adjustable per operator policy: 85% utilization
+    WARNING: 1.00  // 100% rated capacity
+  },
+  WOB_ALERT_THRESHOLDS: {
+    // app defaults, adjustable per operator policy
+    TARGET_LOW_WARN_PCT: 75,     // < 75% -> Warning "Significantly below target"
+    TARGET_LOW_CAUTION_PCT: 90,  // 75% - 90% -> Caution "Below target WOB"
+    TARGET_HIGH_CAUTION_PCT: 110, // 110% - 125% -> Caution "Above target WOB"
+    TARGET_HIGH_WARN_PCT: 125    // > 125% -> Warning "Significantly exceeds target"
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.DRILLING_CALC_CONFIG = DRILLING_CALC_CONFIG;
+}
+if (typeof global !== 'undefined') {
+  global.DRILLING_CALC_CONFIG = DRILLING_CALC_CONFIG;
+}
+
+const DrillingMath = {
+  buoyancyFactor(mw) {
+    return (DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG - mw) / DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG;
+  },
+  pipeArea(od, id) {
+    return 0.7854 * (Math.pow(od, 2) - Math.pow(id, 2));
+  },
+  momentOfInertia(od, id) {
+    return (Math.PI / 64) * (Math.pow(od, 4) - Math.pow(id, 4));
+  }
+};
+if (typeof window !== 'undefined') window.DrillingMath = DrillingMath;
+if (typeof global !== 'undefined') global.DrillingMath = DrillingMath;
+
+/**
+ * Pure calculation engine for Drill String Weight in Air.
+ */
+function calcDrillStringWeightAir(params = {}) {
+  const { dp_len, dp_wt, hwdp_len, hwdp_wt, dc_len, dc_wt } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(dp_len) || isEmpty(dp_wt) || isEmpty(hwdp_len) || isEmpty(hwdp_wt) || isEmpty(dc_len) || isEmpty(dc_wt)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numDpLen = parseFloat(dp_len);
+  const numDpWt = parseFloat(dp_wt);
+  const numHwdpLen = parseFloat(hwdp_len);
+  const numHwdpWt = parseFloat(hwdp_wt);
+  const numDcLen = parseFloat(dc_len);
+  const numDcWt = parseFloat(dc_wt);
+
+  if (!Number.isFinite(numDpLen) || numDpLen <= 0) {
+    errors.push({ field: 'dp_len', message: 'Drill pipe length must be greater than 0' });
+  }
+  if (!Number.isFinite(numDpWt) || numDpWt <= 0) {
+    errors.push({ field: 'dp_wt', message: 'Drill pipe weight must be greater than 0' });
+  }
+  if (!Number.isFinite(numHwdpLen) || numHwdpLen <= 0) {
+    errors.push({ field: 'hwdp_len', message: 'HWDP length must be greater than 0' });
+  }
+  if (!Number.isFinite(numHwdpWt) || numHwdpWt <= 0) {
+    errors.push({ field: 'hwdp_wt', message: 'HWDP weight must be greater than 0' });
+  }
+  if (!Number.isFinite(numDcLen) || numDcLen <= 0) {
+    errors.push({ field: 'dc_len', message: 'Drill collar length must be greater than 0' });
+  }
+  if (!Number.isFinite(numDcWt) || numDcWt <= 0) {
+    errors.push({ field: 'dc_wt', message: 'Drill collar weight must be greater than 0' });
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const dpWeightLb = numDpLen * numDpWt;
+  const hwdpWeightLb = numHwdpLen * numHwdpWt;
+  const dcWeightLb = numDcLen * numDcWt;
+  const totalWeightLb = dpWeightLb + hwdpWeightLb + dcWeightLb;
+  const totalLengthFt = numDpLen + numHwdpLen + numDcLen;
+
+  const dpPct = (dpWeightLb / totalWeightLb) * 100;
+  const hwdpPct = (hwdpWeightLb / totalWeightLb) * 100;
+  const dcPct = (dcWeightLb / totalWeightLb) * 100;
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    totalWeightLb,
+    totalLengthFt,
+    dpWeightLb,
+    dpPct,
+    hwdpWeightLb,
+    hwdpPct,
+    dcWeightLb,
+    dcPct,
+    valueOf() { return this.totalWeightLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcDrillStringWeightAir = calcDrillStringWeightAir;
+}
+if (typeof global !== 'undefined') {
+  global.calcDrillStringWeightAir = calcDrillStringWeightAir;
+}
+
+/**
+ * Pure calculation engine for Drill String Weight in Mud.
+ */
+function calcDrillStringWeightMud(params = {}) {
+  const { wt_air, mw } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(wt_air) || isEmpty(mw)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numWtAir = parseFloat(wt_air);
+  const numMw = parseFloat(mw);
+
+  if (!Number.isFinite(numWtAir) || numWtAir <= 0) {
+    errors.push({ field: 'wt_air', message: 'Drill string weight in air must be greater than 0' });
+  }
+  if (!Number.isFinite(numMw) || numMw <= 0) {
+    errors.push({ field: 'mw', message: 'Mud weight must be greater than 0' });
+  } else if (numMw >= DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG) {
+    errors.push({ field: 'mw', message: `Mud weight must be less than ${DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG} ppg (steel density)` });
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const bf = DrillingMath.buoyancyFactor(numMw);
+  const buoyedWeightLb = numWtAir * bf;
+  const buoyancyLossLb = numWtAir - buoyedWeightLb;
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    buoyedWeightLb,
+    buoyancyFactor: bf,
+    buoyancyLossLb,
+    valueOf() { return this.buoyedWeightLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcDrillStringWeightMud = calcDrillStringWeightMud;
+}
+if (typeof global !== 'undefined') {
+  global.calcDrillStringWeightMud = calcDrillStringWeightMud;
+}
+
+/**
+ * Pure calculation engine for Critical Buckling Load (Vertical Well, Lubinski).
+ */
+function calcCriticalBucklingLoad(params = {}) {
+  const { od, id, wt_mud, comp_load } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(od) || isEmpty(id) || isEmpty(wt_mud)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numOd = parseFloat(od);
+  const numId = parseFloat(id);
+  const numWtMud = parseFloat(wt_mud);
+
+  if (!Number.isFinite(numOd) || numOd <= 0) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+  }
+  if (!Number.isFinite(numId) || numId <= 0) {
+    errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+  }
+  if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd <= numId) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+  }
+  if (!Number.isFinite(numWtMud) || numWtMud <= 0) {
+    errors.push({ field: 'wt_mud', message: 'Buoyed weight must be greater than 0' });
+  }
+
+  let numCompLoad = null;
+  if (!isEmpty(comp_load)) {
+    numCompLoad = parseFloat(comp_load);
+    if (!Number.isFinite(numCompLoad) || numCompLoad < 0) {
+      errors.push({ field: 'comp_load', message: 'Compressive load must be greater than or equal to 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const I = DrillingMath.momentOfInertia(numOd, numId);
+  const w = numWtMud / 12; // lb/in
+  const E = DRILLING_CALC_CONFIG.YOUNGS_MODULUS_STEEL_PSI;
+  const fcrLb = DRILLING_CALC_CONFIG.LUBINSKI_CRITICAL_FACTOR * Math.cbrt(E * I * Math.pow(w, 2));
+
+  let status = null;
+  let statusMsg = null;
+  let utilizationPct = null;
+
+  if (numCompLoad !== null) {
+    utilizationPct = (numCompLoad / fcrLb) * 100;
+    if (numCompLoad >= fcrLb) {
+      status = 'Warning';
+      statusMsg = `Buckling expected: compressive load (${Math.round(numCompLoad).toLocaleString()} lb) ≥ critical load (${Math.round(fcrLb).toLocaleString()} lb)`;
+      warnings.push({ field: 'comp_load', message: statusMsg });
+    } else if (utilizationPct >= 80) {
+      status = 'Caution';
+      statusMsg = `Near critical load (${utilizationPct.toFixed(1)}% of Fcr)`;
+    } else {
+      status = 'OK';
+      statusMsg = `Stable against buckling (${utilizationPct.toFixed(1)}% of Fcr)`;
+    }
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    criticalLoadLb: fcrLb,
+    momentOfInertiaIn4: I,
+    buoyedWeightLbPerIn: w,
+    compressiveLoadLb: numCompLoad,
+    utilizationPct,
+    status,
+    statusMsg,
+    valueOf() { return this.criticalLoadLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcCriticalBucklingLoad = calcCriticalBucklingLoad;
+}
+if (typeof global !== 'undefined') {
+  global.calcCriticalBucklingLoad = calcCriticalBucklingLoad;
+}
+
+/**
+ * Pure calculation engine for Burst Pressure Rating.
+ */
+function calcBurstPressureRating(params = {}) {
+  const { yield: yp, od, id, api_tol_toggle = true, wall_pct, df } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(yp) || isEmpty(od) || isEmpty(id)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numYp = parseFloat(yp);
+  const numOd = parseFloat(od);
+  const numId = parseFloat(id);
+  const applyTol = (api_tol_toggle === true || api_tol_toggle === 'true' || api_tol_toggle === 1 || api_tol_toggle === '1');
+
+  if (!Number.isFinite(numYp) || numYp <= 0) {
+    errors.push({ field: 'yield', message: 'Yield strength must be greater than 0' });
+  }
+  if (!Number.isFinite(numOd) || numOd <= 0) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+  }
+  if (!Number.isFinite(numId) || numId <= 0) {
+    errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+  }
+  if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd <= numId) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+  }
+
+  let numWallPct = 100;
+  if (!isEmpty(wall_pct)) {
+    numWallPct = parseFloat(wall_pct);
+    if (!Number.isFinite(numWallPct) || numWallPct <= 0 || numWallPct > 100) {
+      errors.push({ field: 'wall_pct', message: 'Remaining wall thickness must be between 1% and 100%' });
+    }
+  }
+
+  let numDf = null;
+  if (!isEmpty(df)) {
+    numDf = parseFloat(df);
+    if (!Number.isFinite(numDf) || numDf <= 0 || numDf > 1.0) {
+      errors.push({ field: 'df', message: 'Design factor must be between 0 and 1.0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const nominalWallIn = (numOd - numId) / 2;
+  const effectiveWallIn = nominalWallIn * (numWallPct / 100);
+  const effectiveOd = numId + 2 * effectiveWallIn;
+
+  const barlowNominalPsi = (2 * numYp * effectiveWallIn) / effectiveOd;
+  const apiBurstPsi = barlowNominalPsi * DRILLING_CALC_CONFIG.API_WALL_TOLERANCE_FACTOR;
+
+  const mainBurstPsi = applyTol ? apiBurstPsi : barlowNominalPsi;
+  let allowableBurstPsi = null;
+  if (numDf !== null) {
+    allowableBurstPsi = mainBurstPsi * numDf;
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    mainBurstPsi,
+    barlowNominalPsi,
+    apiBurstPsi,
+    applyTolerance: applyTol,
+    nominalWallIn,
+    effectiveWallIn,
+    effectiveOd,
+    wallPct: numWallPct,
+    designFactor: numDf,
+    allowableBurstPsi,
+    valueOf() { return this.mainBurstPsi; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcBurstPressureRating = calcBurstPressureRating;
+}
+if (typeof global !== 'undefined') {
+  global.calcBurstPressureRating = calcBurstPressureRating;
+}
+
+/**
+ * Pure calculation engine for Collapse Pressure Rating per API 5C3 (Four-Regime).
+ */
+function calcCollapsePressureRating(params = {}) {
+  const { yield: yp, od, id, wall_pct } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(yp) || isEmpty(od) || isEmpty(id)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numYp = parseFloat(yp);
+  const numOd = parseFloat(od);
+  const numId = parseFloat(id);
+
+  if (!Number.isFinite(numYp) || numYp <= 0) {
+    errors.push({ field: 'yield', message: 'Yield strength must be greater than 0' });
+  }
+  if (!Number.isFinite(numOd) || numOd <= 0) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+  }
+  if (!Number.isFinite(numId) || numId <= 0) {
+    errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+  }
+  if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd <= numId) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+  }
+
+  let numWallPct = 100;
+  if (!isEmpty(wall_pct)) {
+    numWallPct = parseFloat(wall_pct);
+    if (!Number.isFinite(numWallPct) || numWallPct <= 0 || numWallPct > 100) {
+      errors.push({ field: 'wall_pct', message: 'Remaining wall thickness must be between 1% and 100%' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings, value: null };
+  }
+
+  const nominalWallIn = (numOd - numId) / 2;
+  const effectiveWallIn = nominalWallIn * (numWallPct / 100);
+  const effectiveOd = numId + 2 * effectiveWallIn;
+  const x = effectiveOd / effectiveWallIn; // D/t ratio
+  const Yp = numYp;
+
+  // API 5C3 Empirical Coefficients
+  const A = 2.8762 + 0.10679e-5 * Yp + 0.21301e-10 * Math.pow(Yp, 2) - 0.53132e-16 * Math.pow(Yp, 3);
+  const B = 0.026233 + 0.50609e-6 * Yp;
+  const C = -465.93 + 0.030867 * Yp - 0.10483e-7 * Math.pow(Yp, 2) + 0.36989e-13 * Math.pow(Yp, 3);
+
+  const b_over_a = B / A;
+  const term = (3 * b_over_a) / (2 + b_over_a);
+  const F = (46.95e6 * Math.pow(term, 3)) / (Yp * (term - b_over_a) * Math.pow(1 - term, 2));
+  const G = F * b_over_a;
+
+  // Regime limits on x = D/t
+  const y_p_limit = (Math.sqrt(Math.pow(A - 2, 2) + 8 * (B + C / Yp)) + (A - 2)) / (2 * (B + C / Yp));
+  const p_t_limit = (Yp * (A - F)) / (C + Yp * (B - G));
+  const t_e_limit = (2 + b_over_a) / (3 * b_over_a);
+
+  let regime = '';
+  let collapsePsi = 0;
+  if (x <= y_p_limit) {
+    regime = 'Yield';
+    collapsePsi = 2 * Yp * (x - 1) / Math.pow(x, 2);
+  } else if (x <= p_t_limit) {
+    regime = 'Plastic';
+    collapsePsi = Yp * (A / x - B) - C;
+  } else if (x <= t_e_limit) {
+    regime = 'Transition';
+    collapsePsi = Yp * (F / x - G);
+  } else {
+    regime = 'Elastic';
+    collapsePsi = 46.95e6 / (x * Math.pow(x - 1, 2));
+  }
+
+  if (collapsePsi < 0) collapsePsi = 0;
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    collapsePsi,
+    regime,
+    dOverT: x,
+    yieldPlasticLimit: y_p_limit,
+    plasticTransitionLimit: p_t_limit,
+    transitionElasticLimit: t_e_limit,
+    nominalWallIn,
+    effectiveWallIn,
+    effectiveOd,
+    wallPct: numWallPct,
+    valueOf() { return this.collapsePsi; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcCollapsePressureRating = calcCollapsePressureRating;
+}
+if (typeof global !== 'undefined') {
+  global.calcCollapsePressureRating = calcCollapsePressureRating;
+}
+
+/**
+ * Pure calculation engine for Pipe Body Yield Strength.
+ */
+function calcPipeBodyYield(params = {}) {
+  const { yield: yp, od, id, df = 0.9, wall_pct } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(yp) || isEmpty(od) || isEmpty(id)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numYp = parseFloat(yp);
+  const numOd = parseFloat(od);
+  const numId = parseFloat(id);
+
+  if (!Number.isFinite(numYp) || numYp <= 0) {
+    errors.push({ field: 'yield', message: 'Yield strength must be greater than 0' });
+  }
+  if (!Number.isFinite(numOd) || numOd <= 0) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+  }
+  if (!Number.isFinite(numId) || numId <= 0) {
+    errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+  }
+  if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd <= numId) {
+    errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+  }
+
+  let numDf = 0.9;
+  if (!isEmpty(df)) {
+    numDf = parseFloat(df);
+    if (!Number.isFinite(numDf) || numDf <= 0 || numDf > 1.0) {
+      errors.push({ field: 'df', message: 'Design factor must be between 0 and 1.0' });
+    }
+  }
+
+  let numWallPct = 100;
+  if (!isEmpty(wall_pct)) {
+    numWallPct = parseFloat(wall_pct);
+    if (!Number.isFinite(numWallPct) || numWallPct <= 0 || numWallPct > 100) {
+      errors.push({ field: 'wall_pct', message: 'Remaining wall thickness must be between 1% and 100%' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings, value: null };
+  }
+
+  const nominalWallIn = (numOd - numId) / 2;
+  const effectiveWallIn = nominalWallIn * (numWallPct / 100);
+  const effectiveOd = numId + 2 * effectiveWallIn;
+
+  const od2 = Math.round(Math.pow(effectiveOd, 2) * 10000) / 10000;
+  const id2 = Math.round(Math.pow(numId, 2) * 10000) / 10000;
+  const crossSectionAreaIn2 = 0.7854 * (od2 - id2);
+
+  const yieldStrengthLb = numYp * crossSectionAreaIn2;
+  const allowableTensionLb = yieldStrengthLb * numDf;
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    yieldStrengthLb,
+    crossSectionAreaIn2,
+    allowableTensionLb,
+    designFactor: numDf,
+    nominalWallIn,
+    effectiveWallIn,
+    effectiveOd,
+    wallPct: numWallPct,
+    valueOf() { return this.yieldStrengthLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcPipeBodyYield = calcPipeBodyYield;
+}
+if (typeof global !== 'undefined') {
+  global.calcPipeBodyYield = calcPipeBodyYield;
+}
+
+/**
+ * Pure calculation engine for Tool Joint Strength (API Spec 7G).
+ */
+function calcToolJointStrength(params = {}) {
+  const { yield: yp, tj_od, tj_id, pin_area, box_area, pipe_yield } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(yp) || isEmpty(tj_od) || isEmpty(tj_id) || isEmpty(pin_area) || isEmpty(box_area)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numYp = parseFloat(yp);
+  const numOd = parseFloat(tj_od);
+  const numId = parseFloat(tj_id);
+  const numPinArea = parseFloat(pin_area);
+  const numBoxArea = parseFloat(box_area);
+
+  if (!Number.isFinite(numYp) || numYp <= 0) {
+    errors.push({ field: 'yield', message: 'Yield strength must be greater than 0' });
+  }
+  if (!Number.isFinite(numOd) || numOd <= 0) {
+    errors.push({ field: 'tj_od', message: 'Tool Joint OD must be greater than 0' });
+  }
+  if (!Number.isFinite(numId) || numId <= 0) {
+    errors.push({ field: 'tj_id', message: 'Tool Joint ID must be greater than 0' });
+  }
+  if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd <= numId) {
+    errors.push({ field: 'tj_od', message: 'Tool Joint OD must be greater than ID' });
+  }
+  if (!Number.isFinite(numPinArea) || numPinArea <= 0) {
+    errors.push({ field: 'pin_area', message: 'Pin critical area must be greater than 0' });
+  }
+  if (!Number.isFinite(numBoxArea) || numBoxArea <= 0) {
+    errors.push({ field: 'box_area', message: 'Box critical area must be greater than 0' });
+  }
+
+  let numPipeYield = null;
+  if (!isEmpty(pipe_yield)) {
+    numPipeYield = parseFloat(pipe_yield);
+    if (!Number.isFinite(numPipeYield) || numPipeYield <= 0) {
+      errors.push({ field: 'pipe_yield', message: 'Pipe body yield strength must be greater than 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings, value: null };
+  }
+
+  const grossAreaIn2 = (Math.PI / 4) * (Math.pow(numOd, 2) - Math.pow(numId, 2));
+  const grossUpperLb = numYp * grossAreaIn2;
+
+  const minAreaIn2 = Math.min(numPinArea, numBoxArea);
+  const jointTensileRatingLb = numYp * minAreaIn2;
+
+  let governingMember = 'Pin';
+  if (numBoxArea < numPinArea) {
+    governingMember = 'Box';
+  } else if (numPinArea === numBoxArea) {
+    governingMember = 'Pin & Box (Balanced)';
+  }
+
+  let tjVsPipeRatio = null;
+  let status = null;
+  let statusMsg = '';
+  if (numPipeYield !== null) {
+    tjVsPipeRatio = jointTensileRatingLb / numPipeYield;
+    if (jointTensileRatingLb < numPipeYield) {
+      status = 'Warning';
+      statusMsg = `Tool joint weaker than pipe body (${(tjVsPipeRatio * 100).toFixed(1)}%)`;
+    } else {
+      status = 'OK';
+      statusMsg = `Tool joint stronger than pipe body (${(tjVsPipeRatio * 100).toFixed(1)}%)`;
+    }
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    jointTensileRatingLb,
+    minAreaIn2,
+    governingMember,
+    pinAreaIn2: numPinArea,
+    boxAreaIn2: numBoxArea,
+    grossAreaIn2,
+    grossUpperLb,
+    pipeBodyYieldLb: numPipeYield,
+    tjVsPipeRatio,
+    status,
+    statusMsg,
+    valueOf() { return this.jointTensileRatingLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcToolJointStrength = calcToolJointStrength;
+}
+if (typeof global !== 'undefined') {
+  global.calcToolJointStrength = calcToolJointStrength;
+}
+
+/**
+ * Pure calculation engine for Hook Load Calculation.
+ */
+function calcHookLoad(params = {}) {
+  const { ds_air, mw, bha_air, block_wt, limit } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(ds_air) || isEmpty(mw)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numDsAir = parseFloat(ds_air);
+  const numMw = parseFloat(mw);
+  const numBhaAir = isEmpty(bha_air) ? 0 : parseFloat(bha_air);
+  const numBlockWt = isEmpty(block_wt) ? 0 : parseFloat(block_wt);
+
+  if (!Number.isFinite(numDsAir) || numDsAir <= 0) {
+    errors.push({ field: 'ds_air', message: 'Drill string weight in air must be greater than 0' });
+  }
+  if (!Number.isFinite(numMw) || numMw <= 0 || numMw >= DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG) {
+    errors.push({ field: 'mw', message: `Mud weight must be between 0 and ${DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG} ppg` });
+  }
+  if (!Number.isFinite(numBhaAir) || numBhaAir < 0) {
+    errors.push({ field: 'bha_air', message: 'BHA weight in air cannot be negative' });
+  }
+  if (!Number.isFinite(numBlockWt) || numBlockWt < 0) {
+    errors.push({ field: 'block_wt', message: 'Block assembly weight cannot be negative' });
+  }
+
+  let numLimit = null;
+  if (!isEmpty(limit)) {
+    numLimit = parseFloat(limit);
+    if (!Number.isFinite(numLimit) || numLimit <= 0) {
+      errors.push({ field: 'limit', message: 'Rated hook load limit must be greater than 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings, value: null };
+  }
+
+  const bf = DrillingMath.buoyancyFactor(numMw);
+  const buoyedDsLb = numDsAir * bf;
+  const buoyedBhaLb = numBhaAir * bf;
+  const totalHookLoadLb = buoyedDsLb + buoyedBhaLb + numBlockWt;
+
+  let utilizationPct = null;
+  let status = null;
+  let statusMsg = '';
+  if (numLimit !== null) {
+    utilizationPct = (totalHookLoadLb / numLimit) * 100;
+    if (totalHookLoadLb >= numLimit) {
+      status = 'Warning';
+      statusMsg = `Load exceeds rated limit (${utilizationPct.toFixed(1)}%)`;
+    } else if (utilizationPct >= (DRILLING_CALC_CONFIG.HOOK_LOAD_ALERT_THRESHOLDS?.CAUTION || 0.85) * 100) {
+      status = 'Caution';
+      statusMsg = `Approaching rated limit (${utilizationPct.toFixed(1)}%)`;
+    } else {
+      status = 'OK';
+      statusMsg = `Within rated limit (${utilizationPct.toFixed(1)}%)`;
+    }
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    totalHookLoadLb,
+    buoyancyFactor: bf,
+    buoyedDsLb,
+    buoyedBhaLb,
+    blockWtLb: numBlockWt,
+    ratedLimitLb: numLimit,
+    utilizationPct,
+    status,
+    statusMsg,
+    valueOf() { return this.totalHookLoadLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcHookLoad = calcHookLoad;
+}
+if (typeof global !== 'undefined') {
+  global.calcHookLoad = calcHookLoad;
+}
+
+/**
+ * Pure calculation engine for Bit Weight on Bottom (WOB).
+ */
+function calcBitWeightOnBottom(params = {}) {
+  const { hl_free, hl_drill, target_wob } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(hl_free) || isEmpty(hl_drill)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numHlFree = parseFloat(hl_free);
+  const numHlDrill = parseFloat(hl_drill);
+
+  if (!Number.isFinite(numHlFree) || numHlFree <= 0) {
+    errors.push({ field: 'hl_free', message: 'Off-bottom hook load must be greater than 0' });
+  }
+  if (!Number.isFinite(numHlDrill) || numHlDrill <= 0) {
+    errors.push({ field: 'hl_drill', message: 'On-bottom hook load must be greater than 0' });
+  }
+
+  if (Number.isFinite(numHlFree) && Number.isFinite(numHlDrill) && numHlDrill >= numHlFree) {
+    errors.push({ field: 'hl_drill', message: 'On-bottom load must be lower than off-bottom load' });
+  }
+
+  let numTarget = null;
+  if (!isEmpty(target_wob)) {
+    numTarget = parseFloat(target_wob);
+    if (!Number.isFinite(numTarget) || numTarget <= 0) {
+      errors.push({ field: 'target_wob', message: 'Target WOB must be greater than 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const wobLb = numHlFree - numHlDrill;
+  let targetDiffLb = null;
+  let targetPct = null;
+  let status = null;
+  let statusMsg = null;
+
+  if (numTarget !== null) {
+    targetDiffLb = wobLb - numTarget;
+    targetPct = (wobLb / numTarget) * 100;
+
+    const t = DRILLING_CALC_CONFIG.WOB_ALERT_THRESHOLDS;
+    if (targetPct < t.TARGET_LOW_WARN_PCT) {
+      status = 'Warning';
+      statusMsg = `Significantly below target (${targetPct.toFixed(1)}%)`;
+      warnings.push({ field: 'target_wob', message: statusMsg });
+    } else if (targetPct < t.TARGET_LOW_CAUTION_PCT) {
+      status = 'Caution';
+      statusMsg = `Below target (${targetPct.toFixed(1)}%)`;
+      warnings.push({ field: 'target_wob', message: statusMsg });
+    } else if (targetPct > t.TARGET_HIGH_WARN_PCT) {
+      status = 'Warning';
+      statusMsg = `Significantly exceeds target (${targetPct.toFixed(1)}%)`;
+      warnings.push({ field: 'target_wob', message: statusMsg });
+    } else if (targetPct > t.TARGET_HIGH_CAUTION_PCT) {
+      status = 'Caution';
+      statusMsg = `Above target (${targetPct.toFixed(1)}%)`;
+      warnings.push({ field: 'target_wob', message: statusMsg });
+    } else {
+      status = 'OK';
+      statusMsg = `Within target range (${targetPct.toFixed(1)}%)`;
+    }
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    wobLb,
+    offBottomLb: numHlFree,
+    onBottomLb: numHlDrill,
+    targetWobLb: numTarget,
+    targetDiffLb,
+    targetPct,
+    status,
+    statusMsg,
+    valueOf() { return this.wobLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcBitWeightOnBottom = calcBitWeightOnBottom;
+}
+if (typeof global !== 'undefined') {
+  global.calcBitWeightOnBottom = calcBitWeightOnBottom;
+}
+
+/**
+ * Pure calculation engine for Safety Factor Calculation.
+ */
+function calcSafetyFactor(params = {}) {
+  const { strength, load, required_sf } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(strength) || isEmpty(load)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numStrength = parseFloat(strength);
+  const numLoad = parseFloat(load);
+  const numReqSf = isEmpty(required_sf)
+    ? DRILLING_CALC_CONFIG.SAFETY_FACTOR_REQUIRED_DEFAULT
+    : parseFloat(required_sf);
+
+  if (!Number.isFinite(numStrength) || numStrength <= 0) {
+    errors.push({ field: 'strength', message: 'Component strength must be greater than 0' });
+  }
+  if (!Number.isFinite(numLoad) || numLoad <= 0) {
+    errors.push({ field: 'load', message: 'Applied load must be greater than 0' });
+  }
+  if (!Number.isFinite(numReqSf) || numReqSf <= 0) {
+    errors.push({ field: 'required_sf', message: 'Required safety factor must be greater than 0' });
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const actualSf = numStrength / numLoad;
+  const maxAllowableLoadLb = numStrength / numReqSf;
+  const utilizationPct = (numLoad / numStrength) * 100;
+  const allowableUtilizationPct = (numLoad / maxAllowableLoadLb) * 100;
+
+  let status = 'OK';
+  let statusMsg = 'Safety factor verified';
+
+  if (actualSf < 1.0) {
+    status = 'Warning';
+    statusMsg = 'Load exceeds strength';
+    warnings.push({ field: 'load', message: statusMsg });
+  } else if (actualSf < numReqSf) {
+    status = 'Caution';
+    statusMsg = 'Below required safety factor';
+    warnings.push({ field: 'load', message: statusMsg });
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    actualSf,
+    strengthLb: numStrength,
+    loadLb: numLoad,
+    requiredSf: numReqSf,
+    maxAllowableLoadLb,
+    utilizationPct,
+    allowableUtilizationPct,
+    status,
+    statusMsg,
+    valueOf() { return this.actualSf; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcSafetyFactor = calcSafetyFactor;
+}
+if (typeof global !== 'undefined') {
+  global.calcSafetyFactor = calcSafetyFactor;
+}
+
+/**
+ * Pure calculation engine for Neutral Point Calculation.
+ */
+function calcNeutralPoint(params = {}) {
+  const { wob, dc_wt, mw, bha_len } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(wob) || isEmpty(dc_wt) || isEmpty(mw)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numWob = parseFloat(wob);
+  const numDcWt = parseFloat(dc_wt);
+  const numMw = parseFloat(mw);
+
+  if (!Number.isFinite(numWob) || numWob <= 0) {
+    errors.push({ field: 'wob', message: 'Weight on bit must be greater than 0' });
+  }
+  if (!Number.isFinite(numDcWt) || numDcWt <= 0) {
+    errors.push({ field: 'dc_wt', message: 'BHA weight must be greater than 0' });
+  }
+  if (!Number.isFinite(numMw) || numMw <= 0 || numMw >= DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG) {
+    errors.push({ field: 'mw', message: `Mud weight must be between 0 and ${DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG} ppg` });
+  }
+
+  let numBhaLen = null;
+  if (!isEmpty(bha_len)) {
+    numBhaLen = parseFloat(bha_len);
+    if (!Number.isFinite(numBhaLen) || numBhaLen <= 0) {
+      errors.push({ field: 'bha_len', message: 'BHA length must be greater than 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const bf = (DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG - numMw) / DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG;
+  const buoyedDcWt = numDcWt * bf;
+  const npFt = numWob / buoyedDcWt;
+
+  let status = null;
+  let statusMsg = null;
+  if (numBhaLen !== null) {
+    if (npFt <= numBhaLen) {
+      status = 'OK';
+      statusMsg = 'Neutral point inside BHA';
+    } else {
+      status = 'Warning';
+      statusMsg = 'Neutral point is in the drill pipe, pipe may be in compression. Reduce WOB or add collars.';
+      warnings.push({ field: 'bha_len', message: statusMsg });
+    }
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    npFt,
+    bf,
+    buoyedDcWt,
+    bhaLen: numBhaLen,
+    status,
+    statusMsg,
+    valueOf() { return this.npFt; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcNeutralPoint = calcNeutralPoint;
+}
+if (typeof global !== 'undefined') {
+  global.calcNeutralPoint = calcNeutralPoint;
+}
+
+/**
+ * Pure calculation engine for Tensile Capacity of Drill String.
+ */
+function calcTensileCapacity(params = {}) {
+  const { ys, area, df, calcAreaToggle, od, id, hook_load } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(ys)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numYs = parseFloat(ys);
+  if (!Number.isFinite(numYs) || numYs <= 0) {
+    errors.push({ field: 'ys', message: 'Yield strength must be greater than 0' });
+  }
+
+  const numDf = isEmpty(df) ? DRILLING_CALC_CONFIG.TENSILE_DESIGN_FACTOR_DEFAULT : parseFloat(df);
+  if (!Number.isFinite(numDf) || numDf < 0.5 || numDf > 1.0) {
+    errors.push({ field: 'df', message: 'Design factor must be between 0.50 and 1.00' });
+  }
+
+  let numArea = 0;
+  const useCalcArea = !!calcAreaToggle;
+
+  if (useCalcArea) {
+    if (isEmpty(od) || isEmpty(id)) {
+      return { isValid: false, errors, warnings: [], value: null };
+    }
+    const numOd = parseFloat(od);
+    const numId = parseFloat(id);
+    if (!Number.isFinite(numOd) || numOd <= 0) {
+      errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+    }
+    if (!Number.isFinite(numId) || numId <= 0) {
+      errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+    }
+    if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd > 0 && numId > 0) {
+      if (numOd <= numId) {
+        errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+      } else {
+        numArea = 0.7854 * (numOd * numOd - numId * numId);
+      }
+    }
+  } else {
+    if (isEmpty(area)) {
+      return { isValid: false, errors, warnings: [], value: null };
+    }
+    numArea = parseFloat(area);
+    if (!Number.isFinite(numArea) || numArea <= 0) {
+      errors.push({ field: 'area', message: 'Cross-section area must be greater than 0' });
+    }
+  }
+
+  let numLoad = null;
+  if (!isEmpty(hook_load)) {
+    numLoad = parseFloat(hook_load);
+    if (!Number.isFinite(numLoad) || numLoad < 0) {
+      errors.push({ field: 'hook_load', message: 'Hook load must be greater than or equal to 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null, area: numArea };
+  }
+
+  const capacityLb = numYs * numArea;
+  const allowableTensionLb = capacityLb * numDf;
+
+  let utilizationPct = null;
+  let status = null;
+  let statusMsg = null;
+  if (numLoad !== null) {
+    utilizationPct = (numLoad / allowableTensionLb) * 100;
+    if (utilizationPct <= DRILLING_CALC_CONFIG.TENSILE_UTILIZATION_THRESHOLDS.OK_MAX) {
+      status = 'OK';
+      statusMsg = `Under ${DRILLING_CALC_CONFIG.TENSILE_UTILIZATION_THRESHOLDS.OK_MAX}% allowable tension`;
+    } else if (utilizationPct <= DRILLING_CALC_CONFIG.TENSILE_UTILIZATION_THRESHOLDS.CAUTION_MAX) {
+      status = 'Caution';
+      statusMsg = `Caution: ${DRILLING_CALC_CONFIG.TENSILE_UTILIZATION_THRESHOLDS.OK_MAX}% - ${DRILLING_CALC_CONFIG.TENSILE_UTILIZATION_THRESHOLDS.CAUTION_MAX}% allowable tension`;
+      warnings.push({ field: 'hook_load', message: statusMsg });
+    } else {
+      status = 'Warning';
+      statusMsg = 'Exceeds allowable tension';
+      warnings.push({ field: 'hook_load', message: statusMsg });
+    }
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    capacityLb,
+    allowableTensionLb,
+    designFactor: numDf,
+    areaSqIn: numArea,
+    hookLoadLb: numLoad,
+    utilizationPct,
+    status,
+    statusMsg,
+    valueOf() { return this.allowableTensionLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcTensileCapacity = calcTensileCapacity;
+}
+if (typeof global !== 'undefined') {
+  global.calcTensileCapacity = calcTensileCapacity;
+}
+
+/**
+ * Pure calculation engine for Drill Collar Weight for Vertical Wells.
+ */
+function calcDcWeightVertical(params = {}) {
+  const { wob, bf, sf, calcBfToggle, mw, dc_wt_ft, joint_len } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(wob)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numWob = parseFloat(wob);
+  if (!Number.isFinite(numWob) || numWob <= 0) {
+    errors.push({ field: 'wob', message: 'Required Weight-on-Bit must be greater than 0' });
+  }
+
+  const numSf = isEmpty(sf) ? DRILLING_CALC_CONFIG.DC_SAFETY_FACTOR_DEFAULT : parseFloat(sf);
+  if (!Number.isFinite(numSf) || numSf < 1.0 || numSf > 1.5) {
+    errors.push({ field: 'sf', message: 'Safety factor must be between 1.0 and 1.5' });
+  }
+
+  let numBf = 0;
+  const useCalcBf = !!calcBfToggle;
+
+  if (useCalcBf) {
+    if (isEmpty(mw)) {
+      return { isValid: false, errors, warnings: [], value: null };
+    }
+    const numMw = parseFloat(mw);
+    if (!Number.isFinite(numMw) || numMw <= 0) {
+      errors.push({ field: 'mw', message: 'Mud weight must be greater than 0' });
+    } else if (numMw >= DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG) {
+      errors.push({ field: 'mw', message: `Mud weight must be less than steel density (${DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG} ppg)` });
+    } else {
+      numBf = (DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG - numMw) / DRILLING_CALC_CONFIG.STEEL_DENSITY_PPG;
+    }
+  } else {
+    if (isEmpty(bf)) {
+      return { isValid: false, errors, warnings: [], value: null };
+    }
+    numBf = parseFloat(bf);
+    if (!Number.isFinite(numBf) || numBf <= 0 || numBf > 1.0) {
+      errors.push({ field: 'bf', message: 'Buoyancy factor must be greater than 0 and at most 1.0' });
+    }
+  }
+
+  let numDcWtFt = null;
+  let numJointLen = DRILLING_CALC_CONFIG.DC_JOINT_LENGTH_DEFAULT_FT;
+  let collarLengthFt = null;
+  let jointsNeeded = null;
+  let status = null;
+  let statusMsg = null;
+
+  if (!isEmpty(dc_wt_ft)) {
+    numDcWtFt = parseFloat(dc_wt_ft);
+    if (!Number.isFinite(numDcWtFt) || numDcWtFt <= 0) {
+      errors.push({ field: 'dc_wt_ft', message: 'Collar weight per foot must be greater than 0' });
+    }
+
+    if (!isEmpty(joint_len)) {
+      const jl = parseFloat(joint_len);
+      if (!Number.isFinite(jl) || jl <= 0) {
+        errors.push({ field: 'joint_len', message: 'Joint length must be greater than 0' });
+      } else {
+        numJointLen = jl;
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null, bf: numBf };
+  }
+
+  const collarWeightLb = (numWob * numSf) / numBf;
+
+  if (numDcWtFt !== null && numDcWtFt > 0) {
+    collarLengthFt = collarWeightLb / numDcWtFt;
+    jointsNeeded = Math.ceil(collarLengthFt / numJointLen);
+    status = 'OK';
+    statusMsg = `${jointsNeeded} joints (${Math.round(collarLengthFt).toLocaleString()} ft)`;
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    collarWeightLb,
+    bf: numBf,
+    sf: numSf,
+    wob: numWob,
+    dcWtFt: numDcWtFt,
+    jointLen: numJointLen,
+    collarLengthFt,
+    jointsNeeded,
+    status,
+    statusMsg,
+    valueOf() { return this.collarWeightLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcDcWeightVertical = calcDcWeightVertical;
+}
+if (typeof global !== 'undefined') {
+  global.calcDcWeightVertical = calcDcWeightVertical;
+}
+
+/**
+ * Pure calculation engine for Drill Collar Weight for Deviated Wells.
+ */
+function calcDcWeightDeviated(params = {}) {
+  const { vertWt, angle, calcFromWobToggle, wob, bf, sf } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+
+  if (isEmpty(angle)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numAngle = parseFloat(angle);
+  if (!Number.isFinite(numAngle) || numAngle < 0) {
+    errors.push({ field: 'angle', message: 'Inclination angle must be greater than or equal to 0 degrees' });
+  } else if (numAngle >= 90) {
+    errors.push({ field: 'angle', message: 'Collar weight cannot provide WOB at 90 deg or above. Use drill pipe weight, HWDP or tractors.' });
+  }
+
+  let effectiveVertWt = 0;
+  const useCalcWob = !!calcFromWobToggle;
+
+  if (useCalcWob) {
+    const resVert = calcDcWeightVertical({ wob, bf, sf });
+    if (!resVert.isValid) {
+      (resVert.errors || []).forEach(e => errors.push(e));
+      return { isValid: false, errors, warnings: [], value: null };
+    }
+    effectiveVertWt = resVert.collarWeightLb;
+  } else {
+    if (isEmpty(vertWt)) {
+      return { isValid: false, errors, warnings: [], value: null };
+    }
+    const numVertWt = parseFloat(vertWt);
+    if (!Number.isFinite(numVertWt) || numVertWt <= 0) {
+      errors.push({ field: 'vertWt', message: 'Vertical DC weight must be greater than 0' });
+    } else {
+      effectiveVertWt = numVertWt;
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null, effectiveVertWt };
+  }
+
+  const rad = numAngle * (Math.PI / 180);
+  const cosVal = Math.cos(rad);
+  const deviatedWeightLb = effectiveVertWt / cosVal;
+  const increaseLb = deviatedWeightLb - effectiveVertWt;
+  const increasePct = effectiveVertWt > 0 ? (increaseLb / effectiveVertWt) * 100 : 0;
+
+  let status = null;
+  let statusMsg = null;
+  if (numAngle > DRILLING_CALC_CONFIG.DEVIATION_HIGH_INCLINATION_WARN_DEG) {
+    status = 'Warning';
+    statusMsg = 'High inclination: results are very sensitive. Use a torque and drag model.';
+    warnings.push({ field: 'angle', message: statusMsg });
+  } else if (numAngle > 0) {
+    status = 'OK';
+    statusMsg = `+${Math.round(increaseLb).toLocaleString()} lb (+${increasePct.toFixed(1)}%) vs vertical`;
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    deviatedWeightLb,
+    effectiveVertWt,
+    angleDeg: numAngle,
+    increaseLb,
+    increasePct,
+    status,
+    statusMsg,
+    valueOf() { return this.deviatedWeightLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcDcWeightDeviated = calcDcWeightDeviated;
+}
+if (typeof global !== 'undefined') {
+  global.calcDcWeightDeviated = calcDcWeightDeviated;
+}
+
+/**
+ * Pure calculation engine for Margin of Overpull in Drillstring.
+ */
+function calcMarginOfOverpull(params = {}) {
+  const { ts, wt, df } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(ts) || isEmpty(wt)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numTs = parseFloat(ts);
+  const numWt = parseFloat(wt);
+  const numDf = isEmpty(df) ? DRILLING_CALC_CONFIG.MOP_DESIGN_FACTOR_DEFAULT : parseFloat(df);
+
+  if (!Number.isFinite(numTs) || numTs <= 0) {
+    errors.push({ field: 'ts', message: 'Tensile strength must be greater than 0' });
+  }
+  if (!Number.isFinite(numWt) || numWt <= 0) {
+    errors.push({ field: 'wt', message: 'Drillstring weight must be greater than 0' });
+  }
+  if (!Number.isFinite(numDf) || numDf < 0.5 || numDf > 1.0) {
+    errors.push({ field: 'df', message: 'Design factor must be between 0.50 and 1.00' });
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const marginToYieldLb = numTs - numWt;
+  const marginWithDfLb = (numTs * numDf) - numWt;
+  const weightPctOfTensile = (numWt / numTs) * 100;
+
+  let status = 'OK';
+  let statusMsg = 'Adequate overpull margin';
+
+  if (marginWithDfLb < 0) {
+    status = 'Warning';
+    statusMsg = 'Exceeds design limit';
+    warnings.push({ field: 'wt', message: statusMsg });
+  } else if (marginWithDfLb <= DRILLING_CALC_CONFIG.MOP_CAUTION_THRESHOLD_LB) {
+    status = 'Caution';
+    statusMsg = 'Low margin of overpull';
+    warnings.push({ field: 'wt', message: statusMsg });
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    marginWithDfLb,
+    marginToYieldLb,
+    designFactor: numDf,
+    tensileStrengthLb: numTs,
+    stringWeightLb: numWt,
+    weightPctOfTensile,
+    status,
+    statusMsg,
+    valueOf() { return this.marginWithDfLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcMarginOfOverpull = calcMarginOfOverpull;
+}
+if (typeof global !== 'undefined') {
+  global.calcMarginOfOverpull = calcMarginOfOverpull;
+}
+
+/**
+ * Pure calculation engine for Equivalent Circulating Density (ECD).
+ */
+function calcEquivalentCirculatingDensity(params = {}) {
+  const { mw, apl, tvd, fg } = params;
+  const errors = [];
+  const warnings = [];
+
+  const isEmpty = v => v === '' || v === undefined || v === null;
+  if (isEmpty(mw) || isEmpty(tvd)) {
+    return { isValid: false, errors: [], warnings: [], value: null };
+  }
+
+  const numMw = parseFloat(mw);
+  const numApl = isEmpty(apl) ? 0 : parseFloat(apl);
+  const numTvd = parseFloat(tvd);
+
+  if (!Number.isFinite(numMw) || numMw <= 0) {
+    errors.push({ field: 'mw', message: 'Mud weight must be greater than 0' });
+  }
+  if (!Number.isFinite(numApl) || numApl < 0) {
+    errors.push({ field: 'apl', message: 'Annular pressure loss must be greater than or equal to 0' });
+  }
+  if (!Number.isFinite(numTvd) || numTvd <= 0) {
+    errors.push({ field: 'tvd', message: 'True vertical depth must be greater than 0' });
+  }
+
+  let numFg = null;
+  if (!isEmpty(fg)) {
+    numFg = parseFloat(fg);
+    if (!Number.isFinite(numFg) || numFg <= 0) {
+      errors.push({ field: 'fg', message: 'Fracture gradient must be greater than 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, warnings: [], value: null };
+  }
+
+  const ecdIncreasePpg = numApl / (DRILLING_CALC_CONFIG.HYDROSTATIC_FACTOR * numTvd);
+  const ecdPpg = numMw + ecdIncreasePpg;
+  const staticBhpPsi = DRILLING_CALC_CONFIG.HYDROSTATIC_FACTOR * numMw * numTvd;
+  const circBhpPsi = staticBhpPsi + numApl;
+
+  let maxAllowableEcdPpg = null;
+  let marginPpg = null;
+  let status = null;
+  let statusMsg = null;
+
+  if (numFg !== null) {
+    maxAllowableEcdPpg = numFg / DRILLING_CALC_CONFIG.HYDROSTATIC_FACTOR;
+    marginPpg = maxAllowableEcdPpg - ecdPpg;
+    if (ecdPpg >= maxAllowableEcdPpg) {
+      status = 'Warning';
+      statusMsg = 'ECD exceeds fracture gradient; risk of losses';
+      warnings.push({ field: 'fg', message: statusMsg });
+    } else if (marginPpg <= 0.5) {
+      status = 'Caution';
+      statusMsg = 'Low margin to fracture gradient';
+      warnings.push({ field: 'fg', message: statusMsg });
+    } else {
+      status = 'OK';
+      statusMsg = `Adequate margin to fracture (${marginPpg.toFixed(2)} ppg)`;
+    }
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    warnings,
+    ecdPpg,
+    ecdIncreasePpg,
+    staticBhpPsi,
+    circBhpPsi,
+    fractureGradient: numFg,
+    maxAllowableEcdPpg,
+    marginPpg,
+    status,
+    statusMsg,
+    valueOf() { return this.ecdPpg; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcEquivalentCirculatingDensity = calcEquivalentCirculatingDensity;
+}
+if (typeof global !== 'undefined') {
+  global.calcEquivalentCirculatingDensity = calcEquivalentCirculatingDensity;
+}
+
+/**
+ * Pure calculation engine for Fishing String Load.
+ * Engineering basis:
+ *   BF = (65.5 - MW) / 65.5
+ *   Buoyed weight = String weight in air * BF
+ *   Surface load = Buoyed weight + Overpull
+ *   Utilization % = Surface load / Max allowable load * 100 (optional)
+ * References: API RP 7G / Drilling Formulas.
+ */
+function calcFishingStringLoad(params = {}) {
+  const errors = [];
+  const { wt, mw, overpull, maxLoad } = params;
+
+  const wtNum = (wt !== undefined && wt !== null && String(wt).trim() !== '') ? parseFloat(String(wt).replace(',', '.')) : NaN;
+  const mwNum = (mw !== undefined && mw !== null && String(mw).trim() !== '') ? parseFloat(String(mw).replace(',', '.')) : NaN;
+  const opNum = (overpull !== undefined && overpull !== null && String(overpull).trim() !== '') ? parseFloat(String(overpull).replace(',', '.')) : NaN;
+
+  if (isNaN(wtNum) || wtNum <= 0) {
+    errors.push({ field: 'wt', message: 'String weight in air must be greater than 0' });
+  }
+
+  if (isNaN(mwNum) || mwNum <= 0) {
+    errors.push({ field: 'mw', message: 'Mud weight must be greater than 0 ppg' });
+  } else if (mwNum >= 65.5) {
+    errors.push({ field: 'mw', message: 'Mud weight must be less than 65.5 ppg (steel density)' });
+  }
+
+  if (isNaN(opNum) || opNum < 0) {
+    errors.push({ field: 'overpull', message: 'Overpull cannot be negative' });
+  }
+
+  let maxLoadNum = null;
+  if (maxLoad !== undefined && maxLoad !== null && String(maxLoad).trim() !== '') {
+    const parsedMax = parseFloat(String(maxLoad).replace(',', '.'));
+    if (isNaN(parsedMax) || parsedMax <= 0) {
+      errors.push({ field: 'max_load', message: 'Maximum allowable load must be greater than 0' });
+    } else {
+      maxLoadNum = parsedMax;
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      bf: null,
+      buoyedWeightLb: null,
+      surfaceLoadLb: null,
+      utilizationPct: null,
+      status: null,
+      errors,
+      isValid: false,
+      valueOf() { return 0; }
+    };
+  }
+
+  const bf = (65.5 - mwNum) / 65.5;
+  const buoyedWeightLb = wtNum * bf;
+  const surfaceLoadLb = buoyedWeightLb + opNum;
+
+  let utilizationPct = null;
+  let status = null;
+  if (maxLoadNum !== null && maxLoadNum > 0) {
+    utilizationPct = (surfaceLoadLb / maxLoadNum) * 100;
+    if (utilizationPct < FISHING_LOAD_THRESHOLDS.OK_MAX) {
+      status = 'OK';
+    } else if (utilizationPct <= FISHING_LOAD_THRESHOLDS.CAUTION_MAX) {
+      status = 'Caution';
+    } else {
+      status = 'Exceeds limit';
+    }
+  }
+
+  return {
+    bf,
+    buoyedWeightLb,
+    surfaceLoadLb,
+    utilizationPct,
+    status,
+    errors: [],
+    isValid: true,
+    valueOf() { return this.surfaceLoadLb; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.FISHING_LOAD_THRESHOLDS = FISHING_LOAD_THRESHOLDS;
+  window.calcFishingStringLoad = calcFishingStringLoad;
+}
+if (typeof global !== 'undefined') {
+  global.FISHING_LOAD_THRESHOLDS = FISHING_LOAD_THRESHOLDS;
+  global.calcFishingStringLoad = calcFishingStringLoad;
+}
+
+/**
+ * Configurable safety factor for subsea accumulator sizing.
+ * Default is 1.0 (direct comparison: usable >= required * safetyFactor).
+ * Margin must follow operator policy and regulatory requirements (e.g. API 16D).
+ */
+const SUBSEA_ACC_SAFETY_FACTOR = 1.0;
+
+/**
+ * Pure calculation engine for Subsea Accumulator Capacity (Boyle's law with hydrostatic head).
+ * Engineering basis:
+ *   Hydrostatic (psi) = 0.052 * Seawater density (ppg) * Water depth (ft)
+ *   P_pre_adj = Surface precharge + Hydrostatic (+ 14.7 if absolute)
+ *   P_min_adj = Min operating pressure + Hydrostatic (+ 14.7 if absolute)
+ *   P_max_adj = Max system pressure + Hydrostatic (+ 14.7 if absolute)
+ *   Total volume (gal) = Number of bottles * Bottle volume
+ *   Usable volume (gal) = Total volume * P_pre_adj * (1 / P_min_adj - 1 / P_max_adj)
+ *   Surface usable volume (gal) = Total volume * P_pre * (1 / P_min - 1 / P_max)
+ * References: API Spec 16D / Boyle's Gas Law.
+ */
+function calcSubseaAccumulatorCapacity(params = {}) {
+  const errors = [];
+  const { bottles, vol, p1, p2, p3, wd, sw, useAbs, reqVol } = params;
+
+  const bNum = (bottles !== undefined && bottles !== null && String(bottles).trim() !== '') ? parseFloat(String(bottles).replace(',', '.')) : NaN;
+  const vNum = (vol !== undefined && vol !== null && String(vol).trim() !== '') ? parseFloat(String(vol).replace(',', '.')) : NaN;
+  const p1Num = (p1 !== undefined && p1 !== null && String(p1).trim() !== '') ? parseFloat(String(p1).replace(',', '.')) : NaN;
+  const p2Num = (p2 !== undefined && p2 !== null && String(p2).trim() !== '') ? parseFloat(String(p2).replace(',', '.')) : NaN;
+  const p3Num = (p3 !== undefined && p3 !== null && String(p3).trim() !== '') ? parseFloat(String(p3).replace(',', '.')) : NaN;
+  const wdNum = (wd !== undefined && wd !== null && String(wd).trim() !== '') ? parseFloat(String(wd).replace(',', '.')) : 0;
+  const swNum = (sw !== undefined && sw !== null && String(sw).trim() !== '') ? parseFloat(String(sw).replace(',', '.')) : 8.54;
+
+  if (isNaN(bNum) || bNum <= 0) errors.push({ field: 'bottles', message: 'Number of bottles must be greater than 0' });
+  if (isNaN(vNum) || vNum <= 0) errors.push({ field: 'vol', message: 'Bottle volume must be greater than 0' });
+  if (isNaN(p1Num) || p1Num <= 0) errors.push({ field: 'p1', message: 'Precharge pressure must be greater than 0' });
+  if (isNaN(p2Num) || p2Num <= 0) errors.push({ field: 'p2', message: 'Min operating pressure must be greater than 0' });
+  if (isNaN(p3Num) || p3Num <= 0) errors.push({ field: 'p3', message: 'Max system pressure must be greater than 0' });
+  if (isNaN(wdNum) || wdNum < 0) errors.push({ field: 'wd', message: 'Water depth must be 0 or greater' });
+  if (isNaN(swNum) || swNum <= 0) errors.push({ field: 'sw', message: 'Seawater density must be greater than 0' });
+
+  if (!isNaN(p1Num) && !isNaN(p2Num) && !isNaN(p3Num)) {
+    if (p1Num >= p2Num || p2Num >= p3Num) {
+      errors.push({ field: 'p2', message: 'Pressures must satisfy precharge < min operating < max system' });
+    }
+  }
+
+  let reqVolNum = null;
+  if (reqVol !== undefined && reqVol !== null && String(reqVol).trim() !== '') {
+    const parsedReq = parseFloat(String(reqVol).replace(',', '.'));
+    if (isNaN(parsedReq) || parsedReq <= 0) {
+      errors.push({ field: 'req_vol', message: 'Required volume must be greater than 0' });
+    } else {
+      reqVolNum = parsedReq;
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      hydrostaticPsi: null,
+      totalVolumeGal: null,
+      surfaceUsableGal: null,
+      usableVolumeGal: null,
+      usablePct: null,
+      surplusGal: null,
+      status: null,
+      errors,
+      isValid: false,
+      valueOf() { return 0; }
+    };
+  }
+
+  const hydrostaticPsi = 0.052 * swNum * wdNum;
+  const totalVolumeGal = bNum * vNum;
+
+  const pOffset = useAbs ? 14.7 : 0;
+  const pPreAdj = p1Num + hydrostaticPsi + pOffset;
+  const pMinAdj = p2Num + hydrostaticPsi + pOffset;
+  const pMaxAdj = p3Num + hydrostaticPsi + pOffset;
+
+  let usableVolumeGal = totalVolumeGal * pPreAdj * ((1 / pMinAdj) - (1 / pMaxAdj));
+
+  const pPreSurf = p1Num + pOffset;
+  const pMinSurf = p2Num + pOffset;
+  const pMaxSurf = p3Num + pOffset;
+  const surfaceUsableGal = totalVolumeGal * pPreSurf * ((1 / pMinSurf) - (1 / pMaxSurf));
+
+  if (usableVolumeGal < 0 || usableVolumeGal > totalVolumeGal) {
+    errors.push({ field: 'p1', message: 'Calculated usable volume is outside physical limits' });
+    return {
+      hydrostaticPsi,
+      totalVolumeGal,
+      surfaceUsableGal,
+      usableVolumeGal: null,
+      usablePct: null,
+      surplusGal: null,
+      status: null,
+      errors,
+      isValid: false,
+      valueOf() { return 0; }
+    };
+  }
+
+  const usablePct = (usableVolumeGal / totalVolumeGal) * 100;
+
+  let surplusGal = null;
+  let status = null;
+  if (reqVolNum !== null && reqVolNum > 0) {
+    const requiredWithMargin = reqVolNum * SUBSEA_ACC_SAFETY_FACTOR;
+    surplusGal = usableVolumeGal - requiredWithMargin;
+    status = (usableVolumeGal >= requiredWithMargin) ? 'OK' : 'Insufficient';
+  }
+
+  return {
+    hydrostaticPsi,
+    totalVolumeGal,
+    surfaceUsableGal,
+    usableVolumeGal,
+    usablePct,
+    surplusGal,
+    status,
+    errors: [],
+    isValid: true,
+    valueOf() { return this.usableVolumeGal; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.SUBSEA_ACC_SAFETY_FACTOR = SUBSEA_ACC_SAFETY_FACTOR;
+  window.calcSubseaAccumulatorCapacity = calcSubseaAccumulatorCapacity;
+}
+if (typeof global !== 'undefined') {
+  global.SUBSEA_ACC_SAFETY_FACTOR = SUBSEA_ACC_SAFETY_FACTOR;
+  global.calcSubseaAccumulatorCapacity = calcSubseaAccumulatorCapacity;
+}
+
+const PipePulledHelper = {
+  casingCapacity(casingId) {
+    const num = parseFloat(casingId);
+    return (Number.isFinite(num) && num > 0) ? (num * num) / 1029.4 : 0;
+  },
+  pipeDispFromOdId(od, id) {
+    const numOd = parseFloat(od);
+    const numId = parseFloat(id);
+    return (Number.isFinite(numOd) && Number.isFinite(numId) && numOd > numId && numId > 0)
+      ? (numOd * numOd - numId * numId) / 1029.4
+      : 0;
+  },
+  pipeCapFromId(id) {
+    const numId = parseFloat(id);
+    return (Number.isFinite(numId) && numId > 0) ? (numId * numId) / 1029.4 : 0;
+  },
+  hydrostaticLoss(mw, levelDrop) {
+    return 0.052 * mw * levelDrop;
+  },
+  levelDropFromLoss(deltaP, mw) {
+    const numP = parseFloat(deltaP);
+    const numMw = parseFloat(mw);
+    return (Number.isFinite(numP) && Number.isFinite(numMw) && numMw > 0)
+      ? numP / (0.052 * numMw)
+      : 0;
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.PipePulledHelper = PipePulledHelper;
+}
+if (typeof global !== 'undefined') {
+  global.PipePulledHelper = PipePulledHelper;
+}
+
+function calcPipePulledDry(params = {}) {
+  const {
+    len,
+    disp,
+    calcDispToggle,
+    od,
+    id,
+    casingId,
+    mw
+  } = params;
+
+  const errors = [];
+  const isEmpty = (v) => v === '' || v === undefined || v === null;
+
+  if (isEmpty(len) || isEmpty(casingId) || isEmpty(mw)) {
+    return { isValid: false, errors: [], value: null };
+  }
+
+  const numLen = parseFloat(len);
+  const numCasingId = parseFloat(casingId);
+  const numMw = parseFloat(mw);
+
+  if (!Number.isFinite(numLen) || numLen < 0) {
+    errors.push({ field: 'len', message: 'Length pulled must be greater than or equal to 0' });
+  }
+  if (!Number.isFinite(numCasingId) || numCasingId <= 0) {
+    errors.push({ field: 'casing_id', message: 'Casing / hole ID must be greater than 0' });
+  }
+  if (!Number.isFinite(numMw) || numMw <= 0) {
+    errors.push({ field: 'mw', message: 'Mud weight must be greater than 0' });
+  }
+
+  let numDp = 0;
+  const useCalcDisp = !!calcDispToggle;
+
+  if (useCalcDisp) {
+    if (isEmpty(od) || isEmpty(id)) {
+      return { isValid: false, errors, value: null };
+    }
+    const numOd = parseFloat(od);
+    const numId = parseFloat(id);
+    if (!Number.isFinite(numOd) || numOd <= 0) {
+      errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+    }
+    if (!Number.isFinite(numId) || numId <= 0) {
+      errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+    }
+    if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd > 0 && numId > 0) {
+      if (numOd <= numId) {
+        errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+      } else {
+        numDp = PipePulledHelper.pipeDispFromOdId(numOd, numId);
+      }
+    }
+  } else {
+    if (isEmpty(disp)) {
+      return { isValid: false, errors, value: null };
+    }
+    numDp = parseFloat(disp);
+    if (!Number.isFinite(numDp) || numDp <= 0) {
+      errors.push({ field: 'disp', message: 'Pipe metal displacement must be greater than 0' });
+    }
+  }
+
+  const ca = PipePulledHelper.casingCapacity(numCasingId);
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, value: null, ca, dp: numDp };
+  }
+
+  // Require Ca > Dp (pipe must fit inside casing)
+  if (ca <= numDp) {
+    errors.push({
+      field: useCalcDisp ? 'od' : 'disp',
+      general: true,
+      message: 'Pipe displacement must be smaller than casing capacity'
+    });
+    return {
+      isValid: false,
+      errors,
+      value: null,
+      ca,
+      dp: numDp,
+      casingCapacityBblFt: ca,
+      displacementBblFt: numDp
+    };
+  }
+
+  const displacedVol = numLen * numDp;
+  const levelDrop = (ca > numDp) ? (numLen * numDp) / (ca - numDp) : 0;
+  const pressLoss = PipePulledHelper.hydrostaticLoss(numMw, levelDrop);
+
+  return {
+    isValid: true,
+    errors: [],
+    displacedVolumeBbl: displacedVol,
+    casingCapacityBblFt: ca,
+    fluidLevelDropFt: levelDrop,
+    pressureLossPsi: pressLoss,
+    dp: numDp,
+    valueOf() { return this.displacedVolumeBbl; }
+  };
+}
+
+function calcPipePulledWet(params = {}) {
+  const {
+    len,
+    disp,
+    cap,
+    calcDispToggle,
+    od,
+    id,
+    casingId,
+    mw
+  } = params;
+
+  const errors = [];
+  const isEmpty = (v) => v === '' || v === undefined || v === null;
+
+  if (isEmpty(len) || isEmpty(casingId) || isEmpty(mw)) {
+    return { isValid: false, errors, value: null };
+  }
+
+  const numLen = parseFloat(len);
+  const numCasingId = parseFloat(casingId);
+  const numMw = parseFloat(mw);
+
+  if (!Number.isFinite(numLen) || numLen < 0) {
+    errors.push({ field: 'len', message: 'Length pulled must be greater than or equal to 0' });
+  }
+  if (!Number.isFinite(numCasingId) || numCasingId <= 0) {
+    errors.push({ field: 'casing_id', message: 'Casing / hole ID must be greater than 0' });
+  }
+  if (!Number.isFinite(numMw) || numMw <= 0) {
+    errors.push({ field: 'mw', message: 'Mud weight must be greater than 0' });
+  }
+
+  let numDp = 0;
+  let numCp = 0;
+  const useCalcDisp = !!calcDispToggle;
+
+  if (useCalcDisp) {
+    if (isEmpty(od) || isEmpty(id)) {
+      return { isValid: false, errors, value: null };
+    }
+    const numOd = parseFloat(od);
+    const numId = parseFloat(id);
+    if (!Number.isFinite(numOd) || numOd <= 0) {
+      errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+    }
+    if (!Number.isFinite(numId) || numId <= 0) {
+      errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+    }
+    if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd > 0 && numId > 0) {
+      if (numOd <= numId) {
+        errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+      } else {
+        numDp = PipePulledHelper.pipeDispFromOdId(numOd, numId);
+        numCp = PipePulledHelper.pipeCapFromId(numId);
+      }
+    }
+  } else {
+    if (isEmpty(disp) || isEmpty(cap)) {
+      return { isValid: false, errors, value: null };
+    }
+    numDp = parseFloat(disp);
+    numCp = parseFloat(cap);
+    if (!Number.isFinite(numDp) || numDp <= 0) {
+      errors.push({ field: 'disp', message: 'Pipe metal displacement must be greater than 0' });
+    }
+    if (!Number.isFinite(numCp) || numCp <= 0) {
+      errors.push({ field: 'cap', message: 'Pipe capacity must be greater than 0' });
+    }
+  }
+
+  const ca = PipePulledHelper.casingCapacity(numCasingId);
+  const totalPipeUnitVol = numDp + numCp;
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, value: null, ca, dp: numDp, cp: numCp };
+  }
+
+  // Require Ca > Cp + Dp (pipe volume must be smaller than casing capacity)
+  if (ca <= totalPipeUnitVol) {
+    errors.push({
+      field: useCalcDisp ? 'od' : 'disp',
+      general: true,
+      message: 'Pipe volume must be smaller than casing capacity'
+    });
+    return {
+      isValid: false,
+      errors,
+      value: null,
+      ca,
+      dp: numDp,
+      cp: numCp,
+      casingCapacityBblFt: ca,
+      annularCapacityBblFt: ca - totalPipeUnitVol,
+      pipeVolumeBblFt: totalPipeUnitVol
+    };
+  }
+
+  const displacedVol = numLen * totalPipeUnitVol;
+  const annularCap = ca - totalPipeUnitVol;
+  const levelDrop = (annularCap > 0) ? displacedVol / annularCap : 0;
+  const pressLoss = PipePulledHelper.hydrostaticLoss(numMw, levelDrop);
+
+  return {
+    isValid: true,
+    errors: [],
+    displacedVolumeBbl: displacedVol,
+    casingCapacityBblFt: ca,
+    annularCapacityBblFt: annularCap,
+    fluidLevelDropFt: levelDrop,
+    pressureLossPsi: pressLoss,
+    dp: numDp,
+    cp: numCp,
+    valueOf() { return this.displacedVolumeBbl; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcPipePulledDry = calcPipePulledDry;
+  window.calcPipePulledWet = calcPipePulledWet;
+}
+if (typeof global !== 'undefined') {
+  global.calcPipePulledDry = calcPipePulledDry;
+  global.calcPipePulledWet = calcPipePulledWet;
+}
+
+function calcDrillPipePulledLoseDry(params = {}) {
+  const {
+    drop,
+    mw,
+    disp,
+    ccap,
+    standLen,
+    calcDiamToggle,
+    casingId,
+    od,
+    id
+  } = params;
+
+  const errors = [];
+  const isEmpty = (v) => v === '' || v === undefined || v === null;
+
+  if (isEmpty(drop) || isEmpty(mw)) {
+    return { isValid: false, errors: [], value: null };
+  }
+
+  const numDrop = parseFloat(drop);
+  const numMw = parseFloat(mw);
+  const numStandLen = isEmpty(standLen) ? 93 : parseFloat(standLen);
+
+  if (!Number.isFinite(numDrop) || numDrop <= 0) {
+    errors.push({ field: 'drop', message: 'Hydrostatic loss limit must be greater than 0' });
+  }
+  if (!Number.isFinite(numMw) || numMw <= 0) {
+    errors.push({ field: 'mw', message: 'Mud weight must be greater than 0' });
+  }
+  if (!Number.isFinite(numStandLen) || numStandLen <= 0) {
+    errors.push({ field: 'stand_len', message: 'Stand length must be greater than 0' });
+  }
+
+  let numDp = 0;
+  let numCa = 0;
+  const useCalcDiam = !!calcDiamToggle;
+
+  if (useCalcDiam) {
+    if (isEmpty(casingId) || isEmpty(od) || isEmpty(id)) {
+      return { isValid: false, errors, value: null };
+    }
+    const numCasingId = parseFloat(casingId);
+    const numOd = parseFloat(od);
+    const numId = parseFloat(id);
+
+    if (!Number.isFinite(numCasingId) || numCasingId <= 0) {
+      errors.push({ field: 'casing_id', message: 'Casing / hole ID must be greater than 0' });
+    }
+    if (!Number.isFinite(numOd) || numOd <= 0) {
+      errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+    }
+    if (!Number.isFinite(numId) || numId <= 0) {
+      errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+    }
+
+    if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd > 0 && numId > 0) {
+      if (numOd <= numId) {
+        errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+      }
+    }
+    if (Number.isFinite(numCasingId) && Number.isFinite(numOd) && numCasingId > 0 && numOd > 0) {
+      if (numCasingId <= numOd) {
+        errors.push({ field: 'casing_id', message: 'Casing ID must be greater than Pipe OD' });
+      }
+    }
+
+    if (errors.length === 0) {
+      numCa = PipePulledHelper.casingCapacity(numCasingId);
+      numDp = PipePulledHelper.pipeDispFromOdId(numOd, numId);
+    }
+  } else {
+    if (isEmpty(disp) || isEmpty(ccap)) {
+      return { isValid: false, errors, value: null };
+    }
+    numDp = parseFloat(disp);
+    numCa = parseFloat(ccap);
+
+    if (!Number.isFinite(numDp) || numDp <= 0) {
+      errors.push({ field: 'disp', message: 'Pipe displacement must be greater than 0' });
+    }
+    if (!Number.isFinite(numCa) || numCa <= 0) {
+      errors.push({ field: 'ccap', message: 'Casing/hole capacity must be greater than 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, value: null, ca: numCa, dp: numDp };
+  }
+
+  // Require Ca > Dp
+  if (numCa <= numDp) {
+    errors.push({
+      field: useCalcDiam ? 'od' : 'disp',
+      general: true,
+      message: 'Pipe displacement must be smaller than casing capacity'
+    });
+    return {
+      isValid: false,
+      errors,
+      value: null,
+      ca: numCa,
+      dp: numDp,
+      casingCapacityBblFt: numCa,
+      pipeDisplacementBblFt: numDp
+    };
+  }
+
+  const feetPulled = (numDrop * (numCa - numDp)) / (0.052 * numMw * numDp);
+  const levelDrop = PipePulledHelper.levelDropFromLoss(numDrop, numMw);
+  const volDisplaced = feetPulled * numDp;
+  const stands = Math.floor(feetPulled / numStandLen);
+  const fillVol = stands * numStandLen * numDp;
+
+  return {
+    isValid: true,
+    errors: [],
+    feetPulled,
+    fluidLevelDropFt: levelDrop,
+    volumeDisplacedBbl: volDisplaced,
+    stands,
+    standLengthFt: numStandLen,
+    volumeToFillBbl: fillVol,
+    casingCapacityBblFt: numCa,
+    pipeDisplacementBblFt: numDp,
+    valueOf() { return this.feetPulled; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcDrillPipePulledLoseDry = calcDrillPipePulledLoseDry;
+}
+if (typeof global !== 'undefined') {
+  global.calcDrillPipePulledLoseDry = calcDrillPipePulledLoseDry;
+}
+
+function calcDrillPipePulledLoseWet(params = {}) {
+  const {
+    drop,
+    mw,
+    disp,
+    cap,
+    ccap,
+    standLen,
+    calcDiamToggle,
+    casingId,
+    od,
+    id
+  } = params;
+
+  const errors = [];
+  const isEmpty = (v) => v === '' || v === undefined || v === null;
+
+  if (isEmpty(drop) || isEmpty(mw)) {
+    return { isValid: false, errors: [], value: null };
+  }
+
+  const numDrop = parseFloat(drop);
+  const numMw = parseFloat(mw);
+  const numStandLen = isEmpty(standLen) ? 93 : parseFloat(standLen);
+
+  if (!Number.isFinite(numDrop) || numDrop <= 0) {
+    errors.push({ field: 'drop', message: 'Hydrostatic loss limit must be greater than 0' });
+  }
+  if (!Number.isFinite(numMw) || numMw <= 0) {
+    errors.push({ field: 'mw', message: 'Mud weight must be greater than 0' });
+  }
+  if (!Number.isFinite(numStandLen) || numStandLen <= 0) {
+    errors.push({ field: 'stand_len', message: 'Stand length must be greater than 0' });
+  }
+
+  let numDp = 0;
+  let numCp = 0;
+  let numCa = 0;
+  const useCalcDiam = !!calcDiamToggle;
+
+  if (useCalcDiam) {
+    if (isEmpty(casingId) || isEmpty(od) || isEmpty(id)) {
+      return { isValid: false, errors, value: null };
+    }
+    const numCasingId = parseFloat(casingId);
+    const numOd = parseFloat(od);
+    const numId = parseFloat(id);
+
+    if (!Number.isFinite(numCasingId) || numCasingId <= 0) {
+      errors.push({ field: 'casing_id', message: 'Casing / hole ID must be greater than 0' });
+    }
+    if (!Number.isFinite(numOd) || numOd <= 0) {
+      errors.push({ field: 'od', message: 'Pipe OD must be greater than 0' });
+    }
+    if (!Number.isFinite(numId) || numId <= 0) {
+      errors.push({ field: 'id', message: 'Pipe ID must be greater than 0' });
+    }
+
+    if (Number.isFinite(numOd) && Number.isFinite(numId) && numOd > 0 && numId > 0) {
+      if (numOd <= numId) {
+        errors.push({ field: 'od', message: 'Pipe OD must be greater than Pipe ID' });
+      }
+    }
+    if (Number.isFinite(numCasingId) && Number.isFinite(numOd) && numCasingId > 0 && numOd > 0) {
+      if (numCasingId <= numOd) {
+        errors.push({ field: 'casing_id', message: 'Casing ID must be greater than Pipe OD' });
+      }
+    }
+
+    if (errors.length === 0) {
+      numCa = PipePulledHelper.casingCapacity(numCasingId);
+      numDp = PipePulledHelper.pipeDispFromOdId(numOd, numId);
+      numCp = PipePulledHelper.pipeCapFromId(numId);
+    }
+  } else {
+    if (isEmpty(disp) || isEmpty(cap) || isEmpty(ccap)) {
+      return { isValid: false, errors, value: null };
+    }
+    numDp = parseFloat(disp);
+    numCp = parseFloat(cap);
+    numCa = parseFloat(ccap);
+
+    if (!Number.isFinite(numDp) || numDp <= 0) {
+      errors.push({ field: 'disp', message: 'Pipe displacement must be greater than 0' });
+    }
+    if (!Number.isFinite(numCp) || numCp <= 0) {
+      errors.push({ field: 'cap', message: 'Pipe capacity must be greater than 0' });
+    }
+    if (!Number.isFinite(numCa) || numCa <= 0) {
+      errors.push({ field: 'ccap', message: 'Casing/hole capacity must be greater than 0' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors, value: null, ca: numCa, dp: numDp, cp: numCp };
+  }
+
+  const totalPipeVol = numDp + numCp;
+
+  // Require Ca > Cp + Dp
+  if (numCa <= totalPipeVol) {
+    errors.push({
+      field: useCalcDiam ? 'od' : 'disp',
+      general: true,
+      message: 'Pipe volume must be smaller than casing capacity'
+    });
+    return {
+      isValid: false,
+      errors,
+      value: null,
+      ca: numCa,
+      dp: numDp,
+      cp: numCp,
+      casingCapacityBblFt: numCa,
+      pipeDisplacementBblFt: numDp,
+      pipeCapacityBblFt: numCp,
+      pipeTotalVolumeBblFt: totalPipeVol
+    };
+  }
+
+  const feetPulled = (numDrop * (numCa - totalPipeVol)) / (0.052 * numMw * totalPipeVol);
+  const levelDrop = PipePulledHelper.levelDropFromLoss(numDrop, numMw);
+  const volDisplaced = feetPulled * totalPipeVol;
+  const stands = Math.floor(feetPulled / numStandLen);
+  const fillVol = stands * numStandLen * totalPipeVol;
+
+  let feetPulledDry = null;
+  if (numCa > numDp && numDp > 0) {
+    feetPulledDry = (numDrop * (numCa - numDp)) / (0.052 * numMw * numDp);
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    feetPulled,
+    fluidLevelDropFt: levelDrop,
+    volumeDisplacedBbl: volDisplaced,
+    stands,
+    standLengthFt: numStandLen,
+    volumeToFillBbl: fillVol,
+    casingCapacityBblFt: numCa,
+    pipeDisplacementBblFt: numDp,
+    pipeCapacityBblFt: numCp,
+    pipeTotalVolumeBblFt: totalPipeVol,
+    annularCapacityBblFt: numCa - totalPipeVol,
+    feetPulledDry,
+    valueOf() { return this.feetPulled; }
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.calcDrillPipePulledLoseWet = calcDrillPipePulledLoseWet;
+}
+if (typeof global !== 'undefined') {
+  global.calcDrillPipePulledLoseWet = calcDrillPipePulledLoseWet;
+}
+
+function calcDrillPipePulledLose(params = {}) {
+  const mode = params.pipe_mode || params.mode || 'dry';
+  if (mode === 'wet') {
+    return calcDrillPipePulledLoseWet(params);
+  }
+  return calcDrillPipePulledLoseDry(params);
+}
+
+if (typeof window !== 'undefined') {
+  window.calcDrillPipePulledLose = calcDrillPipePulledLose;
+}
+if (typeof global !== 'undefined') {
+  global.calcDrillPipePulledLose = calcDrillPipePulledLose;
+}
+
 const formulaDb = {
   calculations: [
     {
@@ -6564,53 +10924,119 @@ const formulaDb = {
       unit: 'bbl'
     },
     {
-      id: 'pipe_pulled_dry',
-      name: 'Feet of Drill Pipe Pulled – Dry',
-      desc: 'Equivalent volume of fluid displaced when POOH dry pipe.',
+      id: 'pipe_pulled',
+      name: 'Feet of Drill Pipe Pulled',
+      desc: 'Equivalent volume of fluid displaced and pressure loss when POOH dry or wet pipe.',
       inputs: [
+        {
+          key: 'pipe_mode',
+          type: 'mode_toggle',
+          label: 'Pipe Condition',
+          options: [
+            { id: 'dry', label: 'Dry Pipe' },
+            { id: 'wet', label: 'Wet Pipe' }
+          ],
+          val: 'dry'
+        },
         { key: 'len', label: 'Length Pulled (ft)', val: 1000 },
-        { key: 'disp', label: 'Pipe Metal Displacement (bbl/ft)', val: 0.0075 }
+        { key: 'disp', label: 'Pipe Metal Displacement (bbl/ft)', val: 0.0075, disabledWhen: 'calc_disp_toggle' },
+        { key: 'cap', label: 'Pipe Capacity (bbl/ft)', val: 0.0178, disabledWhen: 'calc_disp_toggle', hiddenUnlessMode: 'wet' },
+        { key: 'calc_disp_toggle', label: 'Calculate displacement from OD / ID', type: 'toggle', val: false },
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0, hiddenUnless: 'calc_disp_toggle' },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276, hiddenUnless: 'calc_disp_toggle' },
+        { key: 'casing_id', label: 'Casing / Hole ID (in)', val: 8.681 },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10 }
       ],
-      calc: (i) => i.len * i.disp,
+      calc: (i) => {
+        const mode = i.pipe_mode || 'dry';
+        if (mode === 'wet') {
+          const res = calcPipePulledWet({
+            len: i.len,
+            disp: i.disp,
+            cap: i.cap,
+            calcDispToggle: i.calc_disp_toggle !== undefined ? i.calc_disp_toggle : i.calcDispToggle,
+            od: i.od,
+            id: i.id,
+            casingId: i.casing_id !== undefined ? i.casing_id : i.casingId,
+            mw: i.mw
+          });
+          if (!res.isValid) return '--';
+          return res;
+        } else {
+          const res = calcPipePulledDry({
+            len: i.len,
+            disp: i.disp,
+            calcDispToggle: i.calc_disp_toggle !== undefined ? i.calc_disp_toggle : i.calcDispToggle,
+            od: i.od,
+            id: i.id,
+            casingId: i.casing_id !== undefined ? i.casing_id : i.casingId,
+            mw: i.mw
+          });
+          if (!res.isValid) return '--';
+          return res;
+        }
+      },
       unit: 'bbl'
     },
     {
-      id: 'pipe_pulled_wet',
-      name: 'Feet of Drill Pipe Pulled – Wet',
-      desc: 'Equivalent volume of fluid displaced when POOH wet pipe (internal + metal).',
+      id: 'dp_pulled_lose',
+      name: 'Drill Pipe Pulled to Lose Hydrostatic Pressure',
+      desc: 'Length of dry pipe and full stands pulled to lose a specific amount of hydrostatic head.',
       inputs: [
-        { key: 'len', label: 'Length Pulled (ft)', val: 1000 },
-        { key: 'disp', label: 'Pipe Metal Displacement (bbl/ft)', val: 0.0075 },
-        { key: 'cap', label: 'Pipe Capacity (bbl/ft)', val: 0.0178 }
-      ],
-      calc: (i) => i.len * (i.disp + i.cap),
-      unit: 'bbl'
-    },
-    {
-      id: 'dp_pulled_lose_dry',
-      name: 'Drill Pipe Pulled to Lose Hydrostatic Pressure (Pull Dry)',
-      desc: 'Length of dry pipe pulled to lose a specific amount of hydrostatic head.',
-      inputs: [
+        {
+          key: 'pipe_mode',
+          type: 'mode_toggle',
+          label: 'Pipe Condition',
+          options: [
+            { id: 'dry', label: 'Dry Pipe' },
+            { id: 'wet', label: 'Wet Pipe' }
+          ],
+          val: 'dry'
+        },
         { key: 'drop', label: 'Hydrostatic Loss Limit (psi)', val: 100 },
         { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
-        { key: 'disp', label: 'Pipe Displacement (bbl/ft)', val: 0.0075 },
-        { key: 'ccap', label: 'Casing/Hole Capacity (bbl/ft)', val: 0.0702 }
+        { key: 'disp', label: 'Pipe Displacement (bbl/ft)', val: 0.0075, disabledWhen: 'calc_diam_toggle' },
+        { key: 'cap', label: 'Pipe Capacity (bbl/ft)', val: 0.0178, disabledWhen: 'calc_diam_toggle', hiddenUnlessMode: 'wet' },
+        { key: 'ccap', label: 'Casing/Hole Capacity (bbl/ft)', val: 0.0702, disabledWhen: 'calc_diam_toggle' },
+        { key: 'stand_len', label: 'Stand Length (ft)', val: 93 },
+        { key: 'calc_diam_toggle', label: 'Calculate from diameters', type: 'toggle', val: false },
+        { key: 'casing_id', label: 'Casing / Hole ID (in)', val: 8.681, hiddenUnless: 'calc_diam_toggle' },
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0, hiddenUnless: 'calc_diam_toggle' },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276, hiddenUnless: 'calc_diam_toggle' }
       ],
-      calc: (i) => i.drop * (i.ccap - i.disp) / ((0.052 * i.mw * i.disp) || 1),
-      unit: 'ft'
-    },
-    {
-      id: 'dp_pulled_lose_wet',
-      name: 'Drill Pipe Pulled to Lose Hydrostatic Pressure (Pull Wet)',
-      desc: 'Length of wet pipe pulled to lose a specific amount of hydrostatic head.',
-      inputs: [
-        { key: 'drop', label: 'Hydrostatic Loss Limit (psi)', val: 100 },
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
-        { key: 'disp', label: 'Pipe Displacement (bbl/ft)', val: 0.0075 },
-        { key: 'cap', label: 'Pipe Capacity (bbl/ft)', val: 0.0178 },
-        { key: 'ccap', label: 'Casing/Hole Capacity (bbl/ft)', val: 0.0702 }
-      ],
-      calc: (i) => i.drop * (i.ccap - i.disp - i.cap) / ((0.052 * i.mw * (i.disp + i.cap)) || 1),
+      calc: (i) => {
+        const mode = i.pipe_mode || 'dry';
+        if (mode === 'wet') {
+          const res = calcDrillPipePulledLoseWet({
+            drop: i.drop,
+            mw: i.mw,
+            disp: i.disp,
+            cap: i.cap,
+            ccap: i.ccap,
+            standLen: i.stand_len !== undefined ? i.stand_len : i.standLen,
+            calcDiamToggle: i.calc_diam_toggle !== undefined ? i.calc_diam_toggle : i.calcDiamToggle,
+            casingId: i.casing_id !== undefined ? i.casing_id : i.casingId,
+            od: i.od,
+            id: i.id
+          });
+          if (!res.isValid) return '--';
+          return res;
+        } else {
+          const res = calcDrillPipePulledLoseDry({
+            drop: i.drop,
+            mw: i.mw,
+            disp: i.disp,
+            ccap: i.ccap,
+            standLen: i.stand_len !== undefined ? i.stand_len : i.standLen,
+            calcDiamToggle: i.calc_diam_toggle !== undefined ? i.calc_diam_toggle : i.calcDiamToggle,
+            casingId: i.casing_id !== undefined ? i.casing_id : i.casingId,
+            od: i.od,
+            id: i.id
+          });
+          if (!res.isValid) return '--';
+          return res;
+        }
+      },
       unit: 'ft'
     },
     {
@@ -6689,12 +11115,24 @@ const formulaDb = {
         { key: 'p2', label: 'Min Operating Pressure (psi)', val: 1200 },
         { key: 'p3', label: 'Max System Pressure (psi)', val: 3000 },
         { key: 'wd', label: 'Water Depth (ft)', val: 3000 },
-        { key: 'sw', label: 'Seawater Density (ppg)', val: 8.54 }
+        { key: 'sw', label: 'Seawater Density (ppg)', val: 8.54 },
+        { key: 'use_abs', label: 'Use Absolute Pressures (+14.7 psi)', type: 'toggle', val: false },
+        { key: 'req_vol', label: 'Required Volume (gal)', val: '', placeholder: 'Optional' }
       ],
       calc: (i) => {
-        const hyd = 0.052 * i.sw * i.wd;
-        const effP = i.p1 + hyd;
-        return i.bottles * i.vol * effP * ((1 / i.p2) - (1 / i.p3));
+        const res = calcSubseaAccumulatorCapacity({
+          bottles: i.bottles,
+          vol: i.vol,
+          p1: i.p1,
+          p2: i.p2,
+          p3: i.p3,
+          wd: i.wd,
+          sw: i.sw,
+          useAbs: i.use_abs !== undefined ? i.use_abs : i.useAbs,
+          reqVol: i.req_vol !== undefined ? i.req_vol : i.reqVol
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'gal'
     },
@@ -7195,35 +11633,83 @@ const formulaDb = {
     {
       id: 'tensile_cap',
       name: 'Tensile Capacity of Drill String',
-      desc: 'Maximum axial load before pipe body yield.',
+      desc: 'Maximum pull the drill string can safely sustain before permanent deformation.',
       inputs: [
         { key: 'ys', label: 'Yield Strength (psi)', val: 75000 },
-        { key: 'area', label: 'Cross-Section Area (sq in)', val: 4.4 }
+        { key: 'area', label: 'Cross-Section Area (sq in)', val: 4.4, disabledWhen: 'calc_area_toggle' },
+        { key: 'df', label: 'Design Factor (default 0.9)', val: 0.9 },
+        { key: 'calc_area_toggle', label: 'Calculate area from OD / ID', type: 'toggle', val: false },
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0, hiddenUnless: 'calc_area_toggle' },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276, hiddenUnless: 'calc_area_toggle' },
+        { key: 'hook_load', label: 'Current Hook / String Load (lb) (Optional)', val: '', placeholder: 'e.g. 250000' }
       ],
-      calc: (i) => i.ys * i.area,
+      calc: (i) => {
+        const res = calcTensileCapacity({
+          ys: i.ys,
+          area: i.area,
+          df: i.df,
+          calcAreaToggle: i.calc_area_toggle !== undefined ? i.calc_area_toggle : i.calcAreaToggle,
+          od: i.od,
+          id: i.id,
+          hook_load: i.hook_load !== undefined ? i.hook_load : i.hookLoad
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'lb'
     },
     {
       id: 'dc_wt_vert',
       name: 'Drill Collar Weight for Vertical Wells (lb)',
-      desc: 'Required collar weight in vertical well to satisfy weight-on-bit.',
+      desc: 'Collar weight needed so the neutral point stays in the collars (vertical well).',
       inputs: [
         { key: 'wob', label: 'Required Weight-on-Bit (lb)', val: 40000 },
-        { key: 'bf', label: 'Buoyancy Factor', val: 0.85 },
-        { key: 'sf', label: 'Safety Factor (typically 1.15)', val: 1.15 }
+        { key: 'sf', label: 'Safety Factor (typically 1.15)', val: 1.15 },
+        { key: 'bf', label: 'Buoyancy Factor', val: 0.85, disabledWhen: 'calc_bf_toggle' },
+        { key: 'calc_bf_toggle', label: 'Calculate buoyancy factor from mud weight', type: 'toggle', val: false },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.5, hiddenUnless: 'calc_bf_toggle' },
+        { key: 'dc_wt_ft', label: 'Drill Collar Weight per Foot (lb/ft) (Optional)', val: '', placeholder: 'e.g. 120' },
+        { key: 'joint_len', label: 'Drill Collar Joint Length (ft) (Optional)', val: 30, hiddenUnless: 'dc_wt_ft', placeholder: 'default 30' }
       ],
-      calc: (i) => (i.wob * i.sf) / i.bf,
+      calc: (i) => {
+        const res = calcDcWeightVertical({
+          wob: i.wob,
+          bf: i.bf,
+          sf: i.sf,
+          calcBfToggle: i.calc_bf_toggle !== undefined ? i.calc_bf_toggle : i.calcBfToggle,
+          mw: i.mw,
+          dc_wt_ft: i.dc_wt_ft !== undefined ? i.dc_wt_ft : i.dcWtFt,
+          joint_len: i.joint_len !== undefined ? i.joint_len : i.jointLen
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'lb'
     },
     {
       id: 'dc_wt_dev',
       name: 'Drill Collar Weight for Deviated Wells (lb)',
-      desc: 'Required collar weight in deviated well to satisfy weight-on-bit.',
+      desc: 'Collar weight needed in a deviated well, assuming weight acts along the hole axis.',
       inputs: [
-        { key: 'vertWt', label: 'Vertical DC Weight (lb)', val: 54000 },
+        { key: 'vertWt', label: 'Vertical DC Weight (lb)', val: 54000, disabledWhen: 'calc_wob_toggle' },
+        { key: 'calc_wob_toggle', label: 'Calculate from WOB, BF and SF', type: 'toggle', val: false },
+        { key: 'wob', label: 'Required Weight-on-Bit (lb)', val: 40000, hiddenUnless: 'calc_wob_toggle' },
+        { key: 'bf', label: 'Buoyancy Factor', val: 0.85, hiddenUnless: 'calc_wob_toggle' },
+        { key: 'sf', label: 'Safety Factor (typically 1.15)', val: 1.15, hiddenUnless: 'calc_wob_toggle' },
         { key: 'angle', label: 'Inclination Angle (degrees)', val: 30 }
       ],
-      calc: (i) => i.vertWt / Math.cos(i.angle * Math.PI / 180),
+      calc: (i) => {
+        const res = calcDcWeightDeviated({
+          vertWt: i.vertWt,
+          angle: i.angle,
+          calcFromWobToggle: i.calc_wob_toggle !== undefined ? i.calc_wob_toggle : i.calcWobToggle,
+          wob: i.wob,
+          bf: i.bf,
+          sf: i.sf
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'lb'
     },
     {
@@ -7240,135 +11726,216 @@ const formulaDb = {
     {
       id: 'neutral_point',
       name: 'Neutral Point Calculation',
-      desc: 'Distance from the bit where the string is neither in compression nor tension.',
+      desc: 'Distance above the bit where the string changes from compression to tension (vertical well).',
       inputs: [
         { key: 'wob', label: 'Weight on Bit (lb)', val: 40000 },
         { key: 'dc_wt', label: 'BHA Weight in Air (lb/ft)', val: 120 },
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.5 }
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.5 },
+        { key: 'bha_len', label: 'Total BHA / DC Length (ft) (Optional)', val: '', placeholder: 'e.g. 400' }
       ],
       calc: (i) => {
-        const bf = 1 - (i.mw / 65.5);
-        return i.wob / (i.dc_wt * bf || 1);
+        const res = calcNeutralPoint({
+          wob: i.wob,
+          dc_wt: i.dc_wt,
+          mw: i.mw,
+          bha_len: i.bha_len
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'ft'
     },
     {
-      id: 'ds_weight_air',
-      name: 'Drill String Weight in Air',
-      desc: 'Total dry weight of the drill string components.',
+      id: 'ds_weight',
+      name: 'Drill String Weight',
+      desc: 'Total dry weight of drillstring in air or buoyed weight in drilling fluid.',
       inputs: [
-        { key: 'dp_len', label: 'Drill Pipe Length (ft)', val: 8000 },
-        { key: 'dp_wt', label: 'Drill Pipe Weight (lb/ft)', val: 19.5 },
-        { key: 'hwdp_len', label: 'HWDP Length (ft)', val: 500 },
-        { key: 'hwdp_wt', label: 'HWDP Weight (lb/ft)', val: 50 },
-        { key: 'dc_len', label: 'Drill Collar Length (ft)', val: 600 },
-        { key: 'dc_wt', label: 'Drill Collar Weight (lb/ft)', val: 120 }
+        {
+          key: 'calc_mode',
+          type: 'mode_toggle',
+          label: 'Calculation Mode',
+          options: [
+            { id: 'in_air', label: 'In Air' },
+            { id: 'in_mud', label: 'In Mud' }
+          ],
+          val: 'in_air'
+        },
+        // In Air inputs
+        { key: 'dp_len', label: 'Drill Pipe Length (ft)', val: 8000, hiddenUnlessMode: 'in_air' },
+        { key: 'dp_wt', label: 'Drill Pipe Weight (lb/ft)', val: 19.5, hiddenUnlessMode: 'in_air' },
+        { key: 'hwdp_len', label: 'HWDP Length (ft)', val: 500, hiddenUnlessMode: 'in_air' },
+        { key: 'hwdp_wt', label: 'HWDP Weight (lb/ft)', val: 50, hiddenUnlessMode: 'in_air' },
+        { key: 'dc_len', label: 'Drill Collar Length (ft)', val: 600, hiddenUnlessMode: 'in_air' },
+        { key: 'dc_wt', label: 'Drill Collar Weight (lb/ft)', val: 120, hiddenUnlessMode: 'in_air' },
+        // In Mud inputs
+        { key: 'wt_air', label: 'Drill String Weight in Air (lb)', val: 250000, hiddenUnlessMode: 'in_mud' },
+        { key: 'mw', label: 'Mud Weight (ppg)', val: 12.0, hiddenUnlessMode: 'in_mud' }
       ],
-      calc: (i) => (i.dp_len * i.dp_wt) + (i.hwdp_len * i.hwdp_wt) + (i.dc_len * i.dc_wt),
-      unit: 'lb'
-    },
-    {
-      id: 'ds_weight_mud',
-      name: 'Drill String Weight in Mud',
-      desc: 'Buoyed weight of the drill string.',
-      inputs: [
-        { key: 'wt_air', label: 'Drill String Weight in Air (lb)', val: 250000 },
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 12.0 }
-      ],
-      calc: (i) => i.wt_air * (1 - (i.mw / 65.5)),
+      calc: (i) => {
+        const mode = i.calc_mode || 'in_air';
+        if (mode === 'in_mud') {
+          const res = calcDrillStringWeightMud({
+            wt_air: i.wt_air,
+            mw: i.mw
+          });
+          if (!res.isValid) return '--';
+          return res;
+        } else {
+          const res = calcDrillStringWeightAir({
+            dp_len: i.dp_len,
+            dp_wt: i.dp_wt,
+            hwdp_len: i.hwdp_len,
+            hwdp_wt: i.hwdp_wt,
+            dc_len: i.dc_len,
+            dc_wt: i.dc_wt
+          });
+          if (!res.isValid) return '--';
+          return res;
+        }
+      },
       unit: 'lb'
     },
     {
       id: 'buckling_load',
-      name: 'Buckling Load Calculation',
-      desc: 'Estimated critical buckling force in a vertical wellbore.',
+      name: 'Critical Buckling Load (Vertical Well, Lubinski)',
+      desc: 'Critical compressive load for sinusoidal buckling in a vertical wellbore (Lubinski).',
       inputs: [
         { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
         { key: 'id', label: 'Pipe ID (in)', val: 4.276 },
-        { key: 'wt_mud', label: 'Buoyed Weight of Pipe (lb/ft)', val: 16.5 }
+        { key: 'wt_mud', label: 'Buoyed Weight of Pipe (lb/ft)', val: 16.5 },
+        { key: 'comp_load', label: 'Compressive Load at Bottom (lb) (Optional)', val: '', placeholder: 'e.g. 1500' }
       ],
       calc: (i) => {
-        const I = 0.049087 * (Math.pow(i.od, 4) - Math.pow(i.id, 4));
-        const E = 30000000;
-        const wt_in = i.wt_mud / 12;
-        return 2.85 * Math.pow(E * I * Math.pow(wt_in, 2), 1/3);
+        const res = calcCriticalBucklingLoad({
+          od: i.od,
+          id: i.id,
+          wt_mud: i.wt_mud,
+          comp_load: i.comp_load
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'lb'
     },
     {
       id: 'burst_pressure',
       name: 'Burst Pressure Rating',
-      desc: 'Barlows formula for pipe burst resistance.',
+      desc: "Internal yield pressure rating per Barlow's formula and API specification 5CT / 5D.",
       inputs: [
         { key: 'yield', label: 'Material Yield Strength (psi)', val: 135000 },
         { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
-        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 },
+        { key: 'api_tol_toggle', label: 'Apply API 0.875 wall tolerance factor', type: 'toggle', val: true },
+        { key: 'wall_pct', label: 'Remaining Wall Thickness (%) (Optional)', val: '', placeholder: '100' },
+        { key: 'df', label: 'Design Factor (Optional)', val: '', placeholder: 'e.g. 0.90' }
       ],
       calc: (i) => {
-        const t = (i.od - i.id) / 2;
-        return (2 * i.yield * t) / i.od;
+        const res = calcBurstPressureRating({
+          yield: i.yield,
+          od: i.od,
+          id: i.id,
+          api_tol_toggle: i.api_tol_toggle !== undefined ? i.api_tol_toggle : true,
+          wall_pct: i.wall_pct,
+          df: i.df
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'psi'
     },
     {
       id: 'collapse_pressure',
       name: 'Collapse Pressure Rating',
-      desc: 'Simplified empirical estimate for collapse resistance.',
+      desc: 'API 5C3 four-regime collapse resistance calculation (Yield, Plastic, Transition, Elastic).',
       inputs: [
         { key: 'yield', label: 'Material Yield Strength (psi)', val: 135000 },
         { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
-        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 },
+        { key: 'wall_pct', label: 'Remaining Wall Thickness (%) (Optional)', val: '', placeholder: '100' }
       ],
       calc: (i) => {
-        const t = (i.od - i.id) / 2;
-        const dt = i.od / (t || 1);
-        return 2 * i.yield * ((dt - 1) / Math.pow(dt, 2));
+        const res = calcCollapsePressureRating({
+          yield: i.yield,
+          od: i.od,
+          id: i.id,
+          wall_pct: i.wall_pct
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'psi'
     },
     {
       id: 'pipe_body_yield',
       name: 'Pipe Body Yield Strength',
-      desc: 'Maximum tensile load before plastic deformation.',
+      desc: 'Maximum axial tensile load of pipe body before plastic deformation (API Spec 5DP / 7G).',
       inputs: [
         { key: 'yield', label: 'Material Yield Strength (psi)', val: 135000 },
         { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
-        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 },
+        { key: 'df', label: 'Design Factor (Optional)', val: '', placeholder: '0.90' },
+        { key: 'wall_pct', label: 'Remaining Wall Thickness (%) (Optional)', val: '', placeholder: '100' }
       ],
       calc: (i) => {
-        const area = (Math.PI / 4) * (Math.pow(i.od, 2) - Math.pow(i.id, 2));
-        return i.yield * area;
+        const res = calcPipeBodyYield({
+          yield: i.yield,
+          od: i.od,
+          id: i.id,
+          df: i.df,
+          wall_pct: i.wall_pct
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'lb'
     },
     {
       id: 'tool_joint_strength',
       name: 'Tool Joint Strength',
-      desc: 'Tensile capacity of the connection.',
+      desc: 'Tensile rating of connection based on pin and box critical thread sections (API Spec 7G).',
       inputs: [
         { key: 'yield', label: 'Material Yield Strength (psi)', val: 120000 },
+        { key: 'pin_area', label: 'Pin Critical Area (in²)', val: 9.0, hint: 'From API 7G / manufacturer connection data', placeholder: 'e.g. 9.0' },
+        { key: 'box_area', label: 'Box Critical Area (in²)', val: 12.0, hint: 'From API 7G / manufacturer connection data', placeholder: 'e.g. 12.0' },
         { key: 'tj_od', label: 'Tool Joint OD (in)', val: 6.625 },
-        { key: 'tj_id', label: 'Tool Joint ID (in)', val: 3.25 }
+        { key: 'tj_id', label: 'Tool Joint ID (in)', val: 3.25 },
+        { key: 'pipe_yield', label: 'Pipe Body Yield Strength (lb) (Optional)', val: '', placeholder: 'e.g. 712070' }
       ],
       calc: (i) => {
-        const area = (Math.PI / 4) * (Math.pow(i.tj_od, 2) - Math.pow(i.tj_id, 2));
-        return i.yield * area;
+        const res = calcToolJointStrength({
+          yield: i.yield,
+          tj_od: i.tj_od,
+          tj_id: i.tj_id,
+          pin_area: i.pin_area,
+          box_area: i.box_area,
+          pipe_yield: i.pipe_yield
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'lb'
     },
     {
       id: 'hook_load_calc',
       name: 'Hook Load Calculation',
-      desc: 'Estimated static hook load with buoyed string weight.',
+      desc: 'Estimated static surface hook load accounting for drillstring & BHA buoyancy plus block assembly weight.',
       inputs: [
         { key: 'ds_air', label: 'Drill String Weight in Air (lb)', val: 200000 },
         { key: 'mw', label: 'Mud Weight (ppg)', val: 11.5 },
         { key: 'bha_air', label: 'BHA Weight in Air (lb)', val: 40000 },
-        { key: 'block_wt', label: 'Block Assembly Weight (lb)', val: 35000 }
+        { key: 'block_wt', label: 'Block Assembly Weight (lb)', val: 35000 },
+        { key: 'limit', label: 'Rated Hook Load Limit (lb) (Optional)', val: '', placeholder: 'e.g. 300000' }
       ],
       calc: (i) => {
-        const bf = 1 - (i.mw / 65.5);
-        return ((i.ds_air + i.bha_air) * bf) + i.block_wt;
+        const res = calcHookLoad({
+          ds_air: i.ds_air,
+          mw: i.mw,
+          bha_air: i.bha_air,
+          block_wt: i.block_wt,
+          limit: i.limit
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
       unit: 'lb'
     },
@@ -7389,9 +11956,18 @@ const formulaDb = {
       desc: 'Calculated WOB based on hook load difference.',
       inputs: [
         { key: 'hl_free', label: 'Off-Bottom Hook Load (lb)', val: 220000 },
-        { key: 'hl_drill', label: 'On-Bottom Hook Load (lb)', val: 185000 }
+        { key: 'hl_drill', label: 'On-Bottom Hook Load (lb)', val: 185000 },
+        { key: 'target_wob', label: 'Target WOB (lb) (Optional)', val: '', placeholder: 'e.g. 40000' }
       ],
-      calc: (i) => i.hl_free - i.hl_drill,
+      calc: (i) => {
+        const res = calcBitWeightOnBottom({
+          hl_free: i.hl_free,
+          hl_drill: i.hl_drill,
+          target_wob: i.target_wob
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'lb'
     },
     {
@@ -7400,9 +11976,18 @@ const formulaDb = {
       desc: 'Ratio of component strength to applied load.',
       inputs: [
         { key: 'strength', label: 'Component Yield Strength (lb)', val: 500000 },
-        { key: 'load', label: 'Applied Tensile Load (lb)', val: 300000 }
+        { key: 'load', label: 'Applied Tensile Load (lb)', val: 300000 },
+        { key: 'required_sf', label: 'Required Safety Factor (Optional)', val: 1.25 }
       ],
-      calc: (i) => i.strength / (i.load || 1),
+      calc: (i) => {
+        const res = calcSafetyFactor({
+          strength: i.strength,
+          load: i.load,
+          required_sf: i.required_sf
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'Ratio'
     },
     {
@@ -7419,25 +12004,50 @@ const formulaDb = {
     },
     {
       id: 'eff_mud_dens',
-      name: 'Effective Mud Density',
-      desc: 'Effective mud column density including cuttings load.',
+      name: 'Equivalent Circulating Density (ECD)',
+      desc: 'Effective density at the bottom of the hole while circulating (static mud weight + annular pressure loss).',
       inputs: [
         { key: 'mw', label: 'Static Mud Weight (ppg)', val: 10.2 },
         { key: 'apl', label: 'Annular Pressure Loss (psi)', val: 350 },
-        { key: 'tvd', label: 'TVD (ft)', val: 8500 }
+        { key: 'tvd', label: 'True Vertical Depth (ft)', val: 8500 },
+        { key: 'fg', label: 'Formation Fracture Gradient (psi/ft) (Optional)', val: '', placeholder: 'e.g. 0.80' }
       ],
-      calc: (i) => i.mw + (i.apl / (0.052 * i.tvd)),
+      calc: (i) => {
+        const res = calcEquivalentCirculatingDensity({
+          mw: i.mw,
+          apl: i.apl,
+          tvd: i.tvd,
+          fg: i.fg
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'ppg'
     },
+    // Shared pure calculation engine for Stuck Pipe Free Length & Free Point Constant
     {
       id: 'fpc_stuck',
       name: 'Free Point Constant for Stuck Pipe Calculation',
       desc: 'Factor relating steel expansion to pull force.',
       inputs: [
         { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
-        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276 },
+        { key: 'stretch', label: 'Pipe Stretch (in)', val: '', placeholder: 20 },
+        { key: 'pull', label: 'Pull Force Increment (klb)', val: '', placeholder: 25 }
       ],
-      calc: (i) => 2.5 * (Math.pow(i.od, 2) - Math.pow(i.id, 2)),
+      calc: (i) => {
+        const res = calcFreePoint({ od: i.od, id: i.id, stretchIn: i.stretch, pullIncrementKlb: i.pull });
+        if (res.errors.some(e => e.field === 'od' || e.field === 'id')) {
+          return '--';
+        }
+        return {
+          fpc: res.fpc,
+          as: res.as,
+          depth: res.freeLengthFt !== null ? res.freeLengthFt : (i.stretch || i.pull ? '--' : null),
+          note: "Estimate assumes straight hole, steel pipe, and E = 30,000,000 psi. Directional wells and mixed strings (DP + HWDP) need separate calculation per section.",
+          valueOf() { return this.fpc; }
+        };
+      },
       unit: 'FPC'
     },
     {
@@ -7476,12 +12086,21 @@ const formulaDb = {
     {
       id: 'overpull_margin',
       name: 'Margin of Overpull in Drillstring (lb)',
-      desc: 'Safety load capability before yielding top joint.',
+      desc: 'Extra pull available above current string weight before reaching the design tensile limit of the weakest component.',
       inputs: [
         { key: 'ts', label: 'Tensile Strength of Top Joint (lb)', val: 350000 },
-        { key: 'wt', label: 'Drillstring Weight in Mud (lb)', val: 220000 }
+        { key: 'wt', label: 'Drillstring Weight in Mud (lb)', val: 220000 },
+        { key: 'df', label: 'Design Factor (default 0.9)', val: 0.9 }
       ],
-      calc: (i) => i.ts - i.wt,
+      calc: (i) => {
+        const res = calcMarginOfOverpull({
+          ts: i.ts,
+          wt: i.wt,
+          df: i.df
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'lb'
     },
     {
@@ -7492,12 +12111,53 @@ const formulaDb = {
         { key: 'fg', label: 'Fracture Gradient (psi/ft)', val: 0.8 },
         { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
         { key: 'tvd', label: 'TVD (ft)', val: 8000 },
-        { key: 'apl', label: 'Baseline APL (psi)', val: 200 }
+        { key: 'apl', label: 'Baseline APL (psi)', val: 200 },
+        { key: 'q', label: 'Flow Rate (gpm)', val: 400 },
+        { key: 'dh', label: 'Hole Diameter (in)', val: 8.5 }
       ],
       calc: (i) => {
-        const allowedAPL = (i.fg / 0.052 - i.mw) * 0.052 * i.tvd - i.apl;
-        const rop = Math.max(0, allowedAPL * 10 / (i.mw * i.tvd || 1)) * 30; // scaled index
-        return rop;
+        const fg = parseFloat(i.fg);
+        const mw = parseFloat(i.mw);
+        const tvd = parseFloat(i.tvd);
+        const apl = parseFloat(i.apl);
+        const q = parseFloat(i.q);
+        const dh = parseFloat(i.dh);
+
+        if (isNaN(fg) || fg <= 0 || isNaN(mw) || mw <= 0 || isNaN(tvd) || tvd <= 0 || isNaN(apl) || apl < 0 || isNaN(q) || q <= 0 || isNaN(dh) || dh <= 0) {
+          return '--';
+        }
+
+        const maxECD = fg / 0.052;
+        const aplEquiv = apl / (0.052 * tvd);
+        const mwMax = maxECD - aplEquiv;
+        const dMW = mwMax - mw;
+        const pFrac = fg * tvd;
+        const note = "Estimate based on the cuttings-loading ECD limit. Actual ROP also depends on hole cleaning, pump rate and cuttings transport.";
+
+        if (dMW <= 0) {
+          return {
+            rop: 0,
+            dMW,
+            maxECD,
+            margin: 0,
+            pFrac,
+            warning: "Mud weight + APL already at or above fracture limit, no ROP margin",
+            note,
+            valueOf() { return 0; }
+          };
+        }
+
+        const rop = 67 * dMW * q / Math.pow(dh, 2);
+        return {
+          rop,
+          dMW,
+          maxECD,
+          margin: dMW,
+          pFrac,
+          warning: null,
+          note,
+          valueOf() { return rop; }
+        };
       },
       unit: 'ft/hr'
     },
@@ -7612,10 +12272,28 @@ const formulaDb = {
         { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 }
       ],
       calc: (i) => {
-        const bf = 1 - i.mw / 65.5;
-        const Wdp = i.dswt * bf;
-        const Wdc = i.dcwt * bf;
-        return (i.depth * (Wdp * i.depth + 4 * i.bwt) + 2 * i.dclen * (Wdc - Wdp)) / 10560000;
+        const depth = parseFloat(i.depth !== undefined ? i.depth : i.d);
+        const dswt = parseFloat(i.dswt !== undefined ? i.dswt : (i.dpWeight !== undefined ? i.dpWeight : i.wdp));
+        const dcwt = parseFloat(i.dcwt !== undefined ? i.dcwt : (i.dcWeight !== undefined ? i.dcWeight : i.wdc));
+        const dclen = parseFloat(i.dclen !== undefined ? i.dclen : (i.dcLength !== undefined ? i.dcLength : i.lc));
+        const bwt = parseFloat(i.bwt !== undefined ? i.bwt : (i.blockWeight !== undefined ? i.blockWeight : i.wb));
+        const mw = parseFloat(i.mw !== undefined ? i.mw : (i.mudWeight !== undefined ? i.mudWeight : i.m_w));
+
+        if (isNaN(depth) || depth <= 0) return 'Invalid input';
+        if (isNaN(dswt) || dswt <= 0) return 'Invalid input';
+        if (isNaN(dcwt) || dcwt < 0) return 'Invalid input';
+        if (isNaN(dclen) || dclen < 0) return 'Invalid input';
+        if (isNaN(bwt) || bwt < 0) return 'Invalid input';
+        if (isNaN(mw) || mw <= 0 || mw >= 65.5) return 'Invalid input';
+
+        const ls = 93; // standard average stand length in ft (API RP 9B)
+        const bf = 1 - mw / 65.5;
+        const wp = dswt * bf;
+        const c = (dcwt - dswt) * dclen * bf;
+        const num = (depth * (ls + depth) * wp) + (2 * depth * (2 * bwt + c));
+        const tm = num / 10560000;
+
+        return (typeof tm === 'number' && Number.isFinite(tm) && tm >= 0) ? tm : 'Invalid input';
       },
       unit: 'Ton-Miles'
     },
@@ -7624,28 +12302,55 @@ const formulaDb = {
       name: 'Stuck Pipe Calculation',
       desc: 'Free length of stuck drillstring using stretch measurements.',
       inputs: [
-        { key: 'stretch', label: 'Pipe Stretch (inches)', val: 15 },
-        { key: 'pull', label: 'Overpull Force (lb)', val: 70000 },
-        { key: 'fpc', label: 'Free Point Constant (FPC)', val: 2.5 }
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0, section: 'Pipe' },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276, section: 'Pipe' },
+        { key: 'manual_fpc_toggle', label: 'Enter FPC manually', type: 'toggle', val: false, section: 'Pipe' },
+        { key: 'fpc_manual', label: 'Manual FPC', val: '', placeholder: 13187, section: 'Pipe', hiddenUnless: 'manual_fpc_toggle' },
+        { key: 'pull_initial', label: 'Initial Pull (lb)', val: 35000, section: 'Measurement' },
+        { key: 'pull_final', label: 'Final Pull (lb)', val: 105000, section: 'Measurement' },
+        { key: 'stretch', label: 'Stretch Between the Two Pulls (in)', val: 15, section: 'Measurement' },
+        { key: 'total_length', label: 'Total Drillstring Length (ft)', val: '', placeholder: 'Optional', section: 'Context' }
       ],
-      calc: (i) => (i.stretch * i.fpc * 100000) / (i.pull || 1),
-      unit: 'ft (Free Pipe Length)'
+      calc: (i) => {
+        const res = calcFreePoint({
+          od: i.od,
+          id: i.id,
+          stretchIn: i.stretch,
+          pullInitialLb: i.pull_initial,
+          pullFinalLb: i.pull_final,
+          fpcOverride: (i.manual_fpc_toggle && i.fpc_manual) ? i.fpc_manual : null,
+          totalStringLengthFt: i.total_length
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
+      unit: 'ft'
     },
     {
       id: 'stuck_pipe_not_know_fpc',
-      name: 'Stuck Pipe Calculation Not Know Free Point',
-      desc: 'Approximated free length when pipe dimensions are unknown.',
+      name: 'Stuck Pipe Calculation (Pipe Weight Method)',
+      desc: 'Free pipe length from stretch, pull and pipe weight (no FPC needed).',
       inputs: [
-        { key: 'stretch', label: 'Pipe Stretch (inches)', val: 15 },
-        { key: 'pull', label: 'Overpull Force (lb)', val: 70000 },
-        { key: 'od', label: 'Pipe OD (in)', val: 5.0 },
-        { key: 'id', label: 'Pipe ID (in)', val: 4.276 }
+        { key: 'stretch', label: 'Pipe Stretch (in)', val: 15 },
+        { key: 'pull', label: 'Pull Increment (lb)', val: 70000 },
+        { key: 'input_mode', label: 'Input Mode', type: 'mode_toggle', options: [{ id: 'od_id', label: 'OD / ID (in)' }, { id: 'weight', label: 'Pipe weight (lb/ft)' }], val: 'od_id' },
+        { key: 'pipe_weight', label: 'Pipe Weight (lb/ft)', val: 17.93, hiddenUnlessMode: 'weight' },
+        { key: 'od', label: 'Pipe OD (in)', val: 5.0, hiddenUnlessMode: 'od_id' },
+        { key: 'id', label: 'Pipe ID (in)', val: 4.276, hiddenUnlessMode: 'od_id' }
       ],
       calc: (i) => {
-        const fpc = 2.5 * (Math.pow(i.od, 2) - Math.pow(i.id, 2));
-        return (i.stretch * fpc * 100000) / (i.pull || 1);
+        const res = calcFreePointWeight({
+          stretchIn: i.stretch,
+          pullLb: i.pull,
+          weightLbFt: (i.pipe_weight !== undefined && i.pipe_weight !== null && i.pipe_weight !== '') ? i.pipe_weight : i.weight,
+          od: i.od,
+          id: i.id,
+          mode: i.input_mode || i.mode
+        });
+        if (!res.isValid) return '--';
+        return res;
       },
-      unit: 'ft (Free Pipe Length)'
+      unit: 'ft'
     },
     {
       id: 'diff_stick_force',
@@ -7663,14 +12368,26 @@ const formulaDb = {
     {
       id: 'mech_stick_risk',
       name: 'Mechanical Sticking Analysis',
-      desc: 'Evaluates sticking severity based on drag forces.',
+      desc: 'Up and down drag from pick-up, slack-off and rotating weights.',
       inputs: [
         { key: 'puw', label: 'Pick-Up Weight (lb)', val: 220000 },
         { key: 'sow', label: 'Slack-Off Weight (lb)', val: 180000 },
-        { key: 'rw', label: 'Rotating Weight (lb)', val: 200000 }
+        { key: 'rw', label: 'Rotating Weight (lb)', val: 200000 },
+        { key: 'base_up', label: 'Baseline Up Drag (lb)', val: '', placeholder: 'Optional', section: 'Baseline' },
+        { key: 'base_down', label: 'Baseline Down Drag (lb)', val: '', placeholder: 'Optional', section: 'Baseline' }
       ],
-      calc: (i) => ((i.puw - i.rw) + (i.rw - i.sow)) / i.rw * 100,
-      unit: '% (Risk Index)'
+      calc: (i) => {
+        const res = calcDragAnalysis({
+          puw: i.puw !== undefined ? i.puw : i.pu,
+          sow: i.sow !== undefined ? i.sow : i.so,
+          rw: i.rw !== undefined ? i.rw : (i.rot !== undefined ? i.rot : i.rotating),
+          baselineUp: i.base_up !== undefined ? i.base_up : i.baseline_up,
+          baselineDown: i.base_down !== undefined ? i.base_down : i.baseline_down
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
+      unit: 'lb (Drag Analysis)'
     },
     {
       id: 'jar_impact_force',
@@ -7698,13 +12415,23 @@ const formulaDb = {
     {
       id: 'fish_string_load',
       name: 'Fishing String Load',
-      desc: 'Total surface load when pulling on fish.',
+      desc: 'Hook load when pulling on fish (buoyed string weight + overpull). Excludes traveling block weight and drag.',
       inputs: [
         { key: 'wt', label: 'String Weight in Air (lb)', val: 150000 },
         { key: 'mw', label: 'Mud Weight (ppg)', val: 10.5 },
-        { key: 'overpull', label: 'Overpull (lb)', val: 40000 }
+        { key: 'overpull', label: 'Overpull (lb)', val: 40000 },
+        { key: 'max_load', label: 'Maximum Allowable Load (lb)', val: '', placeholder: 'Optional (tensile or rig limit)' }
       ],
-      calc: (i) => (i.wt * (1 - i.mw / 65.5)) + i.overpull,
+      calc: (i) => {
+        const res = calcFishingStringLoad({
+          wt: i.wt,
+          mw: i.mw,
+          overpull: i.overpull,
+          maxLoad: i.max_load !== undefined ? i.max_load : i.maxLoad
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: 'lb'
     },
     {
@@ -7755,13 +12482,20 @@ const formulaDb = {
     },
     {
       id: 'pipe_recovery_est',
-      name: 'Pipe Recovery Estimate',
-      desc: 'Percentage of drillstring expected to be recovered free.',
+      name: 'Free Pipe Percentage',
+      desc: 'Share of the drillstring that is free above the stuck point.',
       inputs: [
         { key: 'total', label: 'Total Drillstring Length (ft)', val: 10000 },
-        { key: 'free', label: 'Calculated Free Pipe Length (ft)', val: 7500 }
+        { key: 'free', label: 'Free Pipe Length (from stretch calc or free point tool)', val: 7500 }
       ],
-      calc: (i) => (i.free / (i.total || 1)) * 100,
+      calc: (i) => {
+        const res = calcFreePipePercentage({
+          total: i.total !== undefined ? i.total : i.totalLengthFt,
+          free: i.free !== undefined ? i.free : i.freeLengthFt
+        });
+        if (!res.isValid) return '--';
+        return res;
+      },
       unit: '%'
     },
     {
@@ -7806,7 +12540,18 @@ const formulaDb = {
     {
       id: 'cuttings_vol_gpm',
       name: 'Volume of Cutting Generated While Drilling (gall/min)',
-      calc: (i) => ((i.rop * Math.pow(i.hid, 2) / 1029.4) * 42) / 60,
+      desc: 'Cuttings volume rate generated at bit in gallons per minute.',
+      inputs: [
+        { key: 'rop', label: 'ROP (ft/hr)', val: 50 },
+        { key: 'hid', label: 'Hole ID (in)', val: 8.5 }
+      ],
+      calc: (i) => {
+        const rop = parseFloat(i.rop);
+        const hid = parseFloat(i.hid);
+        if (isNaN(rop) || rop < 0 || isNaN(hid) || hid <= 0) return 'Invalid input';
+        const res = ((rop * Math.pow(hid, 2) / 1029.4) * 42) / 60;
+        return (typeof res === 'number' && Number.isFinite(res)) ? res : 'Invalid input';
+      },
       unit: 'gal/min'
     }
   ]
@@ -8045,27 +12790,6 @@ const wellControlDb = {
   ],
   subsea: [
     {
-      id: 'riser_margin',
-      name: 'Riser Margin',
-      desc: 'Safe mud weight increment for riser removal.',
-      inputs: [
-        { key: 'mw', label: 'Mud Weight (ppg)', val: 10.0 },
-        { key: 'wd', label: 'Water Depth (ft)', val: 3000 },
-        { key: 'ag', label: 'Air Gap (ft)', val: 80 },
-        { key: 'tvd', label: 'Well TVD (ft)', val: 9000 },
-        { key: 'sw', label: 'Seawater Density (ppg)', val: 8.6 }
-      ],
-      calc: (i) => {
-        const sw = (i.sw !== undefined && !isNaN(i.sw)) ? i.sw : 8.6;
-        const denom = i.tvd - i.wd - i.ag;
-        if (denom <= 0) return 'Invalid input';
-        const num = (i.mw * (i.wd + i.ag)) - (sw * i.wd);
-        const rm = num / denom;
-        return (typeof rm === 'number' && Number.isFinite(rm)) ? rm : 'Invalid input';
-      },
-      unit: 'ppg'
-    },
-    {
       id: 'subsea_accumulator',
       name: 'Subsea Accumulator Capacity',
       desc: 'Usable subsea fluid volume adjusting for water column head pressure.',
@@ -8076,12 +12800,24 @@ const wellControlDb = {
         { key: 'p2', label: 'Min Operating Pressure (psi)', val: 1200 },
         { key: 'p3', label: 'Max System Pressure (psi)', val: 3000 },
         { key: 'wd', label: 'Water Depth (ft)', val: 3000 },
-        { key: 'sw', label: 'Seawater Density (ppg)', val: 8.54 }
+        { key: 'sw', label: 'Seawater Density (ppg)', val: 8.54 },
+        { key: 'use_abs', label: 'Use Absolute Pressures (+14.7 psi)', type: 'toggle', val: false },
+        { key: 'req_vol', label: 'Required Volume (gal)', val: '', placeholder: 'Optional' }
       ],
       calc: (i) => {
-        const hyd = 0.052 * i.sw * i.wd;
-        const effP = i.p1 + hyd;
-        return i.bottles * i.vol * effP * ((1 / i.p2) - (1 / i.p3));
+        const res = calcSubseaAccumulatorCapacity({
+          bottles: i.bottles,
+          vol: i.vol,
+          p1: i.p1,
+          p2: i.p2,
+          p3: i.p3,
+          wd: i.wd,
+          sw: i.sw,
+          useAbs: i.use_abs !== undefined ? i.use_abs : i.useAbs,
+          reqVol: i.req_vol !== undefined ? i.req_vol : i.reqVol
+        });
+        if (!res.isValid) return 'Invalid input';
+        return Math.round(res.usableVolumeGal * 1000) / 1000;
       },
       unit: 'gal'
     },
@@ -8171,7 +12907,7 @@ const drillingCalcSections = [
     desc: "Tensile capacities, DC weights, ROP, ECD limits",
     icon: "architecture",
     accent: "operations",
-    items: ['tensile_cap', 'dc_wt_vert', 'dc_wt_dev', 'overpull_margin', 'max_rop', 'eff_mud_dens', 'ecd_applied', 'dp_elongation', 'neutral_point', 'ds_weight_air', 'ds_weight_mud', 'buckling_load', 'burst_pressure', 'collapse_pressure', 'pipe_body_yield', 'tool_joint_strength', 'hook_load_calc', 'max_allowable_pull', 'wob_calc', 'safety_factor_calc']
+    items: ['tensile_cap', 'dc_wt_vert', 'dc_wt_dev', 'overpull_margin', 'max_rop', 'eff_mud_dens', 'ecd_applied', 'dp_elongation', 'neutral_point', 'ds_weight', 'buckling_load', 'burst_pressure', 'collapse_pressure', 'pipe_body_yield', 'tool_joint_strength', 'hook_load_calc', 'max_allowable_pull', 'wob_calc', 'safety_factor_calc']
   },
   {
     name: "2. Hydraulics & Pump Calculations",
@@ -8199,7 +12935,7 @@ const drillingCalcSections = [
     desc: "Ton-miles, pipe pulling volumes, slug calculations",
     icon: "swap_vert",
     accent: "completion",
-    items: ['rt_ton_mile', 'casing_ton_mile', 'pipe_pulled_dry', 'pipe_pulled_wet', 'dp_pulled_lose_dry', 'dp_pulled_lose_wet', 'slug_vol', 'slug_weight', 'slug_bbl_req']
+    items: ['rt_ton_mile', 'casing_ton_mile', 'pipe_pulled', 'dp_pulled_lose', 'slug_vol', 'slug_weight', 'slug_bbl_req']
   },
   {
     name: "6. Hydrostatic",
@@ -8266,7 +13002,6 @@ const wellControlCalcSections = [
     accent: "subsea",
     category: "subsea",
     items: [
-      'riser_margin',
       'subsea_accumulator',
       'gas_migration',
       'max_surface_pressure',
@@ -8283,7 +13018,12 @@ const calcSectionsConfig = {
     id: 'drilling',
     title: 'Drilling Calculations',
     groups: drillingCalcSections,
-    getFormula: (id) => (formulaDb.calculations || []).find(f => f.id === id)
+    getFormula: (id) => {
+      const targetId = (id === 'ds_weight_air' || id === 'ds_weight_mud') ? 'ds_weight' :
+                       (id === 'pipe_pulled_dry' || id === 'pipe_pulled_wet') ? 'pipe_pulled' :
+                       (id === 'dp_pulled_lose_dry' || id === 'dp_pulled_lose_wet') ? 'dp_pulled_lose' : id;
+      return (formulaDb.calculations || []).find(f => f.id === targetId);
+    }
   },
   wellcontrol: {
     id: 'wellcontrol',
@@ -8301,6 +13041,15 @@ const calcSectionsConfig = {
 };
 
 function findCalculator(formulaId, optCategory) {
+  if (formulaId === 'ds_weight_air' || formulaId === 'ds_weight_mud') {
+    formulaId = 'ds_weight';
+  }
+  if (formulaId === 'pipe_pulled_dry' || formulaId === 'pipe_pulled_wet') {
+    formulaId = 'pipe_pulled';
+  }
+  if (formulaId === 'dp_pulled_lose_dry' || formulaId === 'dp_pulled_lose_wet') {
+    formulaId = 'dp_pulled_lose';
+  }
   if (optCategory === 'surface' || optCategory === 'subsea') {
     const item = (wellControlDb[optCategory] || []).find(f => f.id === formulaId);
     if (item) {
@@ -8400,34 +13149,101 @@ function findCalculator(formulaId, optCategory) {
 }
 
 function openFormulaDirectly(formulaId, optCategory) {
+  if (formulaId === 'riser_margin') {
+    openRiserMarginDirectly();
+    return;
+  }
   const found = findCalculator(formulaId, optCategory);
   if (found) {
     const scroller = document.querySelector('#screen-drilling-calc .scroller');
-    if (scroller) {
-      calcSubState.listScrollTop = scroller.scrollTop;
-    }
+    const curScroll = scroller ? scroller.scrollTop : 0;
+    calcSubState.listScrollTop = curScroll;
+
     const currSection = calcSectionsConfig[found.sectionKey] || calcSectionsConfig.drilling;
+    let cardCatId = null;
     if (currSection && currSection.groups) {
       currSection.groups.forEach((sec, idx) => {
         if (sec.items && sec.items.includes(formulaId)) {
-          calcSubState.expandedCategoryId = 'calc-cat-' + idx;
+          cardCatId = 'calc-cat-' + idx;
         }
       });
+    }
+    if (cardCatId) {
+      calcSubState.expandedCategoryId = cardCatId;
+    }
+
+    // Ensure the underlying expanded card state in navStack has the latest scroll position
+    if (navStack.length > 0 && navStack[navStack.length - 1].screen === 'drilling-calc') {
+      const topEntry = navStack[navStack.length - 1];
+      if (topEntry.calcView === 'list') {
+        topEntry.calcScrollTop = curScroll;
+        if (!topEntry.calcExpandedCategoryId && cardCatId) {
+          topEntry.calcExpandedCategoryId = cardCatId;
+        }
+      }
     }
 
     calcSubState.view = 'formula';
     calcSubState.section = found.sectionKey;
     calcSubState.category = found.category;
     calcSubState.formulaId = formulaId;
-    pushNavHistory({ screen: 'drilling-calc', view: 'formula', formulaId: formulaId });
+
+    navStack.push({
+      screen: 'drilling-calc',
+      calcView: 'formula',
+      calcSection: found.sectionKey,
+      calcCategory: found.category,
+      calcFormulaId: formulaId,
+      calcExpandedCategoryId: calcSubState.expandedCategoryId,
+      calcScrollTop: curScroll
+    });
+
     renderDrillingCalcScreen();
   }
 }
 window.openFormulaDirectly = openFormulaDirectly;
 
+function getCalcFavorites() {
+  try {
+    let favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
+    let migrated = false;
+    if (favs.includes('ds_weight_air') || favs.includes('ds_weight_mud')) {
+      favs = favs.filter(f => f !== 'ds_weight_air' && f !== 'ds_weight_mud');
+      if (!favs.includes('ds_weight')) {
+        favs.push('ds_weight');
+      }
+      migrated = true;
+    }
+    if (favs.includes('pipe_pulled_dry') || favs.includes('pipe_pulled_wet')) {
+      favs = favs.filter(f => f !== 'pipe_pulled_dry' && f !== 'pipe_pulled_wet');
+      if (!favs.includes('pipe_pulled')) {
+        favs.push('pipe_pulled');
+      }
+      migrated = true;
+    }
+    if (favs.includes('dp_pulled_lose_dry') || favs.includes('dp_pulled_lose_wet')) {
+      favs = favs.filter(f => f !== 'dp_pulled_lose_dry' && f !== 'dp_pulled_lose_wet');
+      if (!favs.includes('dp_pulled_lose')) {
+        favs.push('dp_pulled_lose');
+      }
+      migrated = true;
+    }
+    if (favs.includes('riser_margin')) {
+      favs = favs.filter(f => f !== 'riser_margin');
+      migrated = true;
+    }
+    if (migrated) {
+      localStorage.setItem('calcFavorites', JSON.stringify(favs));
+    }
+    return favs;
+  } catch (e) {
+    return [];
+  }
+}
+
 function toggleFormulaFavorite(id, e) {
   if (e && e.stopPropagation) e.stopPropagation();
-  let favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
+  let favs = getCalcFavorites();
   if (favs.includes(id)) {
     favs = favs.filter(f => f !== id);
   } else {
@@ -8467,7 +13283,7 @@ function detectCalcQuantity(labelOrUnit) {
   if (/\bin\b/.test(s) || s.includes('(in)') || s.includes('inches')) return { type: 'diameter', native: 'in', si: 'mm' };
   if (s.includes('bbl')) return { type: 'volume', native: 'bbl', si: 'm3' };
   if (s.includes('gal')) return { type: 'volume', native: 'gal', si: 'L' };
-  if (s.includes('klbs')) return { type: 'force', native: 'klbs', si: 'kN' };
+  if (s.includes('klbs') || s.includes('klb')) return { type: 'force', native: 'klbs', si: 'kN' };
   if (/\blb\b/.test(s) || /\blbs\b/.test(s) || /\blbf\b/.test(s)) return { type: 'force', native: 'lbs', si: 'kN' };
   return null;
 }
@@ -8500,7 +13316,7 @@ function adaptLabelToSI(label) {
   s = s.replace(/\bgpm\b/gi, 'L/min');
   s = s.replace(/\(bbl\)/gi, '(m³)');
   s = s.replace(/\(gal\)/gi, '(L)');
-  s = s.replace(/\bklbs\b/gi, 'kN');
+  s = s.replace(/\bklbs?\b/gi, 'kN');
   s = s.replace(/lb\/100ft[²2]/gi, 'Pa');
   s = s.replace(/lbf\/100ft[²2]/gi, 'Pa');
   s = s.replace(/lb\/ft[³3]/gi, 'kg/m³');
@@ -8598,6 +13414,1210 @@ function adaptActiveCalculatorView(newSys, prevSys) {
   }
 }
 
+
+// ==========================================
+// RISER MARGIN CALCULATION MODULE
+// ==========================================
+// Riser Margin Calculation Module for Drilling Toolkit
+// IWCF Subsea Riser Margin, Weighted Pill Density & LMRP Unlatch BHP Analysis
+
+const riserMarginState = {
+  jobName: '',
+  canonicalWhDepthM: 1073,
+  canonicalTdDepthM: 1508,
+  canonicalMwPpg: 9.4,
+  canonicalSwPpg: 8.6,
+  canonicalPpPpg: 8.8,
+  depthUnit: 'm', // 'm' or 'ft'
+  densityUnit: 'ppg', // 'ppg' or 'sg'
+  pressureUnit: 'psi', // 'psi' or 'bar'
+  whDepth: 1073,
+  tdDepth: 1508,
+  mudWeight: 9.4,
+  swDensity: 8.6,
+  porePressure: 8.8
+};
+if (typeof window !== 'undefined') {
+  window.riserMarginState = riserMarginState;
+}
+
+function getRiserMarginGlobalUnits() {
+  const sys = (typeof window !== 'undefined' && window.UnitsEngine && typeof window.UnitsEngine.getUnitSystem === 'function')
+    ? window.UnitsEngine.getUnitSystem()
+    : (typeof localStorage !== 'undefined' ? (localStorage.getItem('unit_system') || 'mixed') : 'mixed');
+
+  if (sys === 'api') {
+    return { sys: 'api', depthUnit: 'ft', densityUnit: 'ppg', pressureUnit: 'psi', depthLabel: 'ft', densLabel: 'ppg' };
+  } else if (sys === 'si') {
+    return { sys: 'si', depthUnit: 'm', densityUnit: 'sg', pressureUnit: 'bar', depthLabel: 'm', densLabel: 'SG' };
+  } else {
+    // mixed default: depth in meters, density in ppg, pressure in psi
+    return { sys: 'mixed', depthUnit: 'm', densityUnit: 'ppg', pressureUnit: 'psi', depthLabel: 'm', densLabel: 'ppg' };
+  }
+}
+
+function syncRiserMarginUnitsToGlobal() {
+  const gu = getRiserMarginGlobalUnits();
+  riserMarginState.depthUnit = gu.depthUnit;
+  riserMarginState.densityUnit = gu.densityUnit;
+  riserMarginState.pressureUnit = gu.pressureUnit;
+  riserMarginState.sys = gu.sys;
+
+  if (gu.depthUnit === 'ft') {
+    riserMarginState.whDepth = Math.round(riserMarginState.canonicalWhDepthM * 3.281 * 10) / 10;
+    riserMarginState.tdDepth = Math.round(riserMarginState.canonicalTdDepthM * 3.281 * 10) / 10;
+  } else {
+    riserMarginState.whDepth = Math.round(riserMarginState.canonicalWhDepthM * 10) / 10;
+    riserMarginState.tdDepth = Math.round(riserMarginState.canonicalTdDepthM * 10) / 10;
+  }
+
+  if (gu.densityUnit === 'sg') {
+    riserMarginState.mudWeight = Math.round((riserMarginState.canonicalMwPpg / 8.33) * 1000) / 1000;
+    riserMarginState.swDensity = Math.round((riserMarginState.canonicalSwPpg / 8.33) * 1000) / 1000;
+    riserMarginState.porePressure = Math.round((riserMarginState.canonicalPpPpg / 8.33) * 1000) / 1000;
+  } else {
+    riserMarginState.mudWeight = Math.round(riserMarginState.canonicalMwPpg * 10) / 10;
+    riserMarginState.swDensity = Math.round(riserMarginState.canonicalSwPpg * 10) / 10;
+    riserMarginState.porePressure = Math.round(riserMarginState.canonicalPpPpg * 10) / 10;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.syncRiserMarginUnitsToGlobal = syncRiserMarginUnitsToGlobal;
+}
+
+function calculateRiserMargin(inputs) {
+  const mToFt = 3.281;
+  const psiConst = 0.052;
+  const sgToPpg = 8.33;
+
+  const whDepthM = inputs.depthUnit === "ft" ? inputs.whDepth / mToFt : inputs.whDepth;
+  const tdDepthM = inputs.depthUnit === "ft" ? inputs.tdDepth / mToFt : inputs.tdDepth;
+  const whDepthFt = inputs.depthUnit === "ft" ? inputs.whDepth : inputs.whDepth * mToFt;
+  const tdDepthFt = inputs.depthUnit === "ft" ? inputs.tdDepth : inputs.tdDepth * mToFt;
+
+  const mwPpg = inputs.densityUnit === "sg" ? inputs.mudWeight * sgToPpg : inputs.mudWeight;
+  const swPpg = inputs.densityUnit === "sg" ? inputs.swDensity * sgToPpg : inputs.swDensity;
+  const ppPpg = inputs.densityUnit === "sg" ? inputs.porePressure * sgToPpg : inputs.porePressure;
+
+  if (tdDepthM <= whDepthM || whDepthM <= 0 || mwPpg <= 0 || swPpg <= 0 || ppPpg <= 0) {
+    return {
+      valid: false,
+      error: "Total Depth (TD) must be strictly greater than Wellhead Depth (RKB to Seabed), and all densities must be positive."
+    };
+  }
+
+  const pillLengthM = tdDepthM - whDepthM;
+  const pillLengthFt = tdDepthFt - whDepthFt;
+
+  // Exact pill density in ppg
+  const exactPillPpg = ((mwPpg * tdDepthM) - (swPpg * whDepthM)) / pillLengthM;
+  const exactPillSg = exactPillPpg / sgToPpg;
+
+  // Operational recommended pill: round up to nearest 0.1 ppg (or 0.01 SG)
+  const recPillPpg = Math.ceil(exactPillPpg * 10) / 10;
+  const recPillSg = recPillPpg / sgToPpg;
+
+  const deltaPillPpg = recPillPpg - mwPpg;
+  const deltaPillSg = recPillSg - (mwPpg / sgToPpg);
+
+  // Pressure lost from riser disconnect
+  const deltaPlostPsi = psiConst * (mwPpg - swPpg) * whDepthFt;
+  const deltaPlostBar = deltaPlostPsi / 14.5038;
+
+  // Riser margin in ppg
+  const riserMarginPpg = deltaPlostPsi / (psiConst * tdDepthFt);
+  const riserMarginSg = riserMarginPpg / sgToPpg;
+
+  // Wellhead pressures
+  const whPBeforePsi = psiConst * mwPpg * whDepthFt;
+  const whPAfterPsi = psiConst * swPpg * whDepthFt;
+
+  // Pore pressure BHP
+  const ppBhpPsi = psiConst * ppPpg * tdDepthFt;
+
+  // State A: Now, Connected, Mud
+  const stateABhpPsi = psiConst * mwPpg * tdDepthFt;
+  const stateAEmwPpg = mwPpg;
+  const stateAOverbalPsi = stateABhpPsi - ppBhpPsi;
+  const stateAOverbalPpg = stateAEmwPpg - ppPpg;
+
+  // State B: Pill Spotted, Connected
+  const stateBBhpPsi = whPBeforePsi + (psiConst * recPillPpg * pillLengthFt);
+  const stateBEmwPpg = stateBBhpPsi / (psiConst * tdDepthFt);
+  const stateBGainPsi = stateBBhpPsi - stateABhpPsi;
+  const stateBGainPpg = stateBEmwPpg - stateAEmwPpg;
+
+  // State C: After Planned Unlatch with Pill
+  const stateCBhpPsi = whPAfterPsi + (psiConst * recPillPpg * pillLengthFt);
+  const stateCEmwPpg = stateCBhpPsi / (psiConst * tdDepthFt);
+  const stateCChangePsi = stateCBhpPsi - stateABhpPsi;
+  const stateCChangePpg = stateCEmwPpg - stateAEmwPpg;
+  const stateCSafetyPsi = stateCBhpPsi - ppBhpPsi;
+  const stateCSafetyPpg = stateCEmwPpg - ppPpg;
+
+  // Unlatched without Pill
+  const noPillBhpPsi = whPAfterPsi + (psiConst * mwPpg * pillLengthFt);
+  const noPillEmwPpg = noPillBhpPsi / (psiConst * tdDepthFt);
+  const noPillLossPsi = noPillBhpPsi - stateABhpPsi;
+  const noPillLossPpg = noPillEmwPpg - stateAEmwPpg;
+  const noPillMarginPpg = noPillEmwPpg - ppPpg;
+  const noPillMarginPsi = noPillBhpPsi - ppBhpPsi;
+  const noPillIsSafe = noPillEmwPpg > ppPpg;
+
+  // Sensitivity points (6 points)
+  const baseDens = Math.floor(exactPillPpg * 10) / 10;
+  const candidatePpgs = [
+    Math.round((baseDens - 0.4) * 10) / 10,
+    Math.round((baseDens - 0.2) * 10) / 10,
+    exactPillPpg,
+    recPillPpg,
+    Math.round((recPillPpg + 0.2) * 10) / 10,
+    Math.round((recPillPpg + 0.4) * 10) / 10
+  ];
+  const uniquePpgs = Array.from(new Set(candidatePpgs.map(p => Number(p.toFixed(3))))).sort((a,b)=>a-b);
+
+  const sensitivity = uniquePpgs.map(pillW => {
+    const bhp = whPAfterPsi + (psiConst * pillW * pillLengthFt);
+    const emw = bhp / (psiConst * tdDepthFt);
+    const overbalance = emw - ppPpg;
+    const overbalancePsi = bhp - ppBhpPsi;
+    const isExact = Math.abs(pillW - exactPillPpg) < 0.005;
+    const isRec = Math.abs(pillW - recPillPpg) < 0.005;
+    return {
+      pillW,
+      pillWSg: pillW / sgToPpg,
+      bhpPsi: bhp,
+      bhpBar: bhp / 14.5038,
+      emwPpg: emw,
+      emwSg: emw / sgToPpg,
+      overbalancePpg: overbalance,
+      overbalancePsi,
+      isSafe: emw >= ppPpg,
+      isExact,
+      isRec
+    };
+  });
+
+  return {
+    valid: true,
+    exactPillPpg, exactPillSg,
+    recPillPpg, recPillSg,
+    deltaPillPpg, deltaPillSg,
+    deltaPlostPsi, deltaPlostBar,
+    riserMarginPpg, riserMarginSg,
+    pillLengthM, pillLengthFt,
+    whDepthM, whDepthFt, tdDepthM, tdDepthFt,
+    whPBeforePsi, whPAfterPsi,
+    ppBhpPsi,
+    stateA: { bhpPsi: stateABhpPsi, emwPpg: stateAEmwPpg, overbalPsi: stateAOverbalPsi, overbalPpg: stateAOverbalPpg },
+    stateB: { bhpPsi: stateBBhpPsi, emwPpg: stateBEmwPpg, gainPsi: stateBGainPsi, gainPpg: stateBGainPpg },
+    stateC: { bhpPsi: stateCBhpPsi, emwPpg: stateCEmwPpg, changePsi: stateCChangePsi, changePpg: stateCChangePpg, safetyPsi: stateCSafetyPsi, safetyPpg: stateCSafetyPpg },
+    noPill: { bhpPsi: noPillBhpPsi, emwPpg: noPillEmwPpg, lossPsi: noPillLossPsi, lossPpg: noPillLossPpg, marginPpg: noPillMarginPpg, marginPsi: noPillMarginPsi, isSafe: noPillIsSafe },
+    sensitivity
+  };
+}
+
+function openRiserMarginDirectly() {
+  syncRiserMarginUnitsToGlobal();
+  calcSubState.view = 'riser-margin';
+  calcSubState.section = 'categories';
+  calcSubState.category = null;
+  calcSubState.formulaId = 'riser_margin';
+  if (state.currentScreen !== 'drilling-calc') {
+    navigateTo('drilling-calc');
+  } else {
+    navStack.push({
+      screen: 'drilling-calc',
+      calcView: 'riser-margin',
+      calcSection: 'categories',
+      calcCategory: null,
+      calcFormulaId: 'riser_margin'
+    });
+    renderDrillingCalcScreen();
+  }
+}
+if (typeof window !== 'undefined') {
+  window.openRiserMarginDirectly = openRiserMarginDirectly;
+}
+
+function generate3PanelSchematicSvg(res, inputs) {
+  const isSi = inputs.densityUnit === 'sg';
+  const isApi = inputs.depthUnit === 'ft';
+
+  const whM = Math.round(res.whDepthM);
+  const tdM = Math.round(res.tdDepthM);
+  const whFt = Math.round(res.whDepthFt);
+  const tdFt = Math.round(res.tdDepthFt);
+
+  const uDepth = inputs.depthUnit || 'm';
+  const uDens = inputs.densityUnit === 'sg' ? 'SG' : 'ppg';
+  const uPres = isSi ? 'bar' : 'psi';
+
+  const depthWhLabel = isApi ? `${whFt} ft` : (isSi ? `${whM} m` : `${whM} m (${whFt} ft)`);
+  const depthTdLabel = isApi ? `${tdFt} ft` : (isSi ? `${tdM} m` : `${tdM} m (${tdFt} ft)`);
+
+  const mwDisp = isSi ? `${(res.stateA.emwPpg / 8.33).toFixed(3)} SG` : `${res.stateA.emwPpg.toFixed(1)} ppg`;
+  const swDisp = isSi ? `${(inputs.swDensity).toFixed(3)} SG` : `${inputs.swDensity.toFixed(1)} ppg`;
+  const recPillDisp = isSi ? `${res.recPillSg.toFixed(3)} SG` : `${res.recPillPpg.toFixed(1)} ppg`;
+
+  const stateABhp = isSi ? (res.stateA.bhpPsi / 14.5038).toFixed(1) : Math.round(res.stateA.bhpPsi).toLocaleString();
+  const stateAEmw = isSi ? (res.stateA.emwPpg / 8.33).toFixed(3) : res.stateA.emwPpg.toFixed(2);
+  const stateAOverbal = isSi ? (res.stateA.overbalPsi / 14.5038).toFixed(1) : Math.round(res.stateA.overbalPsi).toLocaleString();
+
+  const stateBBhp = isSi ? (res.stateB.bhpPsi / 14.5038).toFixed(1) : Math.round(res.stateB.bhpPsi).toLocaleString();
+  const stateBEmw = isSi ? (res.stateB.emwPpg / 8.33).toFixed(3) : res.stateB.emwPpg.toFixed(2);
+  const stateBGain = isSi ? (res.stateB.gainPsi / 14.5038).toFixed(1) : Math.round(res.stateB.gainPsi).toLocaleString();
+
+  const stateCBhp = isSi ? (res.stateC.bhpPsi / 14.5038).toFixed(1) : Math.round(res.stateC.bhpPsi).toLocaleString();
+  const stateCEmw = isSi ? (res.stateC.emwPpg / 8.33).toFixed(3) : res.stateC.emwPpg.toFixed(2);
+  const stateCSafety = isSi ? (res.stateC.safetyPsi / 14.5038).toFixed(1) : Math.round(res.stateC.safetyPsi).toLocaleString();
+  const isSafeC = res.stateC.safetyPsi >= 0;
+
+  // Geometry - High Resolution 1400x860
+  const colWidth = 320;
+  const colY = 135;
+  const totalH = 460;
+  const whRatio = Math.max(0.18, Math.min(0.82, res.whDepthM / res.tdDepthM));
+  const whH = Math.round(totalH * whRatio);
+  const pillH = totalH - whH;
+
+  const col1X = 260;
+  const col2X = 640;
+  const col3X = 1020;
+
+  return `<svg viewBox="0 0 1400 860" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:10px; font-family:'Noto Sans', system-ui, -apple-system, sans-serif; display:block; margin:0 auto; border:1px solid #E2E8F0;">
+  <defs>
+    <linearGradient id="swGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="mudGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="pillGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#7E22CE"/>
+    </linearGradient>
+    <pattern id="pillHatch" width="14" height="14" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="14" stroke="#ffffff" stroke-width="3" stroke-opacity="0.35"/>
+    </pattern>
+    <filter id="cardShadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Top Title & Legend Bar -->
+  <g transform="translate(36, 42)">
+    <text x="0" y="0" font-size="22" font-weight="800" letter-spacing="0.04em" fill="#0F172A">${t('HYDROSTATIC WELLBORE SCHEMATIC (3 STAGES)')}</text>
+    <g transform="translate(680, -14)">
+      <rect x="0" y="0" width="22" height="22" rx="4" fill="url(#swGrad)"/>
+      <text x="30" y="17" font-size="16" font-weight="700" fill="#475569">${t('Seawater')}</text>
+
+      <rect x="150" y="0" width="22" height="22" rx="4" fill="url(#mudGrad)"/>
+      <text x="180" y="17" font-size="16" font-weight="700" fill="#475569">${t('Drilling Mud')}</text>
+
+      <rect x="330" y="0" width="22" height="22" rx="4" fill="url(#pillGrad)"/>
+      <rect x="330" y="0" width="22" height="22" rx="4" fill="url(#pillHatch)"/>
+      <text x="360" y="17" font-size="16" font-weight="700" fill="#475569">${t('Weighted Pill')}</text>
+    </g>
+  </g>
+
+  <!-- Depth Reference Guides & Labels -->
+  <!-- Surface (0) -->
+  <line x1="245" y1="${colY}" x2="1360" y2="${colY}" stroke="#94A3B8" stroke-dasharray="4,4" stroke-width="2"/>
+  <text x="232" y="${colY - 6}" font-size="16" font-weight="800" text-anchor="end" fill="#0F172A">${t('Surface / RKB')}</text>
+  <text x="232" y="${colY + 18}" font-size="15" font-weight="600" text-anchor="end" fill="#64748B">0 ${uDepth}</text>
+
+  <!-- Wellhead / Seabed -->
+  <line x1="245" y1="${colY + whH}" x2="1360" y2="${colY + whH}" stroke="#0284C7" stroke-dasharray="6,5" stroke-width="2.5"/>
+  <text x="232" y="${colY + whH - 6}" font-size="16" font-weight="800" text-anchor="end" fill="#0284C7">${t('Seabed / Wellhead')}</text>
+  <text x="232" y="${colY + whH + 18}" font-size="15" font-weight="700" text-anchor="end" fill="#0369A1">D_wh: ${depthWhLabel}</text>
+
+  <!-- Total Depth (TD) -->
+  <line x1="245" y1="${colY + totalH}" x2="1360" y2="${colY + totalH}" stroke="#64748B" stroke-dasharray="4,4" stroke-width="2"/>
+  <text x="232" y="${colY + totalH - 6}" font-size="16" font-weight="800" text-anchor="end" fill="#0F172A">${t('Total Depth (TD)')}</text>
+  <text x="232" y="${colY + totalH + 18}" font-size="15" font-weight="700" text-anchor="end" fill="#64748B">D_td: ${depthTdLabel}</text>
+
+  <!-- ==================== COLUMN A: NOW (CONNECTED) ==================== -->
+  <g transform="translate(${col1X}, ${colY})">
+    <!-- Header -->
+    <text x="${colWidth/2}" y="-34" font-size="20" font-weight="800" text-anchor="middle" fill="#0F172A">${t('Stage A: Baseline')}</text>
+    <text x="${colWidth/2}" y="-12" font-size="15" font-weight="600" text-anchor="middle" fill="#64748B">${t('Riser Connected · Mud Column')}</text>
+
+    <!-- Column outline & fill -->
+    <rect x="0" y="0" width="${colWidth}" height="${whH}" rx="6" fill="url(#mudGrad)" stroke="#B45309" stroke-width="2"/>
+    <rect x="0" y="${whH}" width="${colWidth}" height="${pillH}" rx="6" fill="url(#mudGrad)" stroke="#B45309" stroke-width="2"/>
+
+    <!-- Layer Badges -->
+    <g transform="translate(${colWidth/2}, ${Math.max(30, whH/2)})">
+      <rect x="-100" y="-18" width="200" height="36" rx="18" fill="rgba(0,0,0,0.45)"/>
+      <text x="0" y="6" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle">${t('Mud')}: ${mwDisp}</text>
+    </g>
+    <g transform="translate(${colWidth/2}, ${whH + Math.max(30, pillH/2)})">
+      <rect x="-100" y="-18" width="200" height="36" rx="18" fill="rgba(0,0,0,0.45)"/>
+      <text x="0" y="6" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle">${t('Mud')}: ${mwDisp}</text>
+    </g>
+
+    <!-- Bottom Result Card -->
+    <g transform="translate(0, ${totalH + 20})">
+      <rect x="0" y="0" width="${colWidth}" height="175" rx="12" fill="#FFFFFF" stroke="#D97706" stroke-width="2" filter="url(#cardShadow)"/>
+      <rect x="0" y="0" width="${colWidth}" height="36" rx="12" fill="rgba(217, 119, 6, 0.14)"/>
+      <text x="${colWidth/2}" y="24" font-size="14" font-weight="800" letter-spacing="0.04em" fill="#B45309" text-anchor="middle">${t('BHP AT TD (CONNECTED)')}</text>
+
+      <text x="${colWidth/2}" y="74" font-size="26" font-weight="800" fill="#0F172A" text-anchor="middle">${stateABhp} ${uPres}</text>
+      <text x="${colWidth/2}" y="104" font-size="18" font-weight="700" fill="#64748B" text-anchor="middle">EMW: ${stateAEmw} ${uDens}</text>
+
+      <g transform="translate(${colWidth/2}, 142)">
+        <rect x="-105" y="-15" width="210" height="30" rx="15" fill="rgba(16, 185, 129, 0.18)"/>
+        <text x="0" y="5" font-size="14" font-weight="800" fill="#047857" text-anchor="middle">+${stateAOverbal} ${uPres} ${t('Overbalance')}</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ==================== COLUMN B: PILL SPOTTED ==================== -->
+  <g transform="translate(${col2X}, ${colY})">
+    <!-- Header -->
+    <text x="${colWidth/2}" y="-34" font-size="20" font-weight="800" text-anchor="middle" fill="#0F172A">${t('Stage B: Pill Spotted')}</text>
+    <text x="${colWidth/2}" y="-12" font-size="15" font-weight="600" text-anchor="middle" fill="#64748B">${t('Riser Connected · Pill Below WH')}</text>
+
+    <!-- Upper: Mud in Riser -->
+    <rect x="0" y="0" width="${colWidth}" height="${whH}" rx="6" fill="url(#mudGrad)" stroke="#B45309" stroke-width="2"/>
+    <g transform="translate(${colWidth/2}, ${Math.max(30, whH/2)})">
+      <rect x="-100" y="-18" width="200" height="36" rx="18" fill="rgba(0,0,0,0.45)"/>
+      <text x="0" y="6" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle">${t('Mud')}: ${mwDisp}</text>
+    </g>
+
+    <!-- Lower: Weighted Pill -->
+    <rect x="0" y="${whH}" width="${colWidth}" height="${pillH}" rx="6" fill="url(#pillGrad)" stroke="#7E22CE" stroke-width="2"/>
+    <rect x="0" y="${whH}" width="${colWidth}" height="${pillH}" rx="6" fill="url(#pillHatch)"/>
+    <g transform="translate(${colWidth/2}, ${whH + Math.max(30, pillH/2)})">
+      <rect x="-110" y="-18" width="220" height="36" rx="18" fill="rgba(0,0,0,0.50)"/>
+      <text x="0" y="6" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle">${t('Pill')}: ${recPillDisp}</text>
+    </g>
+
+    <!-- Bottom Result Card -->
+    <g transform="translate(0, ${totalH + 20})">
+      <rect x="0" y="0" width="${colWidth}" height="175" rx="12" fill="#FFFFFF" stroke="#7E22CE" stroke-width="2" filter="url(#cardShadow)"/>
+      <rect x="0" y="0" width="${colWidth}" height="36" rx="12" fill="rgba(126, 34, 206, 0.14)"/>
+      <text x="${colWidth/2}" y="24" font-size="14" font-weight="800" letter-spacing="0.04em" fill="#7E22CE" text-anchor="middle">${t('BHP PRE-UNLATCH (BOOSTED)')}</text>
+
+      <text x="${colWidth/2}" y="74" font-size="26" font-weight="800" fill="#0F172A" text-anchor="middle">${stateBBhp} ${uPres}</text>
+      <text x="${colWidth/2}" y="104" font-size="18" font-weight="700" fill="#64748B" text-anchor="middle">EMW: ${stateBEmw} ${uDens}</text>
+
+      <g transform="translate(${colWidth/2}, 142)">
+        <rect x="-105" y="-15" width="210" height="30" rx="15" fill="rgba(147, 51, 234, 0.18)"/>
+        <text x="0" y="5" font-size="14" font-weight="800" fill="#6B21A8" text-anchor="middle">+${stateBGain} ${uPres} ${t('Pre-Boost')}</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ==================== COLUMN C: PLANNED UNLATCH ==================== -->
+  <g transform="translate(${col3X}, ${colY})">
+    <!-- Header -->
+    <text x="${colWidth/2}" y="-34" font-size="20" font-weight="800" text-anchor="middle" fill="#0F172A">${t('Stage C: Planned Unlatch')}</text>
+    <text x="${colWidth/2}" y="-12" font-size="15" font-weight="600" text-anchor="middle" fill="#64748B">${t('LMRP Disconnected · Seawater')}</text>
+
+    <!-- Upper: Seawater in Riser -->
+    <rect x="0" y="0" width="${colWidth}" height="${whH}" rx="6" fill="url(#swGrad)" stroke="#0284C7" stroke-width="2"/>
+    <g transform="translate(${colWidth/2}, ${Math.max(30, whH/2)})">
+      <rect x="-100" y="-18" width="200" height="36" rx="18" fill="rgba(0,0,0,0.45)"/>
+      <text x="0" y="6" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle">${t('Seawater')}: ${swDisp}</text>
+    </g>
+
+    <!-- Lower: Weighted Pill -->
+    <rect x="0" y="${whH}" width="${colWidth}" height="${pillH}" rx="6" fill="url(#pillGrad)" stroke="#7E22CE" stroke-width="2"/>
+    <rect x="0" y="${whH}" width="${colWidth}" height="${pillH}" rx="6" fill="url(#pillHatch)"/>
+    <g transform="translate(${colWidth/2}, ${whH + Math.max(30, pillH/2)})">
+      <rect x="-110" y="-18" width="220" height="36" rx="18" fill="rgba(0,0,0,0.50)"/>
+      <text x="0" y="6" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle">${t('Pill')}: ${recPillDisp}</text>
+    </g>
+
+    <!-- Bottom Result Card -->
+    <g transform="translate(0, ${totalH + 20})">
+      <rect x="0" y="0" width="${colWidth}" height="175" rx="12" fill="#FFFFFF" stroke="${isSafeC ? '#0284C7' : '#EF4444'}" stroke-width="2" filter="url(#cardShadow)"/>
+      <rect x="0" y="0" width="${colWidth}" height="36" rx="12" fill="${isSafeC ? 'rgba(2, 132, 199, 0.14)' : 'rgba(239, 68, 68, 0.16)'}"/>
+      <text x="${colWidth/2}" y="24" font-size="14" font-weight="800" letter-spacing="0.04em" fill="${isSafeC ? '#0369A1' : '#B91C1C'}" text-anchor="middle">${t('BHP AFTER UNLATCH (PLANNED)')}</text>
+
+      <text x="${colWidth/2}" y="74" font-size="26" font-weight="800" fill="#0F172A" text-anchor="middle">${stateCBhp} ${uPres}</text>
+      <text x="${colWidth/2}" y="104" font-size="18" font-weight="700" fill="#64748B" text-anchor="middle">EMW: ${stateCEmw} ${uDens}</text>
+
+      <g transform="translate(${colWidth/2}, 142)">
+        <rect x="-105" y="-15" width="210" height="30" rx="15" fill="${isSafeC ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)'}"/>
+        <text x="0" y="5" font-size="14" font-weight="800" fill="${isSafeC ? '#047857' : '#B91C1C'}" text-anchor="middle">${isSafeC ? `+${stateCSafety} ${uPres} ${t('Safe Margin')}` : t('UNDERBALANCED RISK')}</text>
+      </g>
+    </g>
+  </g>
+</svg>`;
+}
+
+function generateSensitivityChartSvg(res, inputs) {
+  const points = res.sensitivity;
+  if (!points || points.length < 2) return "";
+
+  const isSi = inputs.densityUnit === 'sg';
+  const uDens = isSi ? 'SG' : 'ppg';
+  const uPres = isSi ? 'bar' : 'psi';
+
+  const chartW = 540;
+  const chartH = 160;
+  const startX = 65;
+  const startY = 30;
+
+  const minDens = Math.min(...points.map(p => isSi ? p.pillWSg : p.pillW));
+  const maxDens = Math.max(...points.map(p => isSi ? p.pillWSg : p.pillW));
+  const curMw = isSi ? inputs.mudWeight : inputs.mudWeight;
+  const curPp = isSi ? inputs.porePressure : inputs.porePressure;
+
+  const minEmw = Math.min(...points.map(p => isSi ? p.emwSg : p.emwPpg), curPp) - (isSi ? 0.025 : 0.2);
+  const maxEmw = Math.max(...points.map(p => isSi ? p.emwSg : p.emwPpg), curMw) + (isSi ? 0.025 : 0.2);
+
+  const getX = (val) => startX + ((val - minDens) / (maxDens - minDens)) * chartW;
+  const getY = (emw) => startY + chartH - (((emw - minEmw) / (maxEmw - minEmw)) * chartH);
+
+  const linePath = points.map((p, idx) => {
+    const dVal = isSi ? p.pillWSg : p.pillW;
+    const eVal = isSi ? p.emwSg : p.emwPpg;
+    return `${idx === 0 ? "M" : "L"} ${getX(dVal).toFixed(1)} ${getY(eVal).toFixed(1)}`;
+  }).join(" ");
+
+  const mwY = getY(curMw);
+  const ppY = getY(curPp);
+
+  return `<svg viewBox="0 0 650 240" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:var(--card-bg, #ffffff); border-radius:12px; font-family:system-ui, -apple-system, sans-serif; display:block; margin:0 auto; border:1px solid var(--border-color, rgba(0,0,0,0.08));">
+  <text x="20" y="20" font-size="12" font-weight="700" fill="var(--text-primary, #0f172a)">${t('PILL DENSITY SENSITIVITY CURVE (EMW AFTER UNLATCH)')}</text>
+
+  <line x1="${startX}" y1="${ppY}" x2="${startX + chartW}" y2="${ppY}" stroke="#EF4444" stroke-dasharray="4,4" stroke-width="1.5"/>
+  <text x="${startX + chartW}" y="${ppY - 4}" font-size="10" font-weight="600" text-anchor="end" fill="#EF4444">${t('Pore Pressure')} (${curPp} ${uDens})</text>
+
+  <line x1="${startX}" y1="${mwY}" x2="${startX + chartW}" y2="${mwY}" stroke="#10B981" stroke-dasharray="4,4" stroke-width="1.5"/>
+  <text x="${startX + chartW}" y="${mwY - 4}" font-size="10" font-weight="600" text-anchor="end" fill="#10B981">${t('Current MW')} (${curMw} ${uDens})</text>
+
+  <line x1="${startX}" y1="${startY}" x2="${startX}" y2="${startY + chartH}" stroke="#94A3B8" stroke-width="1"/>
+  <line x1="${startX}" y1="${startY + chartH}" x2="${startX + chartW}" y2="${startY + chartH}" stroke="#94A3B8" stroke-width="1"/>
+
+  <path d="${linePath}" fill="none" stroke="#6366F1" stroke-width="3" stroke-linecap="round"/>
+
+  ${points.map(p => {
+    const dVal = isSi ? p.pillWSg : p.pillW;
+    const eVal = isSi ? p.emwSg : p.emwPpg;
+    const cx = getX(dVal).toFixed(1);
+    const cy = getY(eVal).toFixed(1);
+    const color = p.isRec ? '#9333EA' : (p.isExact ? '#0284C7' : '#6366F1');
+    const r = (p.isRec || p.isExact) ? 6 : 4;
+    return `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+      <text x="${cx}" y="${startY + chartH + 16}" font-size="9" font-weight="600" fill="var(--text-secondary, #64748b)" text-anchor="middle">${isSi ? dVal.toFixed(3) : dVal.toFixed(1)}</text>
+    `;
+  }).join("")}
+
+  <text x="${startX + chartW/2}" y="${startY + chartH + 34}" font-size="10" font-weight="700" fill="var(--text-secondary, #64748b)" text-anchor="middle">${t('Pill Density')} (${uDens})</text>
+  <text x="18" y="${startY + chartH/2}" font-size="10" font-weight="700" fill="var(--text-secondary, #64748b)" transform="rotate(-90 18 ${startY + chartH/2})" text-anchor="middle">${t('EMW')} (${uDens})</text>
+</svg>`;
+}
+
+function renderRiserMarginScreen(container) {
+  syncRiserMarginUnitsToGlobal();
+
+  const uDepth = riserMarginState.depthUnit === 'ft' ? 'ft' : 'm';
+  const uDens = riserMarginState.densityUnit === 'sg' ? 'SG' : 'ppg';
+
+  const html = `
+    <div class="content-card" style="padding: 16px 14px 28px;">
+      <!-- Navigation Header -->
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:nowrap;">
+        <button class="btn btn-secondary" style="padding:6px 10px; font-size:0.75rem; border-radius:12px; flex:none;" id="riser-margin-back-btn">${t('← Categories')}</button>
+        <div style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          <h3 style="font-size:0.95rem; font-weight:700; margin:0; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t('Riser Margin')}</h3>
+        </div>
+      </div>
+
+      <!-- Title & Subtitle -->
+      <h4 style="font-size:1.15rem; font-weight:800; color:var(--text-primary); margin:0 0 4px;">${t('Riser Margin Calculation')}</h4>
+      <p style="font-size:0.78rem; line-height:1.4; color:var(--text-secondary); margin:0 0 16px;">${t('IWCF subsea riser margin, weighted pill density & LMRP unlatch BHP analysis')}</p>
+
+      <!-- Inputs Form Card -->
+      <div style="background:var(--input-bg, rgba(0,0,0,0.03)); border:1px solid var(--border-color, rgba(0,0,0,0.08)); border-radius:14px; padding:14px; margin-bottom:18px;">
+        <!-- Optional Job Name Header -->
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; display:flex; justify-content:space-between;">
+            <span>${t('Job Name')}</span>
+            <span style="font-size:0.7rem; color:var(--text-secondary); font-weight:400;">${t('(Optional)')}</span>
+          </label>
+          <input type="text" class="form-input" id="inp-riser-job-name" value="${riserMarginState.jobName}" placeholder="${t('Planned LMRP Unlatch')}" style="width:100%; border-radius:var(--border-radius-pill); padding:10px 16px; font-size:0.85rem;">
+        </div>
+
+        <div style="font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin:14px 0 8px;">${t('COMPULSORY ENGINEERING INPUTS')}</div>
+
+        <!-- 1. WH Depth -->
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; display:block;">${t('RKB to Seabed / Wellhead Depth')} (${uDepth})</label>
+          <input type="text" inputmode="decimal" class="form-input table-input" id="inp-riser-wh-depth" value="${riserMarginState.whDepth}" style="width:100%; border-radius:var(--border-radius-pill); padding:10px 16px; font-size:0.88rem; text-align:left;">
+        </div>
+
+        <!-- 2. TD Depth -->
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; display:block;">${t('Total Depth / Target TVD')} (${uDepth})</label>
+          <input type="text" inputmode="decimal" class="form-input table-input" id="inp-riser-td-depth" value="${riserMarginState.tdDepth}" style="width:100%; border-radius:var(--border-radius-pill); padding:10px 16px; font-size:0.88rem; text-align:left;">
+        </div>
+
+        <!-- 3. Mud Weight -->
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; display:block;">${t('Current Mud Weight')} (${uDens})</label>
+          <input type="text" inputmode="decimal" class="form-input table-input" id="inp-riser-mud-weight" value="${riserMarginState.mudWeight}" style="width:100%; border-radius:var(--border-radius-pill); padding:10px 16px; font-size:0.88rem; text-align:left;">
+        </div>
+
+        <!-- 4. Seawater Density -->
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; display:block;">${t('Seawater Density')} (${uDens})</label>
+          <input type="text" inputmode="decimal" class="form-input table-input" id="inp-riser-sw-density" value="${riserMarginState.swDensity}" style="width:100%; border-radius:var(--border-radius-pill); padding:10px 16px; font-size:0.88rem; text-align:left;">
+        </div>
+
+        <!-- 5. Pore Pressure -->
+        <div class="form-group" style="margin-bottom:4px;">
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; display:block;">${t('Pore Pressure Gradient')} (${uDens})</label>
+          <input type="text" inputmode="decimal" class="form-input table-input" id="inp-riser-pore-pressure" value="${riserMarginState.porePressure}" style="width:100%; border-radius:var(--border-radius-pill); padding:10px 16px; font-size:0.88rem; text-align:left;">
+        </div>
+      </div>
+
+      <!-- Validation Error Banner -->
+      <div id="riser-validation-banner" style="display:none; background:rgba(239, 68, 68, 0.1); border:1px solid #EF4444; border-radius:12px; padding:12px 14px; margin-bottom:18px; color:#EF4444; font-size:0.82rem; font-weight:600; line-height:1.4;">
+        ${t('Total Depth (TD) must be strictly greater than Wellhead Depth (RKB to Seabed), and all densities must be positive.')}
+      </div>
+
+      <!-- Output Results Container -->
+      <div id="riser-results-container"></div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  // Wire up back button
+  document.getElementById('riser-margin-back-btn').onclick = () => {
+    handleAppBack();
+  };
+
+  // Real-time calculation listener
+  const updateCalculation = () => {
+    const jobNameEl = document.getElementById('inp-riser-job-name');
+    const whEl = document.getElementById('inp-riser-wh-depth');
+    const tdEl = document.getElementById('inp-riser-td-depth');
+    const mwEl = document.getElementById('inp-riser-mud-weight');
+    const swEl = document.getElementById('inp-riser-sw-density');
+    const ppEl = document.getElementById('inp-riser-pore-pressure');
+
+    if (jobNameEl) riserMarginState.jobName = jobNameEl.value;
+    if (whEl) {
+      const v = parseFloat(String(whEl.value).replace(',', '.')) || 0;
+      riserMarginState.whDepth = v;
+      riserMarginState.canonicalWhDepthM = (riserMarginState.depthUnit === 'ft') ? (v / 3.281) : v;
+    }
+    if (tdEl) {
+      const v = parseFloat(String(tdEl.value).replace(',', '.')) || 0;
+      riserMarginState.tdDepth = v;
+      riserMarginState.canonicalTdDepthM = (riserMarginState.depthUnit === 'ft') ? (v / 3.281) : v;
+    }
+    if (mwEl) {
+      const v = parseFloat(String(mwEl.value).replace(',', '.')) || 0;
+      riserMarginState.mudWeight = v;
+      riserMarginState.canonicalMwPpg = (riserMarginState.densityUnit === 'sg') ? (v * 8.33) : v;
+    }
+    if (swEl) {
+      const v = parseFloat(String(swEl.value).replace(',', '.')) || 0;
+      riserMarginState.swDensity = v;
+      riserMarginState.canonicalSwPpg = (riserMarginState.densityUnit === 'sg') ? (v * 8.33) : v;
+    }
+    if (ppEl) {
+      const v = parseFloat(String(ppEl.value).replace(',', '.')) || 0;
+      riserMarginState.porePressure = v;
+      riserMarginState.canonicalPpPpg = (riserMarginState.densityUnit === 'sg') ? (v * 8.33) : v;
+    }
+
+    const res = calculateRiserMargin(riserMarginState);
+    const banner = document.getElementById('riser-validation-banner');
+    const resultsCont = document.getElementById('riser-results-container');
+
+    if (!res.valid) {
+      if (banner) {
+        banner.textContent = t(res.error);
+        banner.style.display = 'block';
+      }
+      if (resultsCont) {
+        resultsCont.innerHTML = '';
+        resultsCont.style.display = 'none';
+      }
+      return;
+    }
+
+    if (banner) banner.style.display = 'none';
+    if (resultsCont) {
+      resultsCont.style.display = 'block';
+      renderRiserOutputs(resultsCont, res);
+    }
+  };
+
+  ['inp-riser-job-name', 'inp-riser-wh-depth', 'inp-riser-td-depth', 'inp-riser-mud-weight', 'inp-riser-sw-density', 'inp-riser-pore-pressure'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', updateCalculation);
+    }
+  });
+
+  // Initial calculation render
+  updateCalculation();
+}
+
+function renderRiserOutputs(container, res) {
+  const isSi = riserMarginState.densityUnit === 'sg';
+  const isApi = riserMarginState.depthUnit === 'ft';
+
+  const uDepth = riserMarginState.depthUnit === 'ft' ? 'ft' : 'm';
+  const uDens = riserMarginState.densityUnit === 'sg' ? 'SG' : 'ppg';
+  const uPres = isSi ? 'bar' : 'psi';
+
+  const recPillDisp = isSi ? `${res.recPillSg.toFixed(3)} SG` : `${res.recPillPpg.toFixed(1)} ppg`;
+  const exactPillDisp = isSi ? `${res.exactPillSg.toFixed(3)} SG` : `${res.exactPillPpg.toFixed(2)} ppg`;
+  const deltaPillDisp = isSi ? `+${res.deltaPillSg.toFixed(3)} SG` : `+${res.deltaPillPpg.toFixed(1)} ppg`;
+  const pillLenDisp = riserMarginState.depthUnit === 'ft' ? `${res.pillLengthFt.toFixed(1)} ft` : `${Math.round(res.pillLengthM)} m (${res.pillLengthFt.toFixed(1)} ft)`;
+
+  const lostPresDisp = isSi ? `${res.deltaPlostBar.toFixed(1)} bar (${res.deltaPlostPsi.toFixed(1)} psi)` : `${res.deltaPlostPsi.toFixed(1)} psi`;
+  const riserMarginDisp = isSi ? `${res.riserMarginSg.toFixed(3)} SG (${res.riserMarginPpg.toFixed(2)} ppg)` : `${res.riserMarginPpg.toFixed(2)} ppg`;
+
+  const html = `
+    <!-- 1. PRIMARY HIGHLIGHT CARD -->
+    <div class="result-card" style="margin-top:0; margin-bottom:18px; border-left:4px solid #9333EA; background:var(--card-bg, #ffffff);">
+      <div style="font-size:0.75rem; font-weight:800; letter-spacing:0.08em; color:#9333EA; text-transform:uppercase; margin-bottom:6px;">${t('RECOMMENDED PILL DENSITY')}</div>
+      <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:10px;">
+        <span style="font-size:2.1rem; font-weight:800; color:var(--text-primary); line-height:1;">${recPillDisp}</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; padding-top:10px; border-top:1px solid var(--border-color, rgba(0,0,0,0.06)); font-size:0.78rem;">
+        <div>
+          <div style="color:var(--text-secondary); font-size:0.7rem; font-weight:600;">${t('Exact Balance')}</div>
+          <div style="font-weight:700; color:var(--text-primary);">${exactPillDisp}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-secondary); font-size:0.7rem; font-weight:600;">${t('Pill Density Increase')}</div>
+          <div style="font-weight:700; color:#D97706;">${deltaPillDisp}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-secondary); font-size:0.7rem; font-weight:600;">${t('Pill Column Length')}</div>
+          <div style="font-weight:700; color:var(--text-primary);">${pillLenDisp}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. HYDROSTATIC LOSS & RISER MARGIN SUMMARY -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin-bottom:8px;">${t('RISER MARGIN & HYDROSTATIC LOSS')}</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="background:var(--input-bg, rgba(0,0,0,0.03)); border:1px solid var(--border-color, rgba(0,0,0,0.06)); border-radius:12px; padding:12px;">
+          <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">${t('Hydrostatic Pressure Lost')}</div>
+          <div style="font-size:1.15rem; font-weight:800; color:#EF4444; margin:4px 0 2px;">${lostPresDisp}</div>
+          <div style="font-size:0.68rem; color:var(--text-secondary);">${t('Seawater column replaces drilling mud in marine riser')}</div>
+        </div>
+        <div style="background:var(--input-bg, rgba(0,0,0,0.03)); border:1px solid var(--border-color, rgba(0,0,0,0.06)); border-radius:12px; padding:12px;">
+          <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">${t('Riser Margin Equivalent')}</div>
+          <div style="font-size:1.15rem; font-weight:800; color:#0284C7; margin:4px 0 2px;">${riserMarginDisp}</div>
+          <div style="font-size:0.68rem; color:var(--text-secondary);">${t('Equivalent mud density difference across wellhead TVD')}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 3-STATE BHP & EMW COMPARISON MATRIX -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin-bottom:8px;">${t('3-State BHP & EMW Comparison Matrix')}</div>
+      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px; border:1px solid var(--border-color, rgba(0,0,0,0.08));">
+        <table style="width:100%; border-collapse:collapse; font-size:0.74rem; text-align:left;">
+          <thead>
+            <tr style="background:var(--input-bg, rgba(0,0,0,0.04)); border-bottom:1px solid var(--border-color, rgba(0,0,0,0.08));">
+              <th style="padding:8px 10px; font-weight:700;">${t('State')}</th>
+              <th style="padding:8px 10px; font-weight:700;">${t('Riser Fluid')}</th>
+              <th style="padding:8px 10px; font-weight:700;">${t('BHP at TD')}</th>
+              <th style="padding:8px 10px; font-weight:700;">${t('EMW at TD')}</th>
+              <th style="padding:8px 10px; font-weight:700;">${t('Margin / Status')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border-color, rgba(0,0,0,0.04));">
+              <td style="padding:8px 10px; font-weight:700;">${t('A. Now (Connected)')}</td>
+              <td style="padding:8px 10px;">${t('Mud')} (${isSi ? (res.stateA.emwPpg/8.33).toFixed(3) + ' SG' : res.stateA.emwPpg.toFixed(1) + ' ppg'})</td>
+              <td style="padding:8px 10px; font-weight:600;">${isSi ? (res.stateA.bhpPsi/14.5038).toFixed(1) + ' bar' : Math.round(res.stateA.bhpPsi).toLocaleString() + ' psi'}</td>
+              <td style="padding:8px 10px;">${isSi ? (res.stateA.emwPpg/8.33).toFixed(3) + ' SG' : res.stateA.emwPpg.toFixed(2) + ' ppg'}</td>
+              <td style="padding:8px 10px; color:#10B981; font-weight:700;">+${isSi ? (res.stateA.overbalPsi/14.5038).toFixed(1) + ' bar' : Math.round(res.stateA.overbalPsi).toLocaleString() + ' psi'} (${t('Baseline')})</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border-color, rgba(0,0,0,0.04)); background:rgba(147, 51, 234, 0.04);">
+              <td style="padding:8px 10px; font-weight:700; color:#9333EA;">${t('B. Pill Spotted')}</td>
+              <td style="padding:8px 10px;">${t('Mud + Pill')}</td>
+              <td style="padding:8px 10px; font-weight:600;">${isSi ? (res.stateB.bhpPsi/14.5038).toFixed(1) + ' bar' : Math.round(res.stateB.bhpPsi).toLocaleString() + ' psi'}</td>
+              <td style="padding:8px 10px; font-weight:700; color:#9333EA;">${isSi ? (res.stateB.emwPpg/8.33).toFixed(3) + ' SG' : res.stateB.emwPpg.toFixed(2) + ' ppg'}</td>
+              <td style="padding:8px 10px; color:#9333EA; font-weight:700;">+${isSi ? (res.stateB.gainPsi/14.5038).toFixed(1) + ' bar' : Math.round(res.stateB.gainPsi).toLocaleString() + ' psi'} (${t('Overbalanced')})</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border-color, rgba(0,0,0,0.04)); background:rgba(2, 132, 199, 0.05);">
+              <td style="padding:8px 10px; font-weight:700; color:#0284C7;">${t('C. Planned Unlatch')}</td>
+              <td style="padding:8px 10px;">${t('Seawater + Pill')}</td>
+              <td style="padding:8px 10px; font-weight:600;">${isSi ? (res.stateC.bhpPsi/14.5038).toFixed(1) + ' bar' : Math.round(res.stateC.bhpPsi).toLocaleString() + ' psi'}</td>
+              <td style="padding:8px 10px; font-weight:700; color:#0284C7;">${isSi ? (res.stateC.emwPpg/8.33).toFixed(3) + ' SG' : res.stateC.emwPpg.toFixed(2) + ' ppg'}</td>
+              <td style="padding:8px 10px; color:#10B981; font-weight:700;">+${isSi ? (res.stateC.safetyPsi/14.5038).toFixed(1) + ' bar' : Math.round(res.stateC.safetyPsi).toLocaleString() + ' psi'} (${t('Safe Unlatch')})</td>
+            </tr>
+            <tr style="background:rgba(239, 68, 68, 0.05);">
+              <td style="padding:8px 10px; font-weight:700; color:#EF4444;">${t('Unlatched (No Pill)')}</td>
+              <td style="padding:8px 10px;">${t('Seawater + Mud')}</td>
+              <td style="padding:8px 10px; font-weight:600;">${isSi ? (res.noPill.bhpPsi/14.5038).toFixed(1) + ' bar' : Math.round(res.noPill.bhpPsi).toLocaleString() + ' psi'}</td>
+              <td style="padding:8px 10px; font-weight:700; color:#EF4444;">${isSi ? (res.noPill.emwPpg/8.33).toFixed(3) + ' SG' : res.noPill.emwPpg.toFixed(2) + ' ppg'}</td>
+              <td style="padding:8px 10px; font-weight:700; color:${res.noPill.isSafe ? '#10B981' : '#EF4444'};">
+                <span class="badge" style="padding:2px 6px; font-size:0.65rem; border-radius:6px; background:${res.noPill.isSafe ? '#D1FAE5' : '#FEE2E2'}; color:${res.noPill.isSafe ? '#065F46' : '#991B1B'};">${res.noPill.isSafe ? t('SAFE ABOVE PORE PRESSURE') : t('UNDERBALANCED RISK')}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. HYDROSTATIC COLUMN SCHEMATIC -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin-bottom:8px;">${t('Hydrostatic Column Schematic')}</div>
+      <div style="width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:14px;">
+        ${generate3PanelSchematicSvg(res, riserMarginState)}
+      </div>
+    </div>
+
+    <!-- 5. PILL DENSITY SENSITIVITY ANALYSIS -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin-bottom:8px;">${t('Pill Density vs. BHP After Unlatch')}</div>
+      <div style="margin-bottom:12px; width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px;">
+        ${generateSensitivityChartSvg(res, riserMarginState)}
+      </div>
+
+      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px; border:1px solid var(--border-color, rgba(0,0,0,0.08));">
+        <table style="width:100%; border-collapse:collapse; font-size:0.74rem; text-align:left;">
+          <thead>
+            <tr style="background:var(--input-bg, rgba(0,0,0,0.04)); border-bottom:1px solid var(--border-color, rgba(0,0,0,0.08));">
+              <th style="padding:8px 10px; font-weight:700;">${t('Pill Density')}</th>
+              <th style="padding:8px 10px; font-weight:700;">${t('EMW After Unlatch')}</th>
+              <th style="padding:8px 10px; font-weight:700;">${t('BHP')}</th>
+              <th style="padding:8px 10px; font-weight:700;">${t('Margin over Pore Pressure')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${res.sensitivity.map(pt => `
+              <tr style="border-bottom:1px solid var(--border-color, rgba(0,0,0,0.04)); ${pt.isRec ? 'background:rgba(147, 51, 234, 0.06); font-weight:700;' : ''}">
+                <td style="padding:8px 10px;">${isSi ? pt.pillWSg.toFixed(3) + ' SG' : pt.pillW.toFixed(1) + ' ppg'} ${pt.isRec ? `<span style="color:#9333EA; font-size:0.68rem; margin-left:3px;">★ ${t('REC')}</span>` : (pt.isExact ? `<span style="color:#0284C7; font-size:0.68rem; margin-left:3px;">⚖ ${t('EXACT')}</span>` : '')}</td>
+                <td style="padding:8px 10px;">${isSi ? pt.emwSg.toFixed(3) + ' SG' : pt.emwPpg.toFixed(2) + ' ppg'}</td>
+                <td style="padding:8px 10px;">${isSi ? pt.bhpBar.toFixed(1) + ' bar' : Math.round(pt.bhpPsi).toLocaleString() + ' psi'}</td>
+                <td style="padding:8px 10px; color:${pt.overbalancePpg >= 0 ? '#10B981' : '#EF4444'}; font-weight:700;">${pt.overbalancePpg >= 0 ? '+' : ''}${isSi ? (pt.overbalancePsi/14.5038).toFixed(1) + ' bar' : pt.overbalancePpg.toFixed(2) + ' ppg'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 6. IWCF OPERATIONAL UNLATCH CHECKLIST -->
+    <div style="margin-bottom:10px;">
+      <div style="font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin-bottom:8px;">${t('IWCF Subsea Operational Unlatch Checklist')}</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; color:var(--text-primary); padding:6px 0;">
+          <input type="checkbox" style="margin-top:2px;">
+          <span>1. ${t('Verify current pore pressure gradient and wellbore stability before starting pill calculation.')} (${riserMarginState.porePressure} ${uDens})</span>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; color:var(--text-primary); padding:6px 0;">
+          <input type="checkbox" style="margin-top:2px;">
+          <span>2. ${t('Calculate and batch-mix weighted pill with verified surface sample density.')} (${recPillDisp})</span>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; color:var(--text-primary); padding:6px 0;">
+          <input type="checkbox" style="margin-top:2px;">
+          <span>3. ${t('Spot pill across open hole / wellhead section.')} (${pillLenDisp})</span>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; color:var(--text-primary); padding:6px 0;">
+          <input type="checkbox" style="margin-top:2px;">
+          <span>4. ${t('Confirm pill placement with spacer ahead and behind; monitor trip tank for U-tube effects.')}</span>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; color:var(--text-primary); padding:6px 0;">
+          <input type="checkbox" style="margin-top:2px;">
+          <span>5. ${t('Perform flow check through subsea choke/kill line before unlatching LMRP.')}</span>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; color:var(--text-primary); padding:6px 0;">
+          <input type="checkbox" style="margin-top:2px;">
+          <span>6. ${t('Close lower annular / pipe rams if required per subsea emergency disconnect sequence.')}</span>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; color:var(--text-primary); padding:6px 0;">
+          <input type="checkbox" style="margin-top:2px;">
+          <span>7. ${t('Unlatch LMRP; monitor wellhead sonar/camera and confirm zero gas bubbles or fluid outflow.')}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. GENERATE JOB RECORD (PDF) ACTION BUTTON -->
+    <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--border-subtle, rgba(0,0,0,0.08));">
+      <button type="button" class="btn btn-report-pdf" id="btn-generate-riser-record-pdf" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:13px 18px; font-size:0.92rem; font-weight:700; border-radius:14px;">
+        <svg class="btn-pdf-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <span class="btn-pdf-text">${t('Generate Job Record (PDF)')}</span>
+      </button>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  // Wire up PDF action button with loading state and dialog
+  const btnPdf = container.querySelector('#btn-generate-riser-record-pdf');
+  if (btnPdf) {
+    btnPdf.onclick = async () => {
+      btnPdf.classList.add('loading');
+      const origHtml = btnPdf.innerHTML;
+      btnPdf.innerHTML = `
+        <span class="btn-pdf-spinner"></span>
+        <span class="btn-pdf-text">${t('Generating PDF...')}</span>
+      `;
+      try {
+        await exportRiserMarginPdf();
+      } catch (err) {
+        console.error('Failed to generate Riser Margin Job Record PDF:', err);
+        alert(err.message || 'Error generating PDF');
+      } finally {
+        btnPdf.classList.remove('loading');
+        btnPdf.innerHTML = origHtml;
+      }
+    };
+  }
+}
+
+async function exportRiserMarginPdf() {
+  const res = calculateRiserMargin(riserMarginState);
+  if (!res.valid) {
+    alert(res.error || 'Please enter valid inputs before exporting.');
+    return;
+  }
+
+  const jsPdfLib = (typeof window !== 'undefined' && window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : (typeof jsPDF !== 'undefined' ? jsPDF : null);
+  if (!jsPdfLib) {
+    alert('PDF export engine is loading. Please try again.');
+    return;
+  }
+
+  function t(key, fallback) {
+    if (typeof window !== 'undefined' && window.t) {
+      return window.t(key, fallback || key);
+    }
+    return fallback || key;
+  }
+
+  const uDepth = riserMarginState.depthUnit === 'ft' ? 'ft' : 'm';
+  const uDens = riserMarginState.densityUnit === 'sg' ? 'SG' : 'ppg';
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const jobStr = riserMarginState.jobName ? `${t('Job', 'Job')}: ${riserMarginState.jobName}  ·  ` : '';
+
+  // Base CSS styles
+  const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:8px; font-size:9px; line-height:1.3;';
+  const thStyle = 'background:#1E293B; color:#FFFFFF; font-weight:700; padding:4px 6px; text-align:left; font-size:8.5px; border:1px solid #334155;';
+  const tdLabel = 'padding:3px 6px; border:1px solid #E2E8F0; font-weight:600; color:#334155; background:#F8FAFC;';
+  const tdVal = 'padding:3px 6px; border:1px solid #E2E8F0; color:#0F172A; font-weight:500;';
+  const sectionTitleStyle = 'font-size:10.5px; font-weight:700; color:#0F172A; margin:8px 0 4px 0; text-transform:uppercase; letter-spacing:0.3px;';
+
+  function buildHeader(pageNum, totalPages = 2) {
+    return `
+      <div style="background:#0F172A; color:#FFFFFF; padding:10px 14px; border-radius:6px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h1 style="font-size:12.5px; font-weight:800; margin:0; color:#FFFFFF; letter-spacing:0.3px;">
+            ${t('DRILLING TOOLKIT — IWCF SUBSEA RISER MARGIN REPORT', 'DRILLING TOOLKIT — IWCF SUBSEA RISER MARGIN REPORT')}
+          </h1>
+          <span style="font-size:8.5px; color:#94A3B8;">${t('Page', 'Page')} ${pageNum} ${t('of', 'of')} ${totalPages}</span>
+        </div>
+        <div style="font-size:8.5px; color:#BAE6FD; margin-top:3px;">
+          ${jobStr}${t('Planned LMRP Unlatch Analysis', 'Planned LMRP Unlatch Analysis')}  ·  ${t('Date', 'Date')}: ${dateStr}
+        </div>
+      </div>
+    `;
+  }
+
+  function buildFooter(pageNum, totalPages = 2) {
+    return `
+      <div style="position:absolute; bottom:14px; left:36px; right:36px; border-top:1px solid #E2E8F0; padding-top:4px; display:flex; justify-content:space-between; font-size:8px; color:#64748B; font-style:italic;">
+        <span>${t('Confidential — Drilling Toolkit Subsea Well Control Engineering', 'Confidential — Drilling Toolkit Subsea Well Control Engineering')}</span>
+        <span>${t('Page', 'Page')} ${pageNum} ${t('of', 'of')} ${totalPages}</span>
+      </div>
+    `;
+  }
+
+  // Page 1: 1. Inputs, 2. Highlights KPI, 3. 3-State Matrix
+  const inputsTableHtml = `
+    <table style="${tableStyle}">
+      <thead>
+        <tr>
+          <th style="${thStyle}; width:44%;">${t('Parameter', 'Parameter')}</th>
+          <th style="${thStyle}; width:24%;">${t('Input Value', 'Input Value')}</th>
+          <th style="${thStyle}; width:32%;">${t('Engineering Context', 'Engineering Context')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="${tdLabel}">${t('RKB to Seabed / Wellhead Depth', 'RKB to Seabed / Wellhead Depth')} (D_wh)</td>
+          <td style="${tdVal}"><span class="val-bidi">${riserMarginState.whDepth} ${uDepth}</span></td>
+          <td style="${tdVal}">${t('Equivalent', 'Equivalent')}: <span class="val-bidi">${Math.round(res.whDepthFt)} ft / ${Math.round(res.whDepthM)} m</span></td>
+        </tr>
+        <tr>
+          <td style="${tdLabel}">${t('Total Depth / Target TVD', 'Total Depth / Target TVD')} (D_td)</td>
+          <td style="${tdVal}"><span class="val-bidi">${riserMarginState.tdDepth} ${uDepth}</span></td>
+          <td style="${tdVal}">${t('Equivalent', 'Equivalent')}: <span class="val-bidi">${Math.round(res.tdDepthFt)} ft / ${Math.round(res.tdDepthM)} m</span></td>
+        </tr>
+        <tr>
+          <td style="${tdLabel}">${t('Current Mud Weight', 'Current Mud Weight')} (MW)</td>
+          <td style="${tdVal}"><span class="val-bidi">${riserMarginState.mudWeight} ${uDens}</span></td>
+          <td style="${tdVal}"><span class="val-bidi">${res.exactPillPpg.toFixed(2)} ppg eq</span></td>
+        </tr>
+        <tr>
+          <td style="${tdLabel}">${t('Seawater Density', 'Seawater Density')} (MW_sw)</td>
+          <td style="${tdVal}"><span class="val-bidi">${riserMarginState.swDensity} ${uDens}</span></td>
+          <td style="${tdVal}">${t('Seawater hydrostatic baseline', 'Seawater hydrostatic baseline')}</td>
+        </tr>
+        <tr>
+          <td style="${tdLabel}">${t('Pore Pressure Gradient', 'Pore Pressure Gradient')} (MW_pp)</td>
+          <td style="${tdVal}"><span class="val-bidi">${riserMarginState.porePressure} ${uDens}</span></td>
+          <td style="${tdVal}">${t('Pore pressure BHP', 'Pore pressure BHP')}: <span class="val-bidi">${Math.round(res.ppBhpPsi)} psi</span></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  const kpisHtml = `
+    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:10px;">
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:7px; text-align:center;">
+        <div style="font-size:7.5px; font-weight:700; color:#9333EA; margin-bottom:2px;">${t('RECOMMENDED PILL DENSITY', 'RECOMMENDED PILL DENSITY')}</div>
+        <div style="font-size:11px; font-weight:800; color:#0F172A;"><span class="val-bidi">${res.recPillPpg.toFixed(1)} ppg (${res.recPillSg.toFixed(3)} SG)</span></div>
+      </div>
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:7px; text-align:center;">
+        <div style="font-size:7.5px; font-weight:700; color:#0284C7; margin-bottom:2px;">${t('EXACT BALANCE PILL', 'EXACT BALANCE PILL')}</div>
+        <div style="font-size:11px; font-weight:800; color:#0F172A;"><span class="val-bidi">${res.exactPillPpg.toFixed(2)} ppg (${res.exactPillSg.toFixed(3)} SG)</span></div>
+      </div>
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:7px; text-align:center;">
+        <div style="font-size:7.5px; font-weight:700; color:#D97706; margin-bottom:2px;">${t('WEIGHT INCREASE', 'WEIGHT INCREASE')}</div>
+        <div style="font-size:11px; font-weight:800; color:#0F172A;"><span class="val-bidi">+${res.deltaPillPpg.toFixed(1)} ppg (+${res.deltaPillSg.toFixed(3)} SG)</span></div>
+      </div>
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:7px; text-align:center;">
+        <div style="font-size:7.5px; font-weight:700; color:#475569; margin-bottom:2px;">${t('PILL COLUMN LENGTH', 'PILL COLUMN LENGTH')}</div>
+        <div style="font-size:10px; font-weight:700; color:#0F172A;"><span class="val-bidi">${Math.round(res.pillLengthM)} m (${res.pillLengthFt.toFixed(1)} ft)</span></div>
+      </div>
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:7px; text-align:center;">
+        <div style="font-size:7.5px; font-weight:700; color:#475569; margin-bottom:2px;">${t('HYDROSTATIC LOSS (DISCONNECT)', 'HYDROSTATIC LOSS (DISCONNECT)')}</div>
+        <div style="font-size:10px; font-weight:700; color:#0F172A;"><span class="val-bidi">${res.deltaPlostPsi.toFixed(1)} psi (${res.deltaPlostBar.toFixed(1)} bar)</span></div>
+      </div>
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:7px; text-align:center;">
+        <div style="font-size:7.5px; font-weight:700; color:#475569; margin-bottom:2px;">${t('RISER MARGIN EQUIVALENT', 'RISER MARGIN EQUIVALENT')}</div>
+        <div style="font-size:10px; font-weight:700; color:#0F172A;"><span class="val-bidi">${res.riserMarginPpg.toFixed(2)} ppg (${res.riserMarginSg.toFixed(3)} SG)</span></div>
+      </div>
+    </div>
+  `;
+
+  const matrixHtml = `
+    <table style="${tableStyle}; font-size:8.5px;">
+      <thead>
+        <tr>
+          <th style="${thStyle}">${t('Operating State', 'Operating State')}</th>
+          <th style="${thStyle}">${t('Fluid Column', 'Fluid Column')}</th>
+          <th style="${thStyle}; text-align:right;">${t('WH Press', 'WH Press')}</th>
+          <th style="${thStyle}; text-align:right;">${t('BHP', 'BHP')}</th>
+          <th style="${thStyle}; text-align:right;">${t('EMW', 'EMW')}</th>
+          <th style="${thStyle}; text-align:right;">${t('Margin vs PP', 'Margin vs PP')}</th>
+          <th style="${thStyle}; text-align:center;">${t('Evaluation', 'Evaluation')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="${tdLabel}">${t('State A: Connected (Current Mud)', 'State A: Connected (Current Mud)')}</td>
+          <td style="${tdVal}">${t('Mud from surface to TD', 'Mud from surface to TD')}</td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${Math.round(res.whPBeforePsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right; font-weight:700;"><span class="val-bidi">${Math.round(res.stateA.bhpPsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${res.stateA.emwPpg.toFixed(2)} ppg</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">+${Math.round(res.stateA.overbalPsi)} psi (+${res.stateA.overbalPpg.toFixed(2)} ppg)</span></td>
+          <td style="${tdVal}; text-align:center; font-weight:600; color:#0284C7;">${t('Baseline (Connected)', 'Baseline (Connected)')}</td>
+        </tr>
+        <tr>
+          <td style="${tdLabel}">${t('State B: Pill Spotted (Connected)', 'State B: Pill Spotted (Connected)')}</td>
+          <td style="${tdVal}">${t('Mud in Riser + Pill Seabed to TD', 'Mud in Riser + Pill Seabed to TD')}</td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${Math.round(res.whPBeforePsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right; font-weight:700;"><span class="val-bidi">${Math.round(res.stateB.bhpPsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${res.stateB.emwPpg.toFixed(2)} ppg</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">+${Math.round(res.stateB.gainPsi)} psi (+${res.stateB.gainPpg.toFixed(2)} ppg)</span></td>
+          <td style="${tdVal}; text-align:center; font-weight:600; color:#D97706;">${t('Overbalanced Pre-Unlatch', 'Overbalanced Pre-Unlatch')}</td>
+        </tr>
+        <tr>
+          <td style="${tdLabel}">${t('State C: Planned Unlatch with Pill', 'State C: Planned Unlatch with Pill')}</td>
+          <td style="${tdVal}">${t('Seawater in Riser + Pill Seabed to TD', 'Seawater in Riser + Pill Seabed to TD')}</td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${Math.round(res.whPAfterPsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right; font-weight:700;"><span class="val-bidi">${Math.round(res.stateC.bhpPsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${res.stateC.emwPpg.toFixed(2)} ppg</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">+${Math.round(res.stateC.safetyPsi)} psi (+${res.stateC.safetyPpg.toFixed(2)} ppg)</span></td>
+          <td style="${tdVal}; text-align:center; font-weight:700; color:#16A34A;">${t('SAFE — Planned Unlatch', 'SAFE — Planned Unlatch')}</td>
+        </tr>
+        <tr>
+          <td style="${tdLabel}">${t('Unlatched Without Pill', 'Unlatched Without Pill')}</td>
+          <td style="${tdVal}">${t('Seawater in Riser + Mud Seabed to TD', 'Seawater in Riser + Mud Seabed to TD')}</td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${Math.round(res.whPAfterPsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right; font-weight:700;"><span class="val-bidi">${Math.round(res.noPill.bhpPsi)} psi</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${res.noPill.emwPpg.toFixed(2)} ppg</span></td>
+          <td style="${tdVal}; text-align:right;"><span class="val-bidi">${Math.round(res.noPill.lossPsi)} psi ${t('loss vs State A', 'loss vs State A')}</span></td>
+          <td style="${tdVal}; text-align:center; font-weight:700; color:${res.noPill.isSafe ? '#16A34A' : '#DC2626'};">
+            ${res.noPill.isSafe ? t('SAFE ABOVE PORE PRESSURE', 'SAFE ABOVE PORE PRESSURE') : t('UNDERBALANCED RISK', 'UNDERBALANCED RISK')}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  const page1Html = `
+    ${buildHeader(1, 2)}
+    <div style="${sectionTitleStyle}">${t('1. COMPULSORY ENGINEERING INPUTS', '1. COMPULSORY ENGINEERING INPUTS')}</div>
+    ${inputsTableHtml}
+    <div style="${sectionTitleStyle}">${t('2. PRIMARY OPERATIONAL HIGHLIGHTS', '2. PRIMARY OPERATIONAL HIGHLIGHTS')}</div>
+    ${kpisHtml}
+    <div style="${sectionTitleStyle}">${t('3. 3-STATE BOTTOMHOLE PRESSURE (BHP) & EMW MATRIX', '3. 3-STATE BOTTOMHOLE PRESSURE (BHP) & EMW MATRIX')}</div>
+    ${matrixHtml}
+    ${buildFooter(1, 2)}
+  `;
+
+  // Page 2: 4. Schematic, 5. Sensitivity, 6. Checklist, 7. Sign-off
+  const schematicSvg = generate3PanelSchematicSvg(res, riserMarginState);
+  const schematicHtml = `
+    <div style="text-align:center; margin-bottom:8px; border:1px solid #E2E8F0; border-radius:6px; padding:4px; background:#FAF8F5; break-inside:avoid; width:100%; box-sizing:border-box;">
+      ${schematicSvg}
+    </div>
+  `;
+
+  const sensRowsHtml = res.sensitivity.map(pt => {
+    const isSafe = pt.isSafe;
+    const statusText = isSafe ? t('SAFE', 'SAFE') : t('UNDERBALANCED RISK', 'UNDERBALANCED RISK');
+    const statusColor = isSafe ? '#16A34A' : '#DC2626';
+    const tag = pt.isRec ? ' [REC]' : (pt.isExact ? ' [EXACT]' : '');
+    return `
+      <tr>
+        <td style="${tdLabel}">${pt.pillW.toFixed(1)} ppg (${pt.pillWSg.toFixed(3)} SG)${tag}</td>
+        <td style="${tdVal}; text-align:right;">${pt.emwPpg.toFixed(2)} ppg (${pt.emwSg.toFixed(3)} SG)</td>
+        <td style="${tdVal}; text-align:right;">${Math.round(pt.bhpPsi)} psi (${pt.bhpBar.toFixed(1)} bar)</td>
+        <td style="${tdVal}; text-align:right;">${pt.overbalancePpg >= 0 ? '+' : ''}${pt.overbalancePpg.toFixed(2)} ppg (${pt.overbalancePsi >= 0 ? '+' : ''}${Math.round(pt.overbalancePsi)} psi)</td>
+        <td style="${tdVal}; text-align:center; font-weight:700; color:${statusColor};">${statusText}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const sensitivityHtml = `
+    <table style="${tableStyle}; font-size:8px;">
+      <thead>
+        <tr>
+          <th style="${thStyle}">${t('Pill Density', 'Pill Density')}</th>
+          <th style="${thStyle}; text-align:right;">${t('EMW After Unlatch', 'EMW After Unlatch')}</th>
+          <th style="${thStyle}; text-align:right;">${t('BHP', 'BHP')}</th>
+          <th style="${thStyle}; text-align:right;">${t('Margin over Pore Pressure', 'Margin over Pore Pressure')}</th>
+          <th style="${thStyle}; text-align:center;">${t('Status', 'Status')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sensRowsHtml}
+      </tbody>
+    </table>
+  `;
+
+  const checklistSteps = [
+    t('Step 1: Verify current pore pressure gradient and wellbore stability before starting pill calculation.', 'Step 1: Verify current pore pressure gradient and wellbore stability before starting pill calculation.'),
+    t('Step 2: Calculate and batch-mix weighted pill with verified surface sample density.', 'Step 2: Calculate and batch-mix weighted pill with verified surface sample density.'),
+    t('Step 3: Spot pill across open hole / wellhead section.', 'Step 3: Spot pill across open hole / wellhead section.'),
+    t('Step 4: Confirm pill placement with spacer ahead and behind; monitor trip tank for U-tube effects.', 'Step 4: Confirm pill placement with spacer ahead and behind; monitor trip tank for U-tube effects.'),
+    t('Step 5: Perform flow check through subsea choke/kill line before unlatching LMRP.', 'Step 5: Perform flow check through subsea choke/kill line before unlatching LMRP.'),
+    t('Step 6: Close lower annular / pipe rams if required per subsea emergency disconnect sequence.', 'Step 6: Close lower annular / pipe rams if required per subsea emergency disconnect sequence.'),
+    t('Step 7: Unlatch LMRP; monitor wellhead sonar/camera and confirm zero gas bubbles or fluid outflow.', 'Step 7: Unlatch LMRP; monitor wellhead sonar/camera and confirm zero gas bubbles or fluid outflow.')
+  ];
+
+  const checklistHtml = `
+    <table style="${tableStyle}; font-size:8px;">
+      <thead>
+        <tr>
+          <th style="${thStyle}; width:16%; text-align:center;">${t('Step', 'Step')}</th>
+          <th style="${thStyle}; width:84%;">${t('Execution Item', 'Execution Item')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${checklistSteps.map((stepText, idx) => `
+          <tr>
+            <td style="${tdLabel}; text-align:center; font-weight:700;">[ &nbsp; ] ${t('Step', 'Step')} ${idx + 1}</td>
+            <td style="${tdVal}">${stepText}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  const signoffHtml = `
+    <div style="display:flex; justify-content:space-between; gap:10px; margin-top:6px;">
+      <div style="flex:1; text-align:center; padding:4px 6px; border:1px solid #E2E8F0; border-radius:4px; background:#FAFAFA;">
+        <div style="border-bottom:1px solid #94A3B8; height:24px; margin-bottom:3px;"></div>
+        <div style="font-size:8px; font-weight:700; color:#1E293B;">${t('Prepared By (Drilling Engineer)', 'Prepared By (Drilling Engineer)')}</div>
+        <div style="font-size:7px; color:#64748B;">${t('Signature', 'Signature')} / ${t('Date', 'Date')}</div>
+      </div>
+      <div style="flex:1; text-align:center; padding:4px 6px; border:1px solid #E2E8F0; border-radius:4px; background:#FAFAFA;">
+        <div style="border-bottom:1px solid #94A3B8; height:24px; margin-bottom:3px;"></div>
+        <div style="font-size:8px; font-weight:700; color:#1E293B;">${t('Checked By (Well Control Lead)', 'Checked By (Well Control Lead)')}</div>
+        <div style="font-size:7px; color:#64748B;">${t('Signature', 'Signature')} / ${t('Date', 'Date')}</div>
+      </div>
+      <div style="flex:1; text-align:center; padding:4px 6px; border:1px solid #E2E8F0; border-radius:4px; background:#FAFAFA;">
+        <div style="border-bottom:1px solid #94A3B8; height:24px; margin-bottom:3px;"></div>
+        <div style="font-size:8px; font-weight:700; color:#1E293B;">${t('Approved By (Drilling Superintendent / Toolpusher)', 'Approved By (Drilling Superintendent / Toolpusher)')}</div>
+        <div style="font-size:7px; color:#64748B;">${t('Signature', 'Signature')} / ${t('Date', 'Date')}</div>
+      </div>
+    </div>
+  `;
+
+  const page2Html = `
+    ${buildHeader(2, 2)}
+    <div style="${sectionTitleStyle}">${t('4. 3-STAGE HYDROSTATIC COLUMN SCHEMATIC', '4. 3-STAGE HYDROSTATIC COLUMN SCHEMATIC')}</div>
+    ${schematicHtml}
+    <div style="${sectionTitleStyle}">${t('5. PILL DENSITY SENSITIVITY ANALYSIS (AFTER UNLATCH)', '5. PILL DENSITY SENSITIVITY ANALYSIS (AFTER UNLATCH)')}</div>
+    ${sensitivityHtml}
+    <div style="${sectionTitleStyle}">${t('6. IWCF SUBSEA OPERATIONAL UNLATCH CHECKLIST', '6. IWCF SUBSEA OPERATIONAL UNLATCH CHECKLIST')}</div>
+    ${checklistHtml}
+    <div style="${sectionTitleStyle}">${t('7. ENGINEERING VERIFICATION & SIGN-OFF', '7. ENGINEERING VERIFICATION & SIGN-OFF')}</div>
+    ${signoffHtml}
+    ${buildFooter(2, 2)}
+  `;
+
+  const fileName = `Riser_Margin_Calculation.pdf`;
+  try {
+    let pdfDataUri = null;
+    let doc = null;
+    if (typeof window !== 'undefined' && typeof window.renderHtmlPagesToPdf === 'function') {
+      const renderRes = await window.renderHtmlPagesToPdf([page1Html, page2Html], {
+        fileName,
+        orientation: 'portrait',
+        scale: 3
+      });
+      pdfDataUri = renderRes.pdfBase64;
+      doc = renderRes.doc;
+    }
+
+    if (pdfDataUri && typeof window !== 'undefined' && window.CementingPDF && typeof window.CementingPDF.saveReportToFile === 'function') {
+      const saved = await window.CementingPDF.saveReportToFile(pdfDataUri, fileName, true, 'application/pdf');
+      if (typeof window.showReportReadyDialog === 'function') {
+        window.showReportReadyDialog(saved);
+        return;
+      }
+      if (typeof window.CementingPDF.shareReportFile === 'function') {
+        await window.CementingPDF.shareReportFile(saved);
+        return;
+      }
+    }
+    if (doc) doc.save(fileName);
+  } catch (err) {
+    console.warn('Native report save failed, fallback download:', err);
+    if (typeof doc !== 'undefined' && doc) doc.save(fileName);
+  }
+}
+
+// ==========================================
+
 function renderDrillingCalcScreen() {
   const container = document.getElementById('drilling-calc-container');
 
@@ -8623,8 +14643,8 @@ function renderDrillingCalcScreen() {
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Drilling Calculations</span>
-              <span class="card-desc">Basic & Applied Engineering Formulas</span>
+              <span class="card-title">${t('Drilling Calculations')}</span>
+              <span class="card-desc">${t('Basic & Applied Engineering Formulas')}</span>
             </div>
           </div>
           <span class="card-chevron">&gt;</span>
@@ -8641,8 +14661,27 @@ function renderDrillingCalcScreen() {
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Well Control Calculations</span>
-              <span class="card-desc">Surface & subsea stack well control calculators</span>
+              <span class="card-title">${t('Well Control Calculations')}</span>
+              <span class="card-desc">${t('Surface & subsea stack well control calculators')}</span>
+            </div>
+          </div>
+          <span class="card-chevron">&gt;</span>
+        </div>
+
+        <div class="toolkit-card compact-card" id="cat-riser-margin-btn">
+          <div class="card-left">
+            <div class="card-icon-container" style="background-color: var(--circle-subsea)">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 18c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path>
+                <path d="M2 21c2-1 4-1 6 0s4 1 6 0 4-1 6 0"></path>
+                <rect x="9" y="3" width="6" height="11" rx="1"></rect>
+                <line x1="12" y1="3" x2="12" y2="14"></line>
+                <circle cx="12" cy="8" r="1.5"></circle>
+              </svg>
+            </div>
+            <div class="card-info">
+              <span class="card-title">${t('Riser Margin Calculation')}</span>
+              <span class="card-desc">${t('IWCF subsea riser margin, weighted pill density & LMRP unlatch BHP analysis')}</span>
             </div>
           </div>
           <span class="card-chevron">&gt;</span>
@@ -8658,7 +14697,15 @@ function renderDrillingCalcScreen() {
       calcSubState.formulaId = null;
       calcSubState.expandedCategoryId = null;
       calcSubState.listScrollTop = 0;
-      pushNavHistory({ screen: 'drilling-calc', view: 'list', section: 'drilling' });
+      navStack.push({
+        screen: 'drilling-calc',
+        calcView: 'list',
+        calcSection: 'drilling',
+        calcCategory: 'calculations',
+        calcFormulaId: null,
+        calcExpandedCategoryId: null,
+        calcScrollTop: 0
+      });
       renderDrillingCalcScreen();
     };
     document.getElementById('cat-wellcontrol-ops-btn').onclick = () => {
@@ -8668,18 +14715,43 @@ function renderDrillingCalcScreen() {
       calcSubState.formulaId = null;
       calcSubState.expandedCategoryId = null;
       calcSubState.listScrollTop = 0;
-      pushNavHistory({ screen: 'drilling-calc', view: 'list', section: 'wellcontrol' });
+      navStack.push({
+        screen: 'drilling-calc',
+        calcView: 'list',
+        calcSection: 'wellcontrol',
+        calcCategory: 'surface',
+        calcFormulaId: null,
+        calcExpandedCategoryId: null,
+        calcScrollTop: 0
+      });
       renderDrillingCalcScreen();
     };
+    document.getElementById('cat-riser-margin-btn').onclick = () => {
+      openRiserMarginDirectly();
+    };
 
+  } else if (calcSubState.view === 'riser-margin') {
+    const scroller = document.querySelector('#screen-drilling-calc .scroller') || document.querySelector('#screen-drilling-calc');
+    if (scroller) {
+      scroller.scrollTop = 0;
+      if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        const s = document.querySelector('#screen-drilling-calc .scroller') || document.querySelector('#screen-drilling-calc');
+        if (s) s.scrollTop = 0;
+      });
+    }
+    renderRiserMarginScreen(container);
   } else if (calcSubState.view === 'list') {
     const currSection = calcSectionsConfig[calcSubState.section] || calcSectionsConfig.drilling;
     const catName = currSection.title;
-    const favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
+    const favs = getCalcFavorites();
 
     let quickAccessItems = [];
     if (favs.length > 0) {
       favs.forEach(itemId => {
+        if (itemId === 'riser_margin') return;
         const found = findCalculator(itemId);
         if (found) {
           quickAccessItems.push({
@@ -8696,8 +14768,8 @@ function renderDrillingCalcScreen() {
     let html = `
       <div class="content-card">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
-          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="list-back-btn">← Categories</button>
-          <h3 style="font-size:0.95rem; font-weight:600; margin:0;">${catName}</h3>
+          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="list-back-btn">${t('← Categories')}</button>
+          <h3 style="font-size:0.95rem; font-weight:600; margin:0;">${t(catName)}</h3>
         </div>
     `;
 
@@ -8706,7 +14778,7 @@ function renderDrillingCalcScreen() {
         <div class="guide-quick-access">
           <div class="guide-section-title">
             ${renderIcon('star', { size: '1.15rem', style: 'color:#EAB308;' })}
-            <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
+            <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">${t('QUICK ACCESS')}</span>
           </div>
           <div class="guide-quick-grid">
       `;
@@ -8715,8 +14787,8 @@ function renderDrillingCalcScreen() {
           <div class="guide-quick-btn" onclick="openFormulaDirectly('${qa.itemId}', '${qa.category || ''}')">
             ${renderIcon(qa.icon, { size: '1.1rem', className: 'guide-quick-icon' })}
             <div class="guide-quick-info">
-              <span class="guide-quick-name">${qa.name}</span>
-              <span class="guide-quick-cat">${qa.catName}</span>
+              <span class="guide-quick-name">${t(qa.name)}</span>
+              <span class="guide-quick-cat">${t(qa.catName)}</span>
             </div>
             <button class="guide-fav-btn active" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${qa.itemId}', event)" aria-label="Favorite">
               ${renderIcon('star', { size: '1.15rem', style: 'color: #EAB308;' })}
@@ -8733,11 +14805,11 @@ function renderDrillingCalcScreen() {
         <div class="guide-quick-access">
           <div class="guide-section-title" style="margin-bottom: 6px;">
             ${renderIcon('star', { size: '1.05rem', style: 'color:#EAB308;' })}
-            <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">QUICK ACCESS</span>
+            <span style="font-weight: 900; color: var(--text-primary); letter-spacing: 0.1em;">${t('QUICK ACCESS')}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.75rem; line-height: 1; margin-bottom: 20px;">
             ${renderIcon('star_border', { size: '0.95rem', style: 'color: #EAB308;' })}
-            <span>Tap the star on any calculator to add it here.</span>
+            <span>${t('Tap the star on any calculator to add it here.')}</span>
           </div>
         </div>
       `;
@@ -8746,10 +14818,7 @@ function renderDrillingCalcScreen() {
     html += `<div style="display:flex; flex-direction:column; gap:12px; padding-bottom:30px;" id="formula-list-container">`;
     currSection.groups.forEach((sec, idx) => {
       const catId = `calc-cat-${idx}`;
-      const isExpanded = (calcSubState.expandedCategoryId === catId) || (!calcSubState.expandedCategoryId && calcSubState.formulaId && sec.items.includes(calcSubState.formulaId));
-      if (isExpanded) {
-        calcSubState.expandedCategoryId = catId;
-      }
+      const isExpanded = (calcSubState.expandedCategoryId === catId);
       html += `
         <div class="guide-category-card guide-cat-accent-${sec.accent} ${isExpanded ? 'expanded' : ''}" id="${catId}">
           <div class="guide-category-header" onclick="toggleGuideCategory('${catId}')">
@@ -8758,8 +14827,8 @@ function renderDrillingCalcScreen() {
                 ${renderIcon(sec.icon, { size: '1.25rem', className: 'guide-category-icon' })}
               </div>
               <div class="guide-category-info">
-                <span class="guide-category-name">${sec.name}</span>
-                <span class="guide-category-desc">${sec.desc}</span>
+                <span class="guide-category-name">${t(sec.name)}</span>
+                <span class="guide-category-desc">${t(sec.desc)}</span>
               </div>
             </div>
             ${renderIcon('chevron_right', { size: '1.2rem', className: 'guide-category-chevron' })}
@@ -8776,7 +14845,7 @@ function renderDrillingCalcScreen() {
               <button class="guide-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFormulaFavorite('${item.id}', event)" aria-label="Favorite">
                 ${renderIcon(isFav ? 'star' : 'star_border', { size: '1.15rem', style: isFav ? 'color:#EAB308;' : '' })}
               </button>
-              <span class="guide-item-title">${item.name}</span>
+              <span class="guide-item-title">${t(item.name)}</span>
             </div>
             <div class="guide-item-right">
               <span class="guide-item-arrow">&rsaquo;</span>
@@ -8793,21 +14862,34 @@ function renderDrillingCalcScreen() {
     container.innerHTML = html;
 
     const scroller = document.querySelector('#screen-drilling-calc .scroller');
-    if (scroller && calcSubState.listScrollTop > 0) {
-      scroller.scrollTop = calcSubState.listScrollTop;
-      requestAnimationFrame(() => {
-        if (scroller) scroller.scrollTop = calcSubState.listScrollTop;
-      });
+    if (scroller) {
+      scroller.scrollTop = calcSubState.listScrollTop || 0;
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (scroller) scroller.scrollTop = calcSubState.listScrollTop || 0;
+        });
+      }
     }
 
     const listBackBtn = document.getElementById('list-back-btn');
     if (listBackBtn) {
       listBackBtn.onclick = () => {
-        handleAppBack();
+        handleBack();
       };
     }
 
   } else if (calcSubState.view === 'formula') {
+    const scroller = document.querySelector('#screen-drilling-calc .scroller') || document.querySelector('#screen-drilling-calc');
+    if (scroller) {
+      scroller.scrollTop = 0;
+      if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        const s = document.querySelector('#screen-drilling-calc .scroller') || document.querySelector('#screen-drilling-calc');
+        if (s) s.scrollTop = 0;
+      });
+    }
     // Detailed Calculator View
     const found = findCalculator(calcSubState.formulaId, calcSubState.category);
     if (!found) {
@@ -8816,7 +14898,7 @@ function renderDrillingCalcScreen() {
       return;
     }
     const f = found.formula;
-    const favs = JSON.parse(localStorage.getItem('calcFavorites') || '[]');
+    const favs = getCalcFavorites();
     const isFav = favs.includes(f.id);
     const activeSys = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed');
     const displayOutputUnit = (activeSys === 'si') ? adaptUnitToSI(f.unit) : f.unit;
@@ -8824,21 +14906,22 @@ function renderDrillingCalcScreen() {
     container.innerHTML = `
       <div class="content-card">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
-          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="form-back-btn">Back to List</button>
-          <h3 style="font-size:0.95rem; font-weight:600; margin:0; flex:1;">Calculator</h3>
+          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem; border-radius:12px; flex:none;" id="form-back-btn">${t('Back to List')}</button>
+          <h3 style="font-size:0.95rem; font-weight:600; margin:0; flex:1;">${t('Calculator')}</h3>
           <button class="guide-fav-btn ${isFav ? 'active' : ''}" style="border: none; background: transparent; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" onclick="toggleFormulaFavorite('${f.id}', event)" aria-label="Favorite">
             ${renderIcon(isFav ? 'star' : 'star_border', { size: '1.5rem', style: `color: ${isFav ? '#EAB308' : 'var(--text-secondary)'};` })}
           </button>
         </div>
         
-        <h4 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin-bottom:4px;">${f.name}</h4>
-        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:20px;">${f.desc}</p>
+        <h4 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin-bottom:4px;">${t(f.name)}</h4>
+        <p id="calc-formula-desc" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:20px;">${t(f.desc)}</p>
         
         <div id="dynamic-inputs-container"></div>
         
         <div class="result-card" style="margin-top:20px; border-left:4px solid var(--accent-color);">
-          <span class="result-label">Calculated Output</span>
+          <span class="result-label">${t('Calculated Output')}</span>
           <span class="result-value" id="calc-output-val">- <span class="unit-lbl" id="calc-output-unit">${displayOutputUnit}</span></span>
+          <div id="calc-output-details"></div>
         </div>
       </div>
     `;
@@ -8848,28 +14931,166 @@ function renderDrillingCalcScreen() {
     };
 
     const inputsCont = document.getElementById('dynamic-inputs-container');
+    let currentSection = null;
     f.inputs.forEach(inp => {
-      if (inp.defaultVal === undefined) {
-        inp.defaultVal = inp.val;
+      if (inp.section && inp.section !== currentSection) {
+        currentSection = inp.section;
+        const secHeader = document.createElement('div');
+        secHeader.style.cssText = 'font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-primary); margin:18px 0 10px 4px; display:flex; align-items:center; gap:6px;';
+        secHeader.innerHTML = `<span>${t(currentSection)}</span>${currentSection === 'Context' ? `<span style="font-size:0.72rem; font-weight:400; text-transform:none; color:var(--text-secondary);">${t('(Optional)')}</span>` : ''}`;
+        inputsCont.appendChild(secHeader);
       }
+
+      if (inp.defaultVal === undefined) inp.defaultVal = inp.val;
       const q = detectCalcQuantity(inp.label);
       let initialVal = inp.defaultVal;
+      let placeholderVal = (inp.placeholder !== undefined) ? inp.placeholder : '';
+
       if (activeSys === 'si' && q && window.UnitsEngine) {
-        const num = parseFloat(String(inp.defaultVal).replace(',', '.'));
-        if (!isNaN(num)) {
-          const converted = window.UnitsEngine.convert(q.type, num, q.native, q.si);
-          initialVal = formatConverted(converted);
+        if (inp.defaultVal !== '' && inp.defaultVal !== undefined && inp.defaultVal !== null) {
+          const num = parseFloat(String(inp.defaultVal).replace(',', '.'));
+          if (!isNaN(num)) initialVal = formatConverted(window.UnitsEngine.convert(q.type, num, q.native, q.si));
+        }
+        if (placeholderVal !== '' && typeof placeholderVal === 'number') {
+          placeholderVal = Math.round(window.UnitsEngine.convert(q.type, placeholderVal, q.native, q.si));
         }
       }
       const displayLabel = (activeSys === 'si') ? adaptLabelToSI(inp.label) : inp.label;
+      const valAttr = (initialVal !== undefined && initialVal !== null && initialVal !== '') ? `value="${initialVal}"` : 'value=""';
+      const placeholderAttr = (placeholderVal !== '') ? `placeholder="${placeholderVal}"` : '';
 
       const group = document.createElement('div');
       group.className = 'form-group';
-      group.innerHTML = `
-        <label id="lbl-inp-${inp.key}">${displayLabel}</label>
-        <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input table-input" id="inp-${inp.key}" value="${initialVal}" style="text-align:left; width:100%; border-radius:var(--border-radius-pill); padding:14px 20px;">
-      `;
+      group.id = `form-group-${inp.key}`;
+      if (inp.hiddenUnless) {
+        group.style.display = 'none';
+      }
+      if (inp.type === 'toggle') {
+        const transLabel = t(displayLabel);
+        group.className = 'form-group calc-toggle-row';
+        group.innerHTML = `
+          <label id="lbl-inp-${inp.key}" style="margin-bottom:0; font-size:0.85rem; font-weight:600; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.02em;">${transLabel}</label>
+          <label class="switch" style="margin:0;">
+            <input type="checkbox" id="inp-${inp.key}" ${inp.val ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        `;
+      } else if (inp.type === 'mode_toggle') {
+        const opt1 = (inp.options && inp.options[0]) || { id: 'od_id', label: 'OD / ID (in)' };
+        const opt2 = (inp.options && inp.options[1]) || { id: 'weight', label: 'Pipe weight (lb/ft)' };
+        const lbl1 = t((activeSys === 'si') ? adaptLabelToSI(opt1.label) : opt1.label);
+        const lbl2 = t((activeSys === 'si') ? adaptLabelToSI(opt2.label) : opt2.label);
+        const initVal = inp.val || opt1.id;
+        group.style.cssText = 'margin:14px 0 16px; padding:0;';
+        group.innerHTML = `
+          <div class="segmented-control" id="seg-${inp.key}" style="margin:0 0 12px 0;">
+            <button type="button" class="segmented-control-btn ${initVal === opt1.id ? 'active' : ''}" id="btn-${inp.key}-${opt1.id}" data-val="${opt1.id}">${lbl1}</button>
+            <button type="button" class="segmented-control-btn ${initVal === opt2.id ? 'active' : ''}" id="btn-${inp.key}-${opt2.id}" data-val="${opt2.id}">${lbl2}</button>
+          </div>
+          <input type="hidden" id="inp-${inp.key}" value="${initVal}">
+        `;
+      } else {
+        const transLabel = t(displayLabel);
+        group.innerHTML = `
+          <label id="lbl-inp-${inp.key}">${transLabel}</label>
+          ${inp.hint ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:-4px; margin-bottom:6px; padding-left:2px;">${t(inp.hint)}</div>` : ''}
+          <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input table-input" id="inp-${inp.key}" ${valAttr} ${placeholderAttr} style="text-align:left; width:100%; border-radius:var(--border-radius-pill); padding:14px 20px;">
+          <div class="field-error-msg" id="err-inp-${inp.key}" style="display:none; font-size:0.75rem; font-weight:600; color:#EF4444; margin-top:4px; padding-left:12px;"></div>
+        `;
+        if (f.id === 'pipe_recovery_est' && inp.key === 'free' && typeof window !== 'undefined' && window._lastStuckPipeFreeLength) {
+          const btnUseLast = document.createElement('button');
+          btnUseLast.type = 'button';
+          btnUseLast.className = 'pill-btn';
+          btnUseLast.style.cssText = 'margin-top:6px; font-size:0.75rem; padding:4px 12px; background:rgba(217, 119, 87, 0.12); color:var(--accent-color); border:1px solid rgba(217, 119, 87, 0.3); border-radius:12px; cursor:pointer; font-weight:600; display:inline-block;';
+          const lastVal = (activeSys === 'si' && window.UnitsEngine) ? Math.round(window.UnitsEngine.convert('length', window._lastStuckPipeFreeLength, 'ft', 'm')) : Math.round(window._lastStuckPipeFreeLength);
+          const uLbl = activeSys === 'si' ? 'm' : 'ft';
+          btnUseLast.innerHTML = `Use last stuck pipe result (${lastVal.toLocaleString()} ${uLbl})`;
+          btnUseLast.onclick = () => {
+            const inpFree = document.getElementById('inp-free');
+            if (inpFree) {
+              inpFree.value = lastVal;
+              inpFree.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          };
+          group.appendChild(btnUseLast);
+        }
+      }
       inputsCont.appendChild(group);
+
+      if (inp.type === 'mode_toggle') {
+        const opt1 = (inp.options && inp.options[0]) || { id: 'od_id', label: 'OD / ID (in)' };
+        const opt2 = (inp.options && inp.options[1]) || { id: 'weight', label: 'Pipe weight (lb/ft)' };
+        setTimeout(() => {
+          const btn1 = document.getElementById(`btn-${inp.key}-${opt1.id}`);
+          const btn2 = document.getElementById(`btn-${inp.key}-${opt2.id}`);
+          const hiddenEl = document.getElementById(`inp-${inp.key}`);
+          const applyMode = (m) => {
+            if (hiddenEl) hiddenEl.value = m;
+            if (btn1) btn1.classList.toggle('active', m === opt1.id);
+            if (btn2) btn2.classList.toggle('active', m === opt2.id);
+            if (f.id === 'ds_weight') {
+              const descEl = document.getElementById('calc-formula-desc');
+              if (descEl) {
+                if (m === 'in_mud') {
+                  descEl.textContent = (typeof t === 'function' && t('Buoyed weight of the drill string submerged in drilling fluid.')) || 'Buoyed weight of the drill string submerged in drilling fluid.';
+                } else {
+                  descEl.textContent = (typeof t === 'function' && t('Total dry weight of drill pipe, HWDP, and drill collar components.')) || 'Total dry weight of drill pipe, HWDP, and drill collar components.';
+                }
+              }
+            }
+            if (f.id === 'pipe_pulled') {
+              const descEl = document.getElementById('calc-formula-desc');
+              if (descEl) {
+                if (m === 'wet') {
+                  descEl.textContent = (typeof t === 'function' && t('Equivalent volume of fluid displaced and pressure loss when POOH wet pipe (internal + metal).')) || 'Equivalent volume of fluid displaced and pressure loss when POOH wet pipe (internal + metal).';
+                } else {
+                  descEl.textContent = (typeof t === 'function' && t('Equivalent volume of fluid displaced and pressure loss when POOH dry pipe.')) || 'Equivalent volume of fluid displaced and pressure loss when POOH dry pipe.';
+                }
+              }
+              const toggleLbl = document.querySelector('#form-group-calc_disp_toggle label:first-child');
+              if (toggleLbl) {
+                if (m === 'wet') {
+                  toggleLbl.textContent = (typeof t === 'function' && t('Calculate from OD / ID')) || 'Calculate from OD / ID';
+                } else {
+                  toggleLbl.textContent = (typeof t === 'function' && t('Calculate displacement from OD / ID')) || 'Calculate displacement from OD / ID';
+                }
+              }
+            }
+            if (f.id === 'dp_pulled_lose') {
+              const descEl = document.getElementById('calc-formula-desc');
+              if (descEl) {
+                if (m === 'wet') {
+                  descEl.textContent = (typeof t === 'function' && t('Length of wet pipe and full stands pulled to lose a specific amount of hydrostatic head.')) || 'Length of wet pipe and full stands pulled to lose a specific amount of hydrostatic head.';
+                } else {
+                  descEl.textContent = (typeof t === 'function' && t('Length of dry pipe and full stands pulled to lose a specific amount of hydrostatic head.')) || 'Length of dry pipe and full stands pulled to lose a specific amount of hydrostatic head.';
+                }
+              }
+            }
+            f.inputs.forEach(other => {
+              if (other.hiddenUnlessMode) {
+                const otherGroup = document.getElementById(`form-group-${other.key}`);
+                if (otherGroup) {
+                  const isVisible = (other.hiddenUnlessMode === m);
+                  otherGroup.style.display = isVisible ? 'block' : 'none';
+                  if (isVisible && other.disabledWhen) {
+                    const disToggle = document.getElementById(`inp-${other.disabledWhen}`);
+                    const otherInp = document.getElementById(`inp-${other.key}`);
+                    if (disToggle && otherInp) {
+                      otherInp.disabled = disToggle.checked;
+                      otherInp.style.opacity = disToggle.checked ? '0.55' : '1';
+                      otherInp.style.cursor = disToggle.checked ? 'not-allowed' : 'text';
+                    }
+                  }
+                }
+              }
+            });
+            if (window._currentRunCalc) window._currentRunCalc();
+          };
+          if (btn1) btn1.onclick = () => applyMode(opt1.id);
+          if (btn2) btn2.onclick = () => applyMode(opt2.id);
+          applyMode(hiddenEl ? hiddenEl.value : opt1.id);
+        }, 0);
+      }
     });
 
     const runCalc = () => {
@@ -8877,8 +15098,63 @@ function renderDrillingCalcScreen() {
       const arg = {};
       f.inputs.forEach(inp => {
         const el = document.getElementById(`inp-${inp.key}`);
+        if (inp.type === 'toggle') {
+          const isChecked = el ? el.checked : false;
+          arg[inp.key] = isChecked;
+          if (inp.key === 'manual_fpc_toggle') {
+            const targetField = document.getElementById('form-group-fpc_manual');
+            if (targetField) targetField.style.display = isChecked ? 'block' : 'none';
+          }
+          f.inputs.forEach(other => {
+            if (other.hiddenUnless === inp.key) {
+              const grp = document.getElementById(`form-group-${other.key}`);
+              if (grp) grp.style.display = isChecked ? 'block' : 'none';
+            }
+            if (other.disabledWhen === inp.key) {
+              const otherInp = document.getElementById(`inp-${other.key}`);
+              if (otherInp) {
+                otherInp.disabled = isChecked;
+                if (isChecked) {
+                  otherInp.style.opacity = '0.55';
+                  otherInp.style.cursor = 'not-allowed';
+                } else {
+                  otherInp.style.opacity = '1';
+                  otherInp.style.cursor = 'text';
+                }
+              }
+            }
+          });
+          return;
+        }
+        if (inp.type === 'mode_toggle') {
+          arg[inp.key] = el ? el.value : 'od_id';
+          return;
+        }
+        if (inp.hiddenUnlessMode) {
+          const modeToggle = f.inputs.find(x => x.type === 'mode_toggle');
+          const modeKey = modeToggle ? modeToggle.key : 'input_mode';
+          const modeEl = document.getElementById(`inp-${modeKey}`);
+          const curMode = modeEl ? modeEl.value : (modeToggle ? modeToggle.val : 'od_id');
+          if (inp.hiddenUnlessMode !== curMode) {
+            arg[inp.key] = '';
+            return;
+          }
+        }
+        if (inp.hiddenUnless) {
+          const toggleEl = document.getElementById(`inp-${inp.hiddenUnless}`);
+          const isToggleOn = toggleEl ? toggleEl.checked : false;
+          if (!isToggleOn) {
+            arg[inp.key] = '';
+            return;
+          }
+        }
         const q = detectCalcQuantity(inp.label);
-        let rawVal = el ? parseFloat(String(el.value).replace(',', '.')) : 0;
+        const rawStr = el ? el.value.trim() : '';
+        if (rawStr === '') {
+          arg[inp.key] = '';
+          return;
+        }
+        let rawVal = parseFloat(rawStr.replace(',', '.'));
         if (isNaN(rawVal)) rawVal = 0;
 
         if (currentSys === 'si' && q && window.UnitsEngine) {
@@ -8893,6 +15169,2526 @@ function renderDrillingCalcScreen() {
         const outQ = detectCalcQuantity(f.unit);
         let finalVal = result;
         const outUnit = (currentSys === 'si') ? adaptUnitToSI(f.unit) : f.unit;
+        const detailsEl = document.getElementById('calc-output-details');
+
+        if (f.id === 'max_rop' && typeof result === 'object' && result !== null) {
+          let ropDisplay = '--';
+          if (typeof result.rop === 'number' && Number.isFinite(result.rop)) {
+            let ropConv = result.rop;
+            if (currentSys === 'si' && outQ && window.UnitsEngine) {
+              ropConv = window.UnitsEngine.convert(outQ.type, result.rop, outQ.native, outQ.si);
+            }
+            ropDisplay = ropConv.toFixed(2);
+          }
+          document.getElementById('calc-output-val').innerHTML = `${ropDisplay} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+
+          if (detailsEl) {
+            const densUnit = (currentSys === 'si') ? 'SG' : 'ppg';
+            const pressUnit = (currentSys === 'si') ? 'bar' : 'psi';
+            const maxEcdVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('density', result.maxECD, 'ppg', 'SG') : result.maxECD;
+            const marginVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('density', result.margin, 'ppg', 'SG') : result.margin;
+            const pFracVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.pFrac, 'psi', 'bar') : result.pFrac;
+
+            let warningHtml = '';
+            if (result.warning) {
+              warningHtml = `
+                <div style="margin-top:10px; padding-top:10px 12px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:10px; color:var(--text-primary); font-size:0.8rem; display:flex; align-items:center; gap:8px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  <span>${result.warning}</span>
+                </div>`;
+            }
+
+            detailsEl.innerHTML = `
+              ${warningHtml}
+              <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Max Allowable ECD</span><span style="font-weight:600; color:var(--text-primary);">${maxEcdVal.toFixed(2)} ${densUnit}</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Allowable ECD Margin</span><span style="font-weight:600; color:var(--text-primary);">${marginVal.toFixed(2)} ${densUnit}</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Fracture Pressure at TVD</span><span style="font-weight:600; color:var(--text-primary);">${Math.round(pFracVal)} ${pressUnit}</span></div>
+              </div>
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">${result.note || ''}</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'max_rop' && result === '--') {
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Max Allowable ECD</span><span style="font-weight:600; color:var(--text-primary);">--</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Allowable ECD Margin</span><span style="font-weight:600; color:var(--text-primary);">--</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Fracture Pressure at TVD</span><span style="font-weight:600; color:var(--text-primary);">--</span></div>
+              </div>
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate based on the cuttings-loading ECD limit. Actual ROP also depends on hole cleaning, pump rate and cuttings transport.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'fpc_stuck') {
+          const elOd = document.getElementById('inp-od');
+          const elId = document.getElementById('inp-id');
+          const elStretch = document.getElementById('inp-stretch');
+          const elPull = document.getElementById('inp-pull');
+          const errOd = document.getElementById('err-inp-od');
+          const errId = document.getElementById('err-inp-id');
+          const errStretch = document.getElementById('err-inp-stretch');
+          const errPull = document.getElementById('err-inp-pull');
+
+          const odStr = elOd ? elOd.value.trim() : '';
+          const idStr = elId ? elId.value.trim() : '';
+          const stretchStr = elStretch ? elStretch.value.trim() : '';
+          const pullStr = elPull ? elPull.value.trim() : '';
+
+          const odVal = parseFloat(odStr.replace(',', '.'));
+          const idVal = parseFloat(idStr.replace(',', '.'));
+          const stretchVal = stretchStr !== '' ? parseFloat(stretchStr.replace(',', '.')) : null;
+          const pullVal = pullStr !== '' ? parseFloat(pullStr.replace(',', '.')) : null;
+
+          let odErr = null, idErr = null;
+          if (odStr === '' || isNaN(odVal) || odVal <= 0) odErr = 'Pipe OD must be greater than 0';
+          if (idStr === '' || isNaN(idVal) || idVal <= 0) idErr = 'Pipe ID must be greater than 0';
+          else if (!odErr && idVal >= odVal) idErr = 'Pipe ID must be less than Pipe OD';
+
+          if (errOd) { errOd.style.display = odErr ? 'block' : 'none'; errOd.innerText = odErr || ''; }
+          if (elOd) elOd.classList.toggle('has-error', !!odErr);
+          if (errId) { errId.style.display = idErr ? 'block' : 'none'; errId.innerText = idErr || ''; }
+          if (elId) elId.classList.toggle('has-error', !!idErr);
+
+          let stretchErr = null, pullErr = null;
+          if (stretchVal !== null && (isNaN(stretchVal) || stretchVal <= 0)) stretchErr = 'Pipe stretch must be greater than 0';
+          if (pullVal !== null && (isNaN(pullVal) || pullVal <= 0)) pullErr = 'Pull force increment must be greater than 0';
+
+          if (errStretch) { errStretch.style.display = stretchErr ? 'block' : 'none'; errStretch.innerText = stretchErr || ''; }
+          if (elStretch) elStretch.classList.toggle('has-error', !!stretchErr);
+          if (errPull) { errPull.style.display = pullErr ? 'block' : 'none'; errPull.innerText = pullErr || ''; }
+          if (elPull) elPull.classList.toggle('has-error', !!pullErr);
+
+          if (typeof result === 'object' && result !== null && result.fpc !== undefined) {
+            const fpcDisplay = result.fpc.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            document.getElementById('calc-output-val').innerHTML = `${fpcDisplay} <span class="unit-lbl" id="calc-output-unit">FPC</span>`;
+
+            if (detailsEl) {
+              const areaUnit = (currentSys === 'si') ? 'mm²' : 'in²';
+              const depthUnit = (currentSys === 'si') ? 'm' : 'ft';
+              const asVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('area', result.as, 'in2', 'mm2') : result.as;
+              const asDisplay = (typeof asVal === 'number' && Number.isFinite(asVal)) ? `${asVal.toFixed(4)} ${areaUnit}` : '--';
+
+              let depthRowHtml = '';
+              if (result.depth !== null && result.depth !== undefined) {
+                let depthDisplay = '--';
+                if (typeof result.depth === 'number' && Number.isFinite(result.depth)) {
+                  const depthVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.depth, 'ft', 'm') : result.depth;
+                  depthDisplay = `${Math.round(depthVal).toLocaleString()} ${depthUnit}`;
+                }
+                depthRowHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Free Pipe Depth</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${depthDisplay}</span>
+                  </div>`;
+              }
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Pipe Wall Area (As)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${asDisplay}</span>
+                  </div>
+                  ${depthRowHtml}
+                </div>
+                <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">${result.note || ''}</div>
+              `;
+            }
+            return;
+          }
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">FPC</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                  <span style="color:var(--text-secondary);">Pipe Wall Area (As)</span>
+                  <span style="font-weight:600; color:var(--text-primary);">--</span>
+                </div>
+              </div>
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate assumes straight hole, steel pipe, and E = 30,000,000 psi. Directional wells and mixed strings (DP + HWDP) need separate calculation per section.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'max_rop' && result === '--') {
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Max Allowable ECD</span><span style="font-weight:600; color:var(--text-primary);">--</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Allowable ECD Margin</span><span style="font-weight:600; color:var(--text-primary);">--</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Fracture Pressure at TVD</span><span style="font-weight:600; color:var(--text-primary);">--</span></div>
+              </div>
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate based on the cuttings-loading ECD limit. Actual ROP also depends on hole cleaning, pump rate and cuttings transport.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'stuck_pipe_calc') {
+          const errFields = ['od', 'id', 'fpc_manual', 'pull_initial', 'pull_final', 'stretch', 'total_length'];
+          errFields.forEach(k => {
+            const errEl = document.getElementById(`err-inp-${k}`);
+            const inpEl = document.getElementById(`inp-${k}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (typeof result === 'object' && result !== null && result.freeLengthFt !== null) {
+            if (typeof window !== 'undefined') window._lastStuckPipeFreeLength = result.freeLengthFt;
+            const lenVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.freeLengthFt, 'ft', 'm') : result.freeLengthFt;
+            const lenDisplay = Math.round(lenVal).toLocaleString();
+            document.getElementById('calc-output-val').innerHTML = `${lenDisplay} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+
+            if (detailsEl) {
+              const forceUnit = (currentSys === 'si') ? 'kN' : 'klb';
+              const areaUnit = (currentSys === 'si') ? 'mm²' : 'in²';
+              const dpVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.pullIncrementKlb, 'klbs', 'kN') : result.pullIncrementKlb;
+              const asVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('area', result.as, 'in2', 'mm2') : result.as;
+
+              let warningHtml = '';
+              if (result.warning) {
+                warningHtml = `
+                  <div style="margin-top:10px; padding:10px 12px; background:rgba(245, 158, 11, 0.1); border:1px solid rgba(245, 158, 11, 0.3); border-radius:10px; color:var(--text-primary); font-size:0.8rem; display:flex; align-items:center; gap:8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <span>${result.warning}</span>
+                  </div>`;
+              }
+
+              let pctHtml = '';
+              if (result.percentFree !== null) {
+                pctHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">% of String Free</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.percentFree.toFixed(1)}%</span>
+                  </div>`;
+              }
+
+              detailsEl.innerHTML = `
+                ${warningHtml}
+                <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Pull Increment</span><span style="font-weight:600; color:var(--text-primary);">${dpVal.toFixed(1)} ${forceUnit}</span></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Free Point Constant (FPC)</span><span style="font-weight:600; color:var(--text-primary);">${result.fpc.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Pipe Wall Area (As)</span><span style="font-weight:600; color:var(--text-primary);">${asVal.toFixed(4)} ${areaUnit}</span></div>
+                  ${pctHtml}
+                </div>
+                <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate for straight holes and a single pipe size. For directional wells or mixed strings (DP + HWDP), calculate each section separately and combine.</div>
+              `;
+            }
+            return;
+          }
+
+          // Invalid state: highlight field errors
+          const evalRes = calcFreePoint({ od: arg.od, id: arg.id, stretchIn: arg.stretch, pullInitialLb: arg.pull_initial, pullFinalLb: arg.pull_final, fpcOverride: (arg.manual_fpc_toggle && arg.fpc_manual) ? arg.fpc_manual : null, totalStringLengthFt: arg.total_length });
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate for straight holes and a single pipe size. For directional wells or mixed strings (DP + HWDP), calculate each section separately and combine.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'stuck_pipe_not_know_fpc') {
+          const errFields = ['stretch', 'pull', 'pipe_weight', 'od', 'id'];
+          errFields.forEach(k => {
+            const errEl = document.getElementById(`err-inp-${k}`);
+            const inpEl = document.getElementById(`inp-${k}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (typeof result === 'object' && result !== null && result.freeLengthFt !== null) {
+            if (typeof window !== 'undefined') window._lastStuckPipeFreeLength = result.freeLengthFt;
+            const lenVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.freeLengthFt, 'ft', 'm') : result.freeLengthFt;
+            const lenDisplay = Math.round(lenVal).toLocaleString();
+            document.getElementById('calc-output-val').innerHTML = `${lenDisplay} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+
+            if (detailsEl) {
+              const weightUnit = (currentSys === 'si') ? 'kg/m' : 'lb/ft';
+              const wVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('weight_per_length', result.weightUsed, 'lb/ft', 'kg/m') : result.weightUsed;
+              const wLabel = result.isDerived ? 'Derived Pipe Weight (Plain End)' : 'Pipe Weight Used';
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">${wLabel}</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${wVal.toFixed(2)} ${weightUnit}</span>
+                  </div>
+                </div>
+                <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate for straight holes and one pipe size. Use plain-end weight, not nominal weight with tool joints. Directional wells and mixed strings need each section calculated separately.</div>
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcFreePointWeight({
+            stretchIn: arg.stretch,
+            pullLb: arg.pull,
+            weightLbFt: arg.pipe_weight,
+            od: arg.od,
+            id: arg.id,
+            mode: arg.input_mode
+          });
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                  <span style="color:var(--text-secondary);">Pipe Weight Used</span>
+                  <span style="font-weight:600; color:var(--text-primary);">--</span>
+                </div>
+              </div>
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate for straight holes and one pipe size. Use plain-end weight, not nominal weight with tool joints. Directional wells and mixed strings need each section calculated separately.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'mech_stick_risk') {
+          const errFields = ['puw', 'sow', 'rw', 'base_up', 'base_down'];
+          errFields.forEach(k => {
+            const errEl = document.getElementById(`err-inp-${k}`);
+            const inpEl = document.getElementById(`inp-${k}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const forceUnit = (currentSys === 'si') ? 'kN' : 'lb';
+            const upVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.upDrag, 'lbs', 'kN') : result.upDrag;
+            const downVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.downDrag, 'lbs', 'kN') : result.downDrag;
+            const totalVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.totalDrag, 'lbs', 'kN') : result.totalDrag;
+            const asymVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.asymmetry, 'lbs', 'kN') : result.asymmetry;
+
+            const upDisplay = Math.round(upVal).toLocaleString();
+            const downDisplay = Math.round(downVal).toLocaleString();
+            const totalDisplay = Math.round(totalVal).toLocaleString();
+            const asymDisplay = Math.round(asymVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:2px;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); margin-bottom:2px;">Up Drag</div>
+                  <div style="font-size:1.55rem; font-weight:700; color:var(--text-primary);">${upDisplay} <span style="font-size:0.85rem; font-weight:500; color:var(--text-secondary);">${forceUnit}</span></div>
+                </div>
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); margin-bottom:2px;">Down Drag</div>
+                  <div style="font-size:1.55rem; font-weight:700; color:var(--text-primary);">${downDisplay} <span style="font-size:0.85rem; font-weight:500; color:var(--text-secondary);">${forceUnit}</span></div>
+                </div>
+              </div>
+            `;
+
+            if (detailsEl) {
+              let chipHtml = '';
+              if (result.status) {
+                let chipColor = '#10B981', chipBg = 'rgba(16, 185, 129, 0.12)', chipBorder = 'rgba(16, 185, 129, 0.25)';
+                if (result.status === 'Watch') {
+                  chipColor = '#D97706'; chipBg = 'rgba(245, 158, 11, 0.12)'; chipBorder = 'rgba(245, 158, 11, 0.25)';
+                } else if (result.status === 'Alert') {
+                  chipColor = '#EF4444'; chipBg = 'rgba(239, 68, 68, 0.12)'; chipBorder = 'rgba(239, 68, 68, 0.25)';
+                }
+                let trendText = '';
+                if (result.baselineUpChange !== null) {
+                  const sign = result.baselineUpChange >= 0 ? '+' : '';
+                  const bUpVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.baselineUpChange, 'lbs', 'kN') : result.baselineUpChange;
+                  trendText += `Up: ${sign}${Math.round(bUpVal).toLocaleString()} ${forceUnit} (${sign}${result.baselineUpChangePct.toFixed(1)}%)`;
+                }
+                if (result.baselineDownChange !== null) {
+                  const sign = result.baselineDownChange >= 0 ? '+' : '';
+                  const bDnVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.baselineDownChange, 'lbs', 'kN') : result.baselineDownChange;
+                  if (trendText) trendText += ' | ';
+                  trendText += `Down: ${sign}${Math.round(bDnVal).toLocaleString()} ${forceUnit} (${sign}${result.baselineDownChangePct.toFixed(1)}%)`;
+                }
+                chipHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:10px; background:${chipBg}; border:1px solid ${chipBorder}; margin-bottom:10px;">
+                    <span style="font-size:0.8rem; font-weight:700; color:${chipColor}; text-transform:uppercase; letter-spacing:0.5px;">Status: ${result.status}</span>
+                    <span style="font-size:0.75rem; font-weight:600; color:${chipColor};">${trendText}</span>
+                  </div>
+                `;
+              }
+
+              detailsEl.innerHTML = `
+                ${chipHtml}
+                <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Total Drag (PU - SO)</span><span style="font-weight:600; color:var(--text-primary);">${totalDisplay} ${forceUnit}</span></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Up Drag (% of Rotating)</span><span style="font-weight:600; color:var(--text-primary);">${result.upDragPct.toFixed(1)}%</span></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Down Drag (% of Rotating)</span><span style="font-weight:600; color:var(--text-primary);">${result.downDragPct.toFixed(1)}%</span></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;"><span style="color:var(--text-secondary);">Drag Asymmetry (Up - Down)</span><span style="font-weight:600; color:var(--text-primary);">${asymDisplay} ${forceUnit}</span></div>
+                </div>
+                <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Screening tool only. Compare against your torque and drag model and trend; it cannot confirm or rule out sticking.</div>
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcDragAnalysis({
+            puw: arg.puw,
+            sow: arg.sow,
+            rw: arg.rw,
+            baselineUp: arg.base_up,
+            baselineDown: arg.base_down
+          });
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Screening tool only. Compare against your torque and drag model and trend; it cannot confirm or rule out sticking.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'pipe_recovery_est') {
+          const errFields = ['total', 'free'];
+          errFields.forEach(k => {
+            const errEl = document.getElementById(`err-inp-${k}`);
+            const inpEl = document.getElementById(`inp-${k}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const lengthUnit = (currentSys === 'si') ? 'm' : 'ft';
+            const stuckVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.stuckLengthFt, 'ft', 'm') : result.stuckLengthFt;
+            const stuckDisplay = Math.round(stuckVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${result.freePipePct.toFixed(2)} <span class="unit-lbl" id="calc-output-unit">%</span>`;
+
+            if (detailsEl) {
+              detailsEl.innerHTML = `
+                <div style="margin:14px 0 6px;">
+                  <div style="height:10px; width:100%; border-radius:5px; background:rgba(239, 68, 68, 0.2); overflow:hidden; display:flex;">
+                    <div style="width:${Math.min(100, Math.max(0, result.freePipePct))}%; background:var(--accent-color, #D97706); height:100%; transition:width 0.3s ease;"></div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-top:5px;">
+                    <span>Free: ${result.freePipePct.toFixed(1)}%</span>
+                    <span>Stuck: ${result.stuckPct.toFixed(1)}%</span>
+                  </div>
+                </div>
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Stuck Drillstring Length</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${stuckDisplay} ${lengthUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Stuck % of Drillstring</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.stuckPct.toFixed(2)}%</span>
+                  </div>
+                </div>
+                <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Based on your free point estimate. Confirm with a free point indicator or backoff result before planning recovery.</div>
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcFreePipePercentage({
+            total: arg.total,
+            free: arg.free
+          });
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Based on your free point estimate. Confirm with a free point indicator or backoff result before planning recovery.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'fish_string_load') {
+          const errFields = ['wt', 'mw', 'overpull', 'max_load'];
+          errFields.forEach(k => {
+            const errEl = document.getElementById(`err-inp-${k}`);
+            const inpEl = document.getElementById(`inp-${k}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const forceUnit = (currentSys === 'si') ? 'kN' : 'lb';
+            const loadVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.surfaceLoadLb, 'lbs', 'kN') : result.surfaceLoadLb;
+            const buoyedVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.buoyedWeightLb, 'lbs', 'kN') : result.buoyedWeightLb;
+
+            const loadDisplay = Math.round(loadVal).toLocaleString();
+            const buoyedDisplay = Math.round(buoyedVal).toLocaleString();
+            const bfDisplay = result.bf.toFixed(4);
+
+            document.getElementById('calc-output-val').innerHTML = `${loadDisplay} <span class="unit-lbl" id="calc-output-unit">${forceUnit}</span>`;
+
+            if (detailsEl) {
+              let chipHtml = '';
+              let utilRowHtml = '';
+              if (result.utilizationPct !== null && result.status !== null) {
+                let chipBg = 'rgba(34, 197, 94, 0.12)';
+                let chipColor = '#16A34A';
+                let chipBorder = 'rgba(34, 197, 94, 0.3)';
+                if (result.status === 'Caution') {
+                  chipBg = 'rgba(245, 158, 11, 0.12)';
+                  chipColor = '#D97706';
+                  chipBorder = 'rgba(245, 158, 11, 0.3)';
+                } else if (result.status === 'Exceeds limit') {
+                  chipBg = 'rgba(239, 68, 68, 0.12)';
+                  chipColor = '#DC2626';
+                  chipBorder = 'rgba(239, 68, 68, 0.3)';
+                }
+
+                chipHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:10px; background:${chipBg}; border:1px solid ${chipBorder}; margin-bottom:12px;">
+                    <span style="font-size:0.8rem; font-weight:700; color:${chipColor}; text-transform:uppercase; letter-spacing:0.5px;">Status: ${result.status}</span>
+                    <span style="font-size:0.8rem; font-weight:700; color:${chipColor};">${result.utilizationPct.toFixed(2)}% of Limit</span>
+                  </div>
+                `;
+
+                utilRowHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Utilization (% of Limit)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.utilizationPct.toFixed(2)}%</span>
+                  </div>
+                `;
+              }
+
+              detailsEl.innerHTML = `
+                ${chipHtml}
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Buoyancy Factor (BF)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${bfDisplay}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Buoyed String Weight</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${buoyedDisplay} ${forceUnit}</span>
+                  </div>
+                  ${utilRowHtml}
+                </div>
+                <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Hook load when pulling on fish (buoyed string weight + overpull). Excludes traveling block weight and drag.</div>
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcFishingStringLoad({
+            wt: arg.wt,
+            mw: arg.mw,
+            overpull: arg.overpull,
+            maxLoad: arg.max_load
+          });
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Hook load when pulling on fish (buoyed string weight + overpull). Excludes traveling block weight and drag.</div>
+            `;
+          }
+          return;
+        }
+        if (f.id === 'acc_subsea' || f.id === 'subsea_accumulator') {
+          const errFields = ['bottles', 'vol', 'p1', 'p2', 'p3', 'wd', 'sw', 'req_vol'];
+          errFields.forEach(k => {
+            const errEl = document.getElementById(`err-inp-${k}`);
+            const inpEl = document.getElementById(`inp-${k}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const volUnit = (currentSys === 'si') ? 'L' : 'gal';
+            const pressUnit = (currentSys === 'si') ? 'bar' : 'psi';
+
+            const usableVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.usableVolumeGal, 'gal', 'L') : result.usableVolumeGal;
+            const totalVolVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.totalVolumeGal, 'gal', 'L') : result.totalVolumeGal;
+            const surfUsableVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.surfaceUsableGal, 'gal', 'L') : result.surfaceUsableGal;
+            const hydroVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.hydrostaticPsi, 'psi', 'bar') : result.hydrostaticPsi;
+
+            const usableDisplay = usableVal.toFixed(1);
+            const totalVolDisplay = Math.round(totalVolVal).toLocaleString();
+            const surfUsableDisplay = surfUsableVal.toFixed(1);
+            const hydroDisplay = hydroVal.toFixed(1);
+
+            document.getElementById('calc-output-val').innerHTML = `${usableDisplay} <span class="unit-lbl" id="calc-output-unit">${volUnit}</span>`;
+
+            if (detailsEl) {
+              let chipHtml = '';
+              let reqRowHtml = '';
+              if (result.status !== null && result.surplusGal !== null) {
+                const surplusConverted = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.surplusGal, 'gal', 'L') : result.surplusGal;
+                const sign = surplusConverted >= 0 ? '+' : '';
+                const surplusDisplay = `${sign}${surplusConverted.toFixed(1)} ${volUnit}`;
+
+                let chipBg = 'rgba(34, 197, 94, 0.12)';
+                let chipColor = '#16A34A';
+                let chipBorder = 'rgba(34, 197, 94, 0.3)';
+                if (result.status === 'Insufficient') {
+                  chipBg = 'rgba(239, 68, 68, 0.12)';
+                  chipColor = '#DC2626';
+                  chipBorder = 'rgba(239, 68, 68, 0.3)';
+                }
+
+                chipHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:10px; background:${chipBg}; border:1px solid ${chipBorder}; margin-bottom:12px;">
+                    <span style="font-size:0.8rem; font-weight:700; color:${chipColor}; text-transform:uppercase; letter-spacing:0.5px;">Status: ${result.status}</span>
+                    <span style="font-size:0.8rem; font-weight:700; color:${chipColor};">${surplusConverted >= 0 ? 'Surplus: ' : 'Shortfall: '}${surplusDisplay}</span>
+                  </div>
+                `;
+
+                reqRowHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">${surplusConverted >= 0 ? 'Surplus Volume' : 'Shortfall Volume'}</span>
+                    <span style="font-weight:600; color:${chipColor};">${surplusDisplay}</span>
+                  </div>
+                `;
+              }
+
+              detailsEl.innerHTML = `
+                ${chipHtml}
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Hydrostatic Head</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${hydroDisplay} ${pressUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Total Bottle Volume</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${totalVolDisplay} ${volUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Surface Usable Volume (for comparison)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${surfUsableDisplay} ${volUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Usable % of Total Volume</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.usablePct.toFixed(1)}%</span>
+                  </div>
+                  ${reqRowHtml}
+                </div>
+                <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate by Boyle's law with isothermal expansion assumed. Actual usable volume depends on bottle temperature, gas type and manufacturer data. Calculations use gauge pressures unless absolute mode is enabled.</div>
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcSubseaAccumulatorCapacity({
+            bottles: arg.bottles,
+            vol: arg.vol,
+            p1: arg.p1,
+            p2: arg.p2,
+            p3: arg.p3,
+            wd: arg.wd,
+            sw: arg.sw,
+            useAbs: arg.use_abs,
+            reqVol: arg.req_vol
+          });
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `
+              <div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Estimate by Boyle's law with isothermal expansion assumed. Actual usable volume depends on bottle temperature, gas type and manufacturer data. Calculations use gauge pressures unless absolute mode is enabled.</div>
+            `;
+          }
+          return;
+        }
+
+        if (f.id === 'pipe_pulled' || f.id === 'pipe_pulled_dry' || f.id === 'pipe_pulled_wet') {
+          const currentMode = arg.pipe_mode || (f.id === 'pipe_pulled_wet' ? 'wet' : 'dry');
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (currentMode === 'wet') {
+            const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Assumes wet pipe (pipe pulled full of fluid), no swab effect and a constant hole size. Actual pressure loss may be higher with swabbing. Fill the hole per the tripping procedure.</div>`;
+
+            if (typeof result === 'object' && result !== null && result.isValid) {
+              const volUnit = (currentSys === 'si') ? 'm³' : 'bbl';
+              const capUnit = (currentSys === 'si') ? 'L/m' : 'bbl/ft';
+              const lenUnit = (currentSys === 'si') ? 'm' : 'ft';
+              const pressUnit = (currentSys === 'si') ? 'bar' : 'psi';
+
+              const dispVol = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.displacedVolumeBbl, 'bbl', 'm3') : result.displacedVolumeBbl;
+              const caVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.casingCapacityBblFt, 'bbl/ft', 'L/m') : result.casingCapacityBblFt;
+              const annCapVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.annularCapacityBblFt, 'bbl/ft', 'L/m') : result.annularCapacityBblFt;
+              const levelDropVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.fluidLevelDropFt, 'ft', 'm') : result.fluidLevelDropFt;
+              const pressLossVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.pressureLossPsi, 'psi', 'bar') : result.pressureLossPsi;
+
+              const dispVolDisplay = dispVol.toFixed(2);
+              const caDisplay = caVal.toFixed(4);
+              const annCapDisplay = annCapVal.toFixed(4);
+              const levelDropDisplay = levelDropVal.toFixed(1);
+              const pressLossDisplay = pressLossVal.toFixed(1);
+
+              document.getElementById('calc-output-val').innerHTML = `${dispVolDisplay} <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+
+              if (arg.calc_disp_toggle) {
+                const dpVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.dp, 'bbl/ft', 'L/m') : result.dp;
+                const cpVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.cp, 'bbl/ft', 'L/m') : result.cp;
+                const inpDisp = document.getElementById('inp-disp');
+                const inpCap = document.getElementById('inp-cap');
+                if (inpDisp) {
+                  inpDisp.value = (currentSys === 'si') ? dpVal.toFixed(4) : result.dp.toFixed(6);
+                }
+                if (inpCap) {
+                  inpCap.value = (currentSys === 'si') ? cpVal.toFixed(4) : result.cp.toFixed(6);
+                }
+              }
+
+              if (detailsEl) {
+                const calcDispRowHtml = arg.calc_disp_toggle ? `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Calculated Displacement / Capacity</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.dp, 'bbl/ft', 'L/m') : result.dp).toFixed(4)} / ${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.cp, 'bbl/ft', 'L/m') : result.cp).toFixed(4)} ${capUnit}</span>
+                  </div>
+                ` : '';
+
+                const copyPayload = `Feet of Drill Pipe Pulled (Wet):\n` +
+                  `Length Pulled: ${arg.len} ft\n` +
+                  `Pipe Metal Displacement: ${arg.disp} bbl/ft\n` +
+                  `Pipe Capacity: ${arg.cap} bbl/ft\n` +
+                  `Casing / Hole ID: ${arg.casing_id} in\n` +
+                  `Mud Weight: ${arg.mw} ppg\n` +
+                  `---\n` +
+                  `Displaced Volume: ${dispVolDisplay} ${volUnit}\n` +
+                  `Casing Capacity: ${caDisplay} ${capUnit}\n` +
+                  `Annular Capacity: ${annCapDisplay} ${capUnit}\n` +
+                  `Fluid Level Drop: ${levelDropDisplay} ${lenUnit}\n` +
+                  `Hydrostatic Pressure Loss: ${pressLossDisplay} ${pressUnit}\n`;
+
+                detailsEl.innerHTML = `
+                  <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                    ${calcDispRowHtml}
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Casing Capacity</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${caDisplay} ${capUnit}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Annular Capacity</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${annCapDisplay} ${capUnit}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Fluid Level Drop</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${levelDropDisplay} ${lenUnit}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Hydrostatic Pressure Loss</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${pressLossDisplay} ${pressUnit}</span>
+                    </div>
+                  </div>
+                  ${footnoteHtml}
+                `;
+              }
+              return;
+            }
+
+            const evalRes = calcPipePulledWet({
+              len: arg.len,
+              disp: arg.disp,
+              cap: arg.cap,
+              calcDispToggle: arg.calc_disp_toggle,
+              od: arg.od,
+              id: arg.id,
+              casingId: arg.casing_id,
+              mw: arg.mw
+            });
+
+            let generalErrorMsg = '';
+            (evalRes.errors || []).forEach(e => {
+              const errEl = document.getElementById(`err-inp-${e.field}`);
+              const inpEl = document.getElementById(`inp-${e.field}`);
+              if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+              if (inpEl) inpEl.classList.add('has-error');
+              if (e.general) {
+                generalErrorMsg = e.message;
+              }
+            });
+
+            document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+            if (detailsEl) {
+              const errorBoxHtml = generalErrorMsg ? `
+                <div style="margin-top:8px; padding:8px 12px; border-radius:8px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.25); color:#DC2626; font-size:0.8rem; font-weight:600;">
+                  ${generalErrorMsg}
+                </div>
+              ` : '';
+              detailsEl.innerHTML = `
+                ${errorBoxHtml}
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          } else {
+            // Dry mode
+            const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Assumes dry pipe (pipe not filled with fluid), no swab effect and a constant hole size. Actual pressure loss may be higher with swabbing or partially plugged pipe. Fill the hole per the tripping procedure.</div>`;
+
+            if (typeof result === 'object' && result !== null && result.isValid) {
+              const volUnit = (currentSys === 'si') ? 'm³' : 'bbl';
+              const capUnit = (currentSys === 'si') ? 'L/m' : 'bbl/ft';
+              const lenUnit = (currentSys === 'si') ? 'm' : 'ft';
+              const pressUnit = (currentSys === 'si') ? 'bar' : 'psi';
+
+              const dispVol = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.displacedVolumeBbl, 'bbl', 'm3') : result.displacedVolumeBbl;
+              const caVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.casingCapacityBblFt, 'bbl/ft', 'L/m') : result.casingCapacityBblFt;
+              const levelDropVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.fluidLevelDropFt, 'ft', 'm') : result.fluidLevelDropFt;
+              const pressLossVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.pressureLossPsi, 'psi', 'bar') : result.pressureLossPsi;
+
+              const dispVolDisplay = dispVol.toFixed(2);
+              const caDisplay = caVal.toFixed(4);
+              const levelDropDisplay = levelDropVal.toFixed(1);
+              const pressLossDisplay = pressLossVal.toFixed(1);
+
+              document.getElementById('calc-output-val').innerHTML = `${dispVolDisplay} <span class="unit-lbl" id="calc-output-unit">${volUnit}</span>`;
+
+              if (arg.calc_disp_toggle) {
+                const dpVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.dp, 'bbl/ft', 'L/m') : result.dp;
+                const inpDisp = document.getElementById('inp-disp');
+                if (inpDisp) {
+                  inpDisp.value = (currentSys === 'si') ? dpVal.toFixed(4) : result.dp.toFixed(6);
+                }
+              }
+
+              if (detailsEl) {
+                const calcDispRowHtml = arg.calc_disp_toggle ? `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Calculated Displacement</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.dp, 'bbl/ft', 'L/m') : result.dp).toFixed(4)} ${capUnit}</span>
+                  </div>
+                ` : '';
+
+                const copyPayload = `Feet of Drill Pipe Pulled (Dry):\n` +
+                  `Length Pulled: ${arg.len} ft\n` +
+                  `Pipe Metal Displacement: ${arg.disp} bbl/ft\n` +
+                  `Casing / Hole ID: ${arg.casing_id} in\n` +
+                  `Mud Weight: ${arg.mw} ppg\n` +
+                  `---\n` +
+                  `Displaced Volume: ${dispVolDisplay} ${volUnit}\n` +
+                  `Casing Capacity: ${caDisplay} ${capUnit}\n` +
+                  `Fluid Level Drop: ${levelDropDisplay} ${lenUnit}\n` +
+                  `Hydrostatic Pressure Loss: ${pressLossDisplay} ${pressUnit}\n`;
+
+                detailsEl.innerHTML = `
+                  <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                    ${calcDispRowHtml}
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Casing Capacity</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${caDisplay} ${capUnit}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Fluid Level Drop</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${levelDropDisplay} ${lenUnit}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Hydrostatic Pressure Loss</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${pressLossDisplay} ${pressUnit}</span>
+                    </div>
+                  </div>
+                  ${footnoteHtml}
+                `;
+              }
+              return;
+            }
+
+            const evalRes = calcPipePulledDry({
+              len: arg.len,
+              disp: arg.disp,
+              calcDispToggle: arg.calc_disp_toggle,
+              od: arg.od,
+              id: arg.id,
+              casingId: arg.casing_id,
+              mw: arg.mw
+            });
+
+            let generalErrorMsg = '';
+            (evalRes.errors || []).forEach(e => {
+              const errEl = document.getElementById(`err-inp-${e.field}`);
+              const inpEl = document.getElementById(`inp-${e.field}`);
+              if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+              if (inpEl) inpEl.classList.add('has-error');
+              if (e.general) {
+                generalErrorMsg = e.message;
+              }
+            });
+
+            document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+            if (detailsEl) {
+              const errorBoxHtml = generalErrorMsg ? `
+                <div style="margin-top:8px; padding:8px 12px; border-radius:8px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.25); color:#DC2626; font-size:0.8rem; font-weight:600;">
+                  ${generalErrorMsg}
+                </div>
+              ` : '';
+              detailsEl.innerHTML = `
+                ${errorBoxHtml}
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+        }
+
+        if (f.id === 'dp_pulled_lose' || f.id === 'dp_pulled_lose_dry' || f.id === 'dp_pulled_lose_wet') {
+          const currentMode = arg.pipe_mode || (f.id === 'dp_pulled_lose_wet' ? 'wet' : 'dry');
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = (currentMode === 'wet')
+            ? `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Assumes wet pipe (pipe pulled full of fluid), constant hole size and no swab effect. Fill the hole per the well control and tripping procedure. Do not pull more than the operator limit.</div>`
+            : `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Assumes dry pipe (no fluid inside the string), constant hole size and no swab effect. Fill the hole per the well control and tripping procedure. Do not pull more than the operator limit.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const lenUnit = (currentSys === 'si') ? 'm' : 'ft';
+            const volUnit = (currentSys === 'si') ? 'm³' : 'bbl';
+            const capUnit = (currentSys === 'si') ? 'L/m' : 'bbl/ft';
+
+            const feetVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.feetPulled, 'ft', 'm') : result.feetPulled;
+            const levelDropVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.fluidLevelDropFt, 'ft', 'm') : result.fluidLevelDropFt;
+            const volDispVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.volumeDisplacedBbl, 'bbl', 'm3') : result.volumeDisplacedBbl;
+            const fillVolVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('volume', result.volumeToFillBbl, 'bbl', 'm3') : result.volumeToFillBbl;
+            const standsLengthVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.stands * result.standLengthFt, 'ft', 'm') : (result.stands * result.standLengthFt);
+
+            const feetDisplay = Math.round(feetVal).toLocaleString();
+            const levelDropDisplay = levelDropVal.toFixed(2);
+            const volDispDisplay = volDispVal.toFixed(2);
+            const fillVolDisplay = fillVolVal.toFixed(2);
+            const standsLengthDisplay = Math.round(standsLengthVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${feetDisplay} <span class="unit-lbl" id="calc-output-unit">${lenUnit}</span>`;
+
+            if (arg.calc_diam_toggle) {
+              const dpVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.pipeDisplacementBblFt, 'bbl/ft', 'L/m') : result.pipeDisplacementBblFt;
+              const caVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.casingCapacityBblFt, 'bbl/ft', 'L/m') : result.casingCapacityBblFt;
+              const inpDisp = document.getElementById('inp-disp');
+              const inpCcap = document.getElementById('inp-ccap');
+              if (inpDisp) {
+                inpDisp.value = (currentSys === 'si') ? dpVal.toFixed(4) : result.pipeDisplacementBblFt.toFixed(6);
+              }
+              if (inpCcap) {
+                inpCcap.value = (currentSys === 'si') ? caVal.toFixed(4) : result.casingCapacityBblFt.toFixed(6);
+              }
+              if (currentMode === 'wet' && result.pipeCapacityBblFt !== undefined) {
+                const cpVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.pipeCapacityBblFt, 'bbl/ft', 'L/m') : result.pipeCapacityBblFt;
+                const inpCap = document.getElementById('inp-cap');
+                if (inpCap) {
+                  inpCap.value = (currentSys === 'si') ? cpVal.toFixed(4) : result.pipeCapacityBblFt.toFixed(6);
+                }
+              }
+            }
+
+            if (detailsEl) {
+              let calcDiamRowHtml = '';
+              if (arg.calc_diam_toggle) {
+                if (currentMode === 'wet' && result.pipeCapacityBblFt !== undefined) {
+                  calcDiamRowHtml = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Calculated Ca / Dp / Cp</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.casingCapacityBblFt, 'bbl/ft', 'L/m') : result.casingCapacityBblFt).toFixed(4)} / ${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.pipeDisplacementBblFt, 'bbl/ft', 'L/m') : result.pipeDisplacementBblFt).toFixed(4)} / ${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.pipeCapacityBblFt, 'bbl/ft', 'L/m') : result.pipeCapacityBblFt).toFixed(4)} ${capUnit}</span>
+                    </div>
+                  `;
+                } else {
+                  calcDiamRowHtml = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Calculated Capacity / Displacement</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.casingCapacityBblFt, 'bbl/ft', 'L/m') : result.casingCapacityBblFt).toFixed(4)} / ${((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('capacity', result.pipeDisplacementBblFt, 'bbl/ft', 'L/m') : result.pipeDisplacementBblFt).toFixed(4)} ${capUnit}</span>
+                    </div>
+                  `;
+                }
+              }
+
+              const dryComparisonHtml = (currentMode === 'wet' && result.feetPulledDry !== null && Number.isFinite(result.feetPulledDry)) ? `
+                <div style="margin-top:6px; padding:6px 10px; border-radius:6px; background:rgba(59, 130, 246, 0.08); font-size:0.8rem; color:var(--text-secondary);">
+                  Same pipe pulled dry would allow <strong style="color:var(--text-primary);">${Math.round((currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.feetPulledDry, 'ft', 'm') : result.feetPulledDry).toLocaleString()} ${lenUnit}</strong>
+                </div>
+              ` : '';
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  ${calcDiamRowHtml}
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Fluid Level Drop</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${levelDropDisplay} ${lenUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Volume Displaced</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${volDispDisplay} ${volUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Full Stands to Pull</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.stands} stands (${standsLengthDisplay} ${lenUnit})</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Volume to Fill (after stands)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${fillVolDisplay} ${volUnit}</span>
+                  </div>
+                  ${dryComparisonHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = (currentMode === 'wet')
+            ? calcDrillPipePulledLoseWet({
+                drop: arg.drop,
+                mw: arg.mw,
+                disp: arg.disp,
+                cap: arg.cap,
+                ccap: arg.ccap,
+                standLen: arg.stand_len,
+                calcDiamToggle: arg.calc_diam_toggle,
+                casingId: arg.casing_id,
+                od: arg.od,
+                id: arg.id
+              })
+            : calcDrillPipePulledLoseDry({
+                drop: arg.drop,
+                mw: arg.mw,
+                disp: arg.disp,
+                ccap: arg.ccap,
+                standLen: arg.stand_len,
+                calcDiamToggle: arg.calc_diam_toggle,
+                casingId: arg.casing_id,
+                od: arg.od,
+                id: arg.id
+              });
+
+          let generalErrorMsg = '';
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+            if (e.general) {
+              generalErrorMsg = e.message;
+            }
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            const errorBoxHtml = generalErrorMsg ? `
+              <div style="margin-top:8px; padding:8px 12px; border-radius:8px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.25); color:#DC2626; font-size:0.8rem; font-weight:600;">
+                ${generalErrorMsg}
+              </div>
+            ` : '';
+            detailsEl.innerHTML = `
+              ${errorBoxHtml}
+              ${footnoteHtml}
+            `;
+          }
+          return;
+        }
+
+        if (f.id === 'neutral_point') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Assumes vertical well, straight hole, and continuous uniform collar weight. Screening calculation. Verify against operator procedures and equipment ratings.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const lenUnit = (currentSys === 'si') ? 'm' : 'ft';
+            const wtUnit = (currentSys === 'si') ? 'kg/m' : 'lb/ft';
+
+            const npVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.npFt, 'ft', 'm') : result.npFt;
+            const buoyedWtVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('weight_per_length', result.buoyedDcWt, 'lb/ft', 'kg/m') : result.buoyedDcWt;
+
+            const npDisplay = Math.round(npVal).toLocaleString();
+            const bfDisplay = result.bf.toFixed(4);
+            const buoyedWtDisplay = buoyedWtVal.toFixed(2);
+
+            document.getElementById('calc-output-val').innerHTML = `${npDisplay} <span class="unit-lbl" id="calc-output-unit">${lenUnit}</span>`;
+
+            if (detailsEl) {
+              let statusChipHtml = '';
+              if (result.status === 'OK') {
+                statusChipHtml = `
+                  <div style="margin-top:8px; padding:6px 12px; border-radius:12px; background:rgba(34, 197, 94, 0.12); color:#16A34A; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                    <span style="font-size:1rem;">✓</span> ${result.statusMsg}
+                  </div>
+                `;
+              } else if (result.status === 'Warning') {
+                statusChipHtml = `
+                  <div style="margin-top:8px; padding:8px 12px; border-radius:12px; background:rgba(239, 68, 68, 0.12); border:1px solid rgba(239, 68, 68, 0.25); color:#DC2626; font-size:0.8rem; font-weight:600; line-height:1.4;">
+                    ⚠ ${result.statusMsg}
+                  </div>
+                `;
+              }
+
+              const copyPayload = `Neutral Point Calculation:\n` +
+                `Weight on Bit: ${arg.wob} lb\n` +
+                `BHA Weight: ${arg.dc_wt} lb/ft\n` +
+                `Mud Weight: ${arg.mw} ppg\n` +
+                (arg.bha_len ? `BHA Length: ${arg.bha_len} ft\n` : '') +
+                `---\n` +
+                `Neutral Point: ${npDisplay} ${lenUnit} (${result.npFt.toFixed(2)} ft)\n` +
+                `Buoyancy Factor: ${bfDisplay}\n` +
+                `Buoyed BHA Weight: ${buoyedWtDisplay} ${wtUnit}\n` +
+                (result.statusMsg ? `Status: ${result.statusMsg}\n` : '');
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Buoyancy Factor</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${bfDisplay}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Buoyed BHA Weight</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${buoyedWtDisplay} ${wtUnit}</span>
+                  </div>
+                  ${statusChipHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcNeutralPoint({
+            wob: arg.wob,
+            dc_wt: arg.dc_wt,
+            mw: arg.mw,
+            bha_len: arg.bha_len
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'tensile_cap') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">New pipe body yield. Worn pipe, tool joints, bending stress and dynamic loads reduce allowable tension. Screening calculation. Verify against operator procedures and equipment ratings.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const forceUnit = (currentSys === 'si') ? 'daN' : 'lb';
+            const capVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.capacityLb, 'lbf', 'daN') : result.capacityLb;
+            const allowVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.allowableTensionLb, 'lbf', 'daN') : result.allowableTensionLb;
+
+            const capDisplay = Math.round(capVal).toLocaleString();
+            const allowDisplay = Math.round(allowVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${allowDisplay} <span class="unit-lbl" id="calc-output-unit">${forceUnit}</span>`;
+
+            if (arg.calc_area_toggle) {
+              const inpArea = document.getElementById('inp-area');
+              if (inpArea) {
+                inpArea.value = result.areaSqIn.toFixed(4);
+              }
+            }
+
+            if (detailsEl) {
+              let utilizationRowHtml = '';
+              if (result.utilizationPct !== null) {
+                let chipStyle = 'background:rgba(34, 197, 94, 0.12); color:#16A34A;';
+                if (result.status === 'Caution') {
+                  chipStyle = 'background:rgba(245, 158, 11, 0.12); color:#D97706; border:1px solid rgba(245, 158, 11, 0.25);';
+                } else if (result.status === 'Warning') {
+                  chipStyle = 'background:rgba(239, 68, 68, 0.12); color:#DC2626; border:1px solid rgba(239, 68, 68, 0.25);';
+                }
+                utilizationRowHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Utilization %</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.utilizationPct.toFixed(1)}%</span>
+                  </div>
+                  <div style="margin-top:4px; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; ${chipStyle}">
+                    ${result.status === 'OK' ? '✓' : (result.status === 'Caution' ? '⚠' : '⛔')} ${result.statusMsg}
+                  </div>
+                `;
+              }
+
+              const copyPayload = `Tensile Capacity of Drill String:\n` +
+                `Yield Strength: ${arg.ys} psi\n` +
+                (arg.calc_area_toggle ? `OD: ${arg.od} in, ID: ${arg.id} in, Calc Area: ${result.areaSqIn.toFixed(4)} sq in\n` : `Cross-Section Area: ${arg.area} sq in\n`) +
+                `Design Factor: ${result.designFactor}\n` +
+                (result.hookLoadLb !== null ? `Hook Load: ${result.hookLoadLb} lb\n` : '') +
+                `---\n` +
+                `Allowable Tension: ${allowDisplay} ${forceUnit}\n` +
+                `Nominal Tensile Capacity: ${capDisplay} ${forceUnit}\n` +
+                `Cross-Sectional Area: ${result.areaSqIn.toFixed(4)} sq in\n` +
+                (result.utilizationPct !== null ? `Utilization: ${result.utilizationPct.toFixed(1)}% (${result.status})\n` : '');
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Nominal Tensile Capacity</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${capDisplay} ${forceUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Cross-Sectional Area</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.areaSqIn.toFixed(4)} sq in</span>
+                  </div>
+                  ${utilizationRowHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcTensileCapacity({
+            ys: arg.ys,
+            area: arg.area,
+            df: arg.df,
+            calcAreaToggle: arg.calc_area_toggle,
+            od: arg.od,
+            id: arg.id,
+            hook_load: arg.hook_load
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'dc_wt_vert') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Vertical hole only. Collar weight provides 100% of WOB plus safety margin. Buoyancy uses 65.5 ppg steel density. Screening calculation. Verify against operator procedures and equipment ratings.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const forceUnit = (currentSys === 'si') ? 'daN' : 'lb';
+            const wtVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.collarWeightLb, 'lbf', 'daN') : result.collarWeightLb;
+            const wtDisplay = Math.round(wtVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${wtDisplay} <span class="unit-lbl" id="calc-output-unit">${forceUnit}</span>`;
+
+            if (arg.calc_bf_toggle) {
+              const inpBf = document.getElementById('inp-bf');
+              if (inpBf) {
+                inpBf.value = result.bf.toFixed(4);
+              }
+            }
+
+            if (detailsEl) {
+              let collarSizeHtml = '';
+              if (result.collarLengthFt !== null) {
+                const lenUnit = (currentSys === 'si') ? 'm' : 'ft';
+                const lenVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.collarLengthFt, 'ft', 'm') : result.collarLengthFt;
+                const lenDisplay = Math.round(lenVal).toLocaleString();
+                const chipStyle = 'background:rgba(34, 197, 94, 0.12); color:#16A34A;';
+
+                collarSizeHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Required Collar Length</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${lenDisplay} ${lenUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Collar Joints Needed</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.jointsNeeded} joints (${result.jointLen} ft/joint)</span>
+                  </div>
+                  <div style="margin-top:4px; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; ${chipStyle}">
+                    ✓ ${result.statusMsg}
+                  </div>
+                `;
+              }
+
+              const copyPayload = `Drill Collar Weight for Vertical Wells:\n` +
+                `Required WOB: ${arg.wob} lb\n` +
+                `Safety Factor: ${result.sf}\n` +
+                (arg.calc_bf_toggle ? `Mud Weight: ${arg.mw} ppg, Calc BF: ${result.bf.toFixed(4)}\n` : `Buoyancy Factor: ${result.bf.toFixed(4)}\n`) +
+                (result.dcWtFt !== null ? `DC Weight: ${result.dcWtFt} lb/ft, Joint Length: ${result.jointLen} ft\n` : '') +
+                `---\n` +
+                `Required Collar Weight: ${wtDisplay} ${forceUnit}\n` +
+                (result.collarLengthFt !== null ? `Collar Length: ${Math.round(result.collarLengthFt).toLocaleString()} ft (${result.jointsNeeded} joints)\n` : '');
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Buoyancy Factor</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.bf.toFixed(4)}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Safety Factor</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.sf.toFixed(2)}</span>
+                  </div>
+                  ${collarSizeHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcDcWeightVertical({
+            wob: arg.wob,
+            bf: arg.bf,
+            sf: arg.sf,
+            calcBfToggle: arg.calc_bf_toggle,
+            mw: arg.mw,
+            dc_wt_ft: arg.dc_wt_ft,
+            joint_len: arg.joint_len
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'dc_wt_dev') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Simple cosine model. Ignores hole drag, tortuosity and pipe stiffness. At high inclination, friction often prevents collars from transferring weight to the bit. Screening calculation. Verify against torque and drag simulation.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const forceUnit = (currentSys === 'si') ? 'daN' : 'lb';
+            const devVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.deviatedWeightLb, 'lbf', 'daN') : result.deviatedWeightLb;
+            const vertVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.effectiveVertWt, 'lbf', 'daN') : result.effectiveVertWt;
+            const incVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.increaseLb, 'lbf', 'daN') : result.increaseLb;
+
+            const devDisplay = Math.round(devVal).toLocaleString();
+            const vertDisplay = Math.round(vertVal).toLocaleString();
+            const incDisplay = Math.round(incVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${devDisplay} <span class="unit-lbl" id="calc-output-unit">${forceUnit}</span>`;
+
+            if (detailsEl) {
+              let chipHtml = '';
+              if (result.status === 'Warning') {
+                chipHtml = `
+                  <div style="margin-top:4px; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; background:rgba(239, 68, 68, 0.12); color:#DC2626; border:1px solid rgba(239, 68, 68, 0.25);">
+                    ⚠️ ${result.statusMsg}
+                  </div>
+                `;
+              } else if (result.status === 'OK') {
+                chipHtml = `
+                  <div style="margin-top:4px; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; background:rgba(34, 197, 94, 0.12); color:#16A34A;">
+                    ✓ ${result.statusMsg}
+                  </div>
+                `;
+              }
+
+              const copyPayload = `Drill Collar Weight for Deviated Wells:\n` +
+                (arg.calc_wob_toggle ? `WOB: ${arg.wob} lb, BF: ${arg.bf}, SF: ${arg.sf}\n` : '') +
+                `Vertical Collar Weight: ${vertDisplay} ${forceUnit}\n` +
+                `Inclination Angle: ${result.angleDeg}°\n` +
+                `---\n` +
+                `Deviated Collar Weight: ${devDisplay} ${forceUnit}\n` +
+                `Weight Increase: +${incDisplay} ${forceUnit} (+${result.increasePct.toFixed(1)}%)\n`;
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Vertical DC Weight</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${vertDisplay} ${forceUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Increase vs Vertical</span>
+                    <span style="font-weight:600; color:var(--text-primary);">+${incDisplay} ${forceUnit} (+${result.increasePct.toFixed(1)}%)</span>
+                  </div>
+                  ${chipHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcDcWeightDeviated({
+            vertWt: arg.vertWt,
+            angle: arg.angle,
+            calcFromWobToggle: arg.calc_wob_toggle,
+            wob: arg.wob,
+            bf: arg.bf,
+            sf: arg.sf
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'overpull_margin') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Use the tensile rating of the weakest component, including tool joints and dynamic loads. Static loads only. Screening calculation. Verify against operator procedures and equipment ratings.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const forceUnit = (currentSys === 'si') ? 'daN' : 'lb';
+            const mopVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.marginWithDfLb, 'lbf', 'daN') : result.marginWithDfLb;
+            const yieldVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.marginToYieldLb, 'lbf', 'daN') : result.marginToYieldLb;
+
+            const mopDisplay = Math.round(mopVal).toLocaleString();
+            const yieldDisplay = Math.round(yieldVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${mopDisplay} <span class="unit-lbl" id="calc-output-unit">${forceUnit}</span>`;
+
+            if (detailsEl) {
+              let chipStyle = 'background:rgba(34, 197, 94, 0.12); color:#16A34A;';
+              let chipIcon = '✓';
+              if (result.status === 'Caution') {
+                chipStyle = 'background:rgba(245, 158, 11, 0.12); color:#D97706; border:1px solid rgba(245, 158, 11, 0.25);';
+                chipIcon = '⚠️';
+              } else if (result.status === 'Warning') {
+                chipStyle = 'background:rgba(239, 68, 68, 0.12); color:#DC2626; border:1px solid rgba(239, 68, 68, 0.25);';
+                chipIcon = '⛔';
+              }
+
+              const copyPayload = `Margin of Overpull in Drillstring:\n` +
+                `Tensile Strength: ${arg.ts} lb\n` +
+                `String Weight: ${arg.wt} lb\n` +
+                `Design Factor: ${result.designFactor}\n` +
+                `---\n` +
+                `Margin with Design Factor: ${mopDisplay} ${forceUnit}\n` +
+                `Margin to Yield: ${yieldDisplay} ${forceUnit}\n` +
+                `Weight % of Tensile: ${result.weightPctOfTensile.toFixed(1)}%\n` +
+                `Status: ${result.statusMsg}\n`;
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Margin to Yield</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${yieldDisplay} ${forceUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">String Weight of Tensile</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.weightPctOfTensile.toFixed(1)}%</span>
+                  </div>
+                  <div style="margin-top:4px; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; ${chipStyle}">
+                    ${chipIcon} ${result.statusMsg}
+                  </div>
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcMarginOfOverpull({
+            ts: arg.ts,
+            wt: arg.wt,
+            df: arg.df
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'eff_mud_dens') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Annular pressure loss only. Cuttings loading, surge/swab and temperature variations increase effective ECD. Screening calculation. Verify against hydraulics model and leak-off test.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const densUnit = (currentSys === 'si') ? 'kg/m³' : 'ppg';
+            const pressUnit = (currentSys === 'si') ? 'kPa' : 'psi';
+
+            const ecdVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('density', result.ecdPpg, 'ppg', 'kg/m3') : result.ecdPpg;
+            const incVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('density', result.ecdIncreasePpg, 'ppg', 'kg/m3') : result.ecdIncreasePpg;
+            const staticBhp = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.staticBhpPsi, 'psi', 'kPa') : result.staticBhpPsi;
+            const circBhp = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.circBhpPsi, 'psi', 'kPa') : result.circBhpPsi;
+
+            const ecdDisplay = ecdVal.toFixed(2);
+            const incDisplay = incVal.toFixed(2);
+            const staticBhpDisplay = Math.round(staticBhp).toLocaleString();
+            const circBhpDisplay = Math.round(circBhp).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${ecdDisplay} <span class="unit-lbl" id="calc-output-unit">${densUnit}</span>`;
+
+            if (detailsEl) {
+              let fgDetailsHtml = '';
+              if (result.fractureGradient !== null) {
+                let chipStyle = 'background:rgba(34, 197, 94, 0.12); color:#16A34A;';
+                let chipIcon = '✓';
+                if (result.status === 'Caution') {
+                  chipStyle = 'background:rgba(245, 158, 11, 0.12); color:#D97706; border:1px solid rgba(245, 158, 11, 0.25);';
+                  chipIcon = '⚠️';
+                } else if (result.status === 'Warning') {
+                  chipStyle = 'background:rgba(239, 68, 68, 0.12); color:#DC2626; border:1px solid rgba(239, 68, 68, 0.25);';
+                  chipIcon = '⛔';
+                }
+
+                const maxEcdVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('density', result.maxAllowableEcdPpg, 'ppg', 'kg/m3') : result.maxAllowableEcdPpg;
+                const marginVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('density', result.marginPpg, 'ppg', 'kg/m3') : result.marginPpg;
+
+                fgDetailsHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Max Allowable ECD</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${maxEcdVal.toFixed(2)} ${densUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Margin to Losses</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${marginVal.toFixed(2)} ${densUnit}</span>
+                  </div>
+                  <div style="margin-top:4px; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; ${chipStyle}">
+                    ${chipIcon} ${result.statusMsg}
+                  </div>
+                `;
+              }
+
+              const copyPayload = `Equivalent Circulating Density (ECD):\n` +
+                `Static Mud Weight: ${arg.mw} ppg\n` +
+                `Annular Pressure Loss: ${arg.apl} psi\n` +
+                `TVD: ${arg.tvd} ft\n` +
+                (result.fractureGradient !== null ? `Fracture Gradient: ${result.fractureGradient} psi/ft\n` : '') +
+                `---\n` +
+                `ECD: ${ecdDisplay} ${densUnit}\n` +
+                `ECD Increase: +${incDisplay} ${densUnit}\n` +
+                `Static BHP: ${staticBhpDisplay} ${pressUnit}\n` +
+                `Circulating BHP: ${circBhpDisplay} ${pressUnit}\n` +
+                (result.fractureGradient !== null ? `Max Allowable ECD: ${result.maxAllowableEcdPpg.toFixed(2)} ppg, Margin: ${result.marginPpg.toFixed(2)} ppg (${result.status})\n` : '');
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">ECD Increase</span>
+                    <span style="font-weight:600; color:var(--text-primary);">+${incDisplay} ${densUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Static Bottomhole Pressure</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${staticBhpDisplay} ${pressUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Circulating BHP</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${circBhpDisplay} ${pressUnit}</span>
+                  </div>
+                  ${fgDetailsHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcEquivalentCirculatingDensity({
+            mw: arg.mw,
+            apl: arg.apl,
+            tvd: arg.tvd,
+            fg: arg.fg
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'ds_weight' || f.id === 'ds_weight_air' || f.id === 'ds_weight_mud') {
+          const currentMode = arg.calc_mode || (f.id === 'ds_weight_mud' ? 'in_mud' : 'in_air');
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          if (currentMode === 'in_mud') {
+            const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Assumes uniform mud weight and steel drillstring (65.5 ppg). Screening calculation. Verify against API/manufacturer data and operator procedures.</div>`;
+
+            if (typeof result === 'object' && result !== null && result.isValid) {
+              const wtUnit = (currentSys === 'si') ? 'daN' : 'lb';
+
+              const buoyedWt = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.buoyedWeightLb, 'lbf', 'daN') : result.buoyedWeightLb;
+              const lossWt = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.buoyancyLossLb, 'lbf', 'daN') : result.buoyancyLossLb;
+
+              const buoyedWtDisplay = Math.round(buoyedWt).toLocaleString();
+              const lossWtDisplay = Math.round(lossWt).toLocaleString();
+              const bfDisplay = result.buoyancyFactor.toFixed(4);
+
+              document.getElementById('calc-output-val').innerHTML = `${buoyedWtDisplay} <span class="unit-lbl" id="calc-output-unit">${wtUnit}</span>`;
+
+              if (detailsEl) {
+                const copyPayload = `Drill String Weight in Mud:\n` +
+                  `Air Weight: ${arg.wt_air} lb\n` +
+                  `Mud Weight: ${arg.mw} ppg\n` +
+                  `---\n` +
+                  `Buoyed Weight: ${buoyedWtDisplay} ${wtUnit}\n` +
+                  `Buoyancy Factor: ${bfDisplay}\n` +
+                  `Buoyancy Weight Loss: ${lossWtDisplay} ${wtUnit}\n`;
+
+                detailsEl.innerHTML = `
+                  <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Buoyancy Factor</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${bfDisplay}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Weight Loss from Buoyancy</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${lossWtDisplay} ${wtUnit}</span>
+                    </div>
+                  </div>
+                  ${footnoteHtml}
+                `;
+              }
+              return;
+            }
+
+            const evalRes = calcDrillStringWeightMud({
+              wt_air: arg.wt_air,
+              mw: arg.mw
+            });
+
+            (evalRes.errors || []).forEach(e => {
+              const errEl = document.getElementById(`err-inp-${e.field}`);
+              const inpEl = document.getElementById(`inp-${e.field}`);
+              if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+              if (inpEl) inpEl.classList.add('has-error');
+            });
+
+            document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+            if (detailsEl) {
+              detailsEl.innerHTML = `${footnoteHtml}`;
+            }
+            return;
+          } else {
+            // In Air
+            const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Use adjusted weight including tool joints. Straight hole assumed. Screening calculation. Verify against API/manufacturer data and operator procedures.</div>`;
+
+            if (typeof result === 'object' && result !== null && result.isValid) {
+              const wtUnit = (currentSys === 'si') ? 'daN' : 'lb';
+              const lenUnit = (currentSys === 'si') ? 'm' : 'ft';
+
+              const totalWt = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.totalWeightLb, 'lbf', 'daN') : result.totalWeightLb;
+              const dpWt = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.dpWeightLb, 'lbf', 'daN') : result.dpWeightLb;
+              const hwdpWt = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.hwdpWeightLb, 'lbf', 'daN') : result.hwdpWeightLb;
+              const dcWt = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.dcWeightLb, 'lbf', 'daN') : result.dcWeightLb;
+              const totalLen = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.totalLengthFt, 'ft', 'm') : result.totalLengthFt;
+
+              const totalWtDisplay = Math.round(totalWt).toLocaleString();
+              const dpWtDisplay = Math.round(dpWt).toLocaleString();
+              const hwdpWtDisplay = Math.round(hwdpWt).toLocaleString();
+              const dcWtDisplay = Math.round(dcWt).toLocaleString();
+              const totalLenDisplay = Math.round(totalLen).toLocaleString();
+
+              document.getElementById('calc-output-val').innerHTML = `${totalWtDisplay} <span class="unit-lbl" id="calc-output-unit">${wtUnit}</span>`;
+
+              if (detailsEl) {
+                const copyPayload = `Drill String Weight in Air:\n` +
+                  `Drill Pipe: ${arg.dp_len} ft @ ${arg.dp_wt} lb/ft\n` +
+                  `HWDP: ${arg.hwdp_len} ft @ ${arg.hwdp_wt} lb/ft\n` +
+                  `Drill Collars: ${arg.dc_len} ft @ ${arg.dc_wt} lb/ft\n` +
+                  `---\n` +
+                  `Total String Weight: ${totalWtDisplay} ${wtUnit}\n` +
+                  `Drill Pipe: ${dpWtDisplay} ${wtUnit} (${result.dpPct.toFixed(1)}%)\n` +
+                  `HWDP: ${hwdpWtDisplay} ${wtUnit} (${result.hwdpPct.toFixed(1)}%)\n` +
+                  `Drill Collars: ${dcWtDisplay} ${wtUnit} (${result.dcPct.toFixed(1)}%)\n` +
+                  `Total Length: ${totalLenDisplay} ${lenUnit}\n`;
+
+                detailsEl.innerHTML = `
+                  <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Drill Pipe Weight</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${dpWtDisplay} ${wtUnit} <span style="font-weight:400; color:var(--text-secondary);">(${result.dpPct.toFixed(1)}%)</span></span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">HWDP Weight</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${hwdpWtDisplay} ${wtUnit} <span style="font-weight:400; color:var(--text-secondary);">(${result.hwdpPct.toFixed(1)}%)</span></span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Drill Collar Weight</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${dcWtDisplay} ${wtUnit} <span style="font-weight:400; color:var(--text-secondary);">(${result.dcPct.toFixed(1)}%)</span></span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                      <span style="color:var(--text-secondary);">Total String Length</span>
+                      <span style="font-weight:600; color:var(--text-primary);">${totalLenDisplay} ${lenUnit}</span>
+                    </div>
+                  </div>
+                  ${footnoteHtml}
+                `;
+              }
+              return;
+            }
+
+            const evalRes = calcDrillStringWeightAir({
+              dp_len: arg.dp_len,
+              dp_wt: arg.dp_wt,
+              hwdp_len: arg.hwdp_len,
+              hwdp_wt: arg.hwdp_wt,
+              dc_len: arg.dc_len,
+              dc_wt: arg.dc_wt
+            });
+
+            (evalRes.errors || []).forEach(e => {
+              const errEl = document.getElementById(`err-inp-${e.field}`);
+              const inpEl = document.getElementById(`inp-${e.field}`);
+              if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+              if (inpEl) inpEl.classList.add('has-error');
+            });
+
+            document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+            if (detailsEl) {
+              detailsEl.innerHTML = `${footnoteHtml}`;
+            }
+            return;
+          }
+        }
+
+        if (f.id === 'buckling_load') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Vertical wells only. Deviated wells need a Dawson-Paslay or torque and drag analysis. Screening calculation. Verify against API/manufacturer data and operator procedures.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const forceUnit = (currentSys === 'si') ? 'daN' : 'lb';
+            const fcrVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.criticalLoadLb, 'lbf', 'daN') : result.criticalLoadLb;
+            const fcrDisplay = Math.round(fcrVal).toLocaleString();
+
+            document.getElementById('calc-output-val').innerHTML = `${fcrDisplay} <span class="unit-lbl" id="calc-output-unit">${forceUnit}</span>`;
+
+            if (detailsEl) {
+              let compDetailsHtml = '';
+              if (result.compressiveLoadLb !== null) {
+                let chipStyle = 'background:rgba(34, 197, 94, 0.12); color:#16A34A;';
+                let chipIcon = '✓';
+                if (result.status === 'Caution') {
+                  chipStyle = 'background:rgba(245, 158, 11, 0.12); color:#D97706; border:1px solid rgba(245, 158, 11, 0.25);';
+                  chipIcon = '⚠️';
+                } else if (result.status === 'Warning') {
+                  chipStyle = 'background:rgba(239, 68, 68, 0.12); color:#DC2626; border:1px solid rgba(239, 68, 68, 0.25);';
+                  chipIcon = '⛔';
+                }
+
+                const compVal = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('force', result.compressiveLoadLb, 'lbf', 'daN') : result.compressiveLoadLb;
+
+                compDetailsHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Compressive Load</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${Math.round(compVal).toLocaleString()} ${forceUnit} (${result.utilizationPct.toFixed(1)}% of Fcr)</span>
+                  </div>
+                  <div style="margin-top:4px; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; ${chipStyle}">
+                    ${chipIcon} ${result.statusMsg}
+                  </div>
+                `;
+              }
+
+              const copyPayload = `Critical Buckling Load (Vertical Well, Lubinski):\n` +
+                `Pipe OD: ${arg.od} in, ID: ${arg.id} in\n` +
+                `Buoyed Weight: ${arg.wt_mud} lb/ft\n` +
+                (result.compressiveLoadLb !== null ? `Compressive Load: ${arg.comp_load} lb\n` : '') +
+                `---\n` +
+                `Critical Buckling Load (Fcr): ${fcrDisplay} ${forceUnit}\n` +
+                `Moment of Inertia (I): ${result.momentOfInertiaIn4.toFixed(2)} in⁴\n` +
+                `Distributed Weight (w): ${result.buoyedWeightLbPerIn.toFixed(4)} lb/in\n` +
+                (result.compressiveLoadLb !== null ? `Status: ${result.statusMsg}\n` : '');
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Moment of Inertia (I)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.momentOfInertiaIn4.toFixed(2)} in⁴</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Distributed Buoyed Weight (w)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.buoyedWeightLbPerIn.toFixed(4)} lb/in</span>
+                  </div>
+                  ${compDetailsHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcCriticalBucklingLoad({
+            od: arg.od,
+            id: arg.id,
+            wt_mud: arg.wt_mud,
+            comp_load: arg.comp_load
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'burst_pressure') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `<div style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; font-style:italic;">Barlow equation assuming thin-wall cylinder. API 5CT/5D applies 12.5% manufacturing wall thickness tolerance (0.875 factor). Screening calculation. Verify against API/manufacturer data and operator procedures.</div>`;
+
+          if (typeof result === 'object' && result !== null && result.isValid) {
+            const pressUnit = (currentSys === 'si') ? 'kPa' : 'psi';
+            const lenUnit = (currentSys === 'si') ? 'mm' : 'in';
+
+            const mainPress = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.mainBurstPsi, 'psi', 'kPa') : result.mainBurstPsi;
+            const barlowPress = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.barlowNominalPsi, 'psi', 'kPa') : result.barlowNominalPsi;
+            const apiPress = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.apiBurstPsi, 'psi', 'kPa') : result.apiBurstPsi;
+            const wallThick = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('length', result.effectiveWallIn, 'in', 'mm') : result.effectiveWallIn;
+
+            const mainDisplay = Math.round(mainPress).toLocaleString();
+            const barlowDisplay = Math.round(barlowPress).toLocaleString();
+            const apiDisplay = Math.round(apiPress).toLocaleString();
+            const wallDisplay = wallThick.toFixed(3);
+
+            document.getElementById('calc-output-val').innerHTML = `${mainDisplay} <span class="unit-lbl" id="calc-output-unit">${pressUnit}</span>`;
+
+            if (detailsEl) {
+              const secondaryRowHtml = result.applyTolerance
+                ? `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Barlow (nominal, 100% wall)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${barlowDisplay} ${pressUnit}</span>
+                  </div>
+                `
+                : `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">API 5CT/5D (0.875 tolerance)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${apiDisplay} ${pressUnit}</span>
+                  </div>
+                `;
+
+              let dfRowHtml = '';
+              if (result.allowableBurstPsi !== null) {
+                const allowPress = (currentSys === 'si' && window.UnitsEngine) ? window.UnitsEngine.convert('pressure', result.allowableBurstPsi, 'psi', 'kPa') : result.allowableBurstPsi;
+                dfRowHtml = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Allowable Burst (DF ${result.designFactor})</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${Math.round(allowPress).toLocaleString()} ${pressUnit}</span>
+                  </div>
+                `;
+              }
+
+              const wallRowHtml = (result.wallPct < 100)
+                ? `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Remaining Wall Thickness</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.wallPct}% (${wallDisplay} ${lenUnit})</span>
+                  </div>
+                `
+                : `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                    <span style="color:var(--text-secondary);">Nominal Wall Thickness</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${wallDisplay} ${lenUnit}</span>
+                  </div>
+                `;
+
+              const copyPayload = `Burst Pressure Rating:\n` +
+                `Yield Strength: ${arg.yield} psi\n` +
+                `OD: ${arg.od} in, ID: ${arg.id} in\n` +
+                `API 0.875 Tolerance Factor: ${result.applyTolerance ? 'ON' : 'OFF'}\n` +
+                (result.wallPct < 100 ? `Remaining Wall: ${result.wallPct}%\n` : '') +
+                (result.designFactor !== null ? `Design Factor: ${result.designFactor}\n` : '') +
+                `---\n` +
+                `Main Burst Pressure: ${mainDisplay} ${pressUnit}\n` +
+                `Barlow (nominal): ${barlowDisplay} ${pressUnit}\n` +
+                `API (0.875): ${apiDisplay} ${pressUnit}\n` +
+                `Wall Thickness: ${wallDisplay} ${lenUnit}\n` +
+                (result.allowableBurstPsi !== null ? `Allowable Burst (DF ${result.designFactor}): ${Math.round(result.allowableBurstPsi).toLocaleString()} psi\n` : '');
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  ${secondaryRowHtml}
+                  ${wallRowHtml}
+                  ${dfRowHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcBurstPressureRating({
+            yield: arg.yield,
+            od: arg.od,
+            id: arg.id,
+            api_tol_toggle: arg.api_tol_toggle,
+            wall_pct: arg.wall_pct,
+            df: arg.df
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'collapse_pressure') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `
+            <div style="margin-top:14px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; border-top:1px dashed var(--border-subtle); padding-top:8px;">
+              API 5C3 minimum collapse for nominal dimensions, no axial load or internal pressure correction. Screening calculation. Verify against API/manufacturer data and operator procedures.
+            </div>
+          `;
+
+          if (result && typeof result === 'object' && result.isValid) {
+            let collapseVal = result.collapsePsi;
+            let displayUnit = outUnit;
+            if (currentSys === 'si' && outQ && window.UnitsEngine) {
+              collapseVal = window.UnitsEngine.convert(outQ.type, collapseVal, outQ.native, outQ.si);
+              displayUnit = adaptUnitToSI(f.unit);
+            }
+            const formattedVal = Math.round(collapseVal).toLocaleString();
+            document.getElementById('calc-output-val').innerHTML = `${formattedVal} <span class="unit-lbl" id="calc-output-unit">${displayUnit}</span>`;
+
+            if (detailsEl) {
+              const copyPayload = `Collapse Pressure: ${formattedVal} ${displayUnit} (${result.regime} Regime)\nD/t Ratio: ${result.dOverT.toFixed(2)}\nRegime Limits: Yield/Plastic=${result.yieldPlasticLimit.toFixed(2)}, Plastic/Transition=${result.plasticTransitionLimit.toFixed(2)}, Transition/Elastic=${result.transitionElasticLimit.toFixed(2)}`;
+
+              const wallRowHtml = (result.wallPct !== 100)
+                ? `<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                     <span>Effective Wall (${result.wallPct}%)</span>
+                     <span style="font-weight:600; color:var(--text-primary);">${result.effectiveWallIn.toFixed(4)} in</span>
+                   </div>`
+                : `<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                     <span>Nominal Wall Thickness</span>
+                     <span style="font-weight:600; color:var(--text-primary);">${result.nominalWallIn.toFixed(3)} in</span>
+                   </div>`;
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Collapse Regime</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.regime} Regime</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>D/t Ratio</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.dOverT.toFixed(2)}</span>
+                  </div>
+                  ${wallRowHtml}
+                  <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-muted, #888);">
+                    <span>Regime Limits (D/t)</span>
+                    <span>Y/P: ${result.yieldPlasticLimit.toFixed(1)} | P/T: ${result.plasticTransitionLimit.toFixed(1)} | T/E: ${result.transitionElasticLimit.toFixed(1)}</span>
+                  </div>
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcCollapsePressureRating({
+            yield: arg.yield,
+            od: arg.od,
+            id: arg.id,
+            wall_pct: arg.wall_pct
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'pipe_body_yield') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `
+            <div style="margin-top:14px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; border-top:1px dashed var(--border-subtle); padding-top:8px;">
+              Based on API Spec 5DP / 7G cross-sectional area and specified minimum yield strength (SMYS). Screening calculation. Verify against API/manufacturer data and operator procedures.
+            </div>
+          `;
+
+          if (result && typeof result === 'object' && result.isValid) {
+            let yieldVal = result.yieldStrengthLb;
+            let displayUnit = outUnit;
+            if (currentSys === 'si' && outQ && window.UnitsEngine) {
+              yieldVal = window.UnitsEngine.convert(outQ.type, yieldVal, outQ.native, outQ.si);
+              displayUnit = adaptUnitToSI(f.unit);
+            }
+            const formattedVal = Math.round(yieldVal).toLocaleString();
+            document.getElementById('calc-output-val').innerHTML = `${formattedVal} <span class="unit-lbl" id="calc-output-unit">${displayUnit}</span>`;
+
+            if (detailsEl) {
+              const allowableVal = (currentSys === 'si' && outQ && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert(outQ.type, result.allowableTensionLb, outQ.native, outQ.si)).toLocaleString()
+                : Math.round(result.allowableTensionLb).toLocaleString();
+
+              const copyPayload = `Pipe Body Yield Strength: ${formattedVal} ${displayUnit}\nCross-Section Area: ${result.crossSectionAreaIn2.toFixed(4)} in²\nAllowable Tension (DF ${result.designFactor}): ${allowableVal} ${displayUnit}`;
+
+              const wallRowHtml = (result.wallPct !== 100)
+                ? `<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                     <span>Effective Wall (${result.wallPct}%)</span>
+                     <span style="font-weight:600; color:var(--text-primary);">${result.effectiveWallIn.toFixed(4)} in</span>
+                   </div>`
+                : `<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                     <span>Nominal Wall Thickness</span>
+                     <span style="font-weight:600; color:var(--text-primary);">${result.nominalWallIn.toFixed(3)} in</span>
+                   </div>`;
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Cross-Section Area</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.crossSectionAreaIn2.toFixed(4)} in²</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Allowable Tension (DF ${result.designFactor})</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${allowableVal} ${displayUnit}</span>
+                  </div>
+                  ${wallRowHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcPipeBodyYield({
+            yield: arg.yield,
+            od: arg.od,
+            id: arg.id,
+            df: arg.df,
+            wall_pct: arg.wall_pct
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'tool_joint_strength') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `
+            <div style="margin-top:14px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; border-top:1px dashed var(--border-subtle); padding-top:8px;">
+              Rating is governed by thread critical sections and make-up torque, not the gross OD/ID area. Use published connection data. Screening calculation. Verify against API/manufacturer data and operator procedures.
+            </div>
+          `;
+
+          if (result && typeof result === 'object' && result.isValid) {
+            let jointVal = result.jointTensileRatingLb;
+            let displayUnit = outUnit;
+            if (currentSys === 'si' && outQ && window.UnitsEngine) {
+              jointVal = window.UnitsEngine.convert(outQ.type, jointVal, outQ.native, outQ.si);
+              displayUnit = adaptUnitToSI(f.unit);
+            }
+            const formattedVal = Math.round(jointVal).toLocaleString();
+            document.getElementById('calc-output-val').innerHTML = `${formattedVal} <span class="unit-lbl" id="calc-output-unit">${displayUnit}</span>`;
+
+            if (detailsEl) {
+              const grossVal = (currentSys === 'si' && outQ && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert(outQ.type, result.grossUpperLb, outQ.native, outQ.si)).toLocaleString()
+                : Math.round(result.grossUpperLb).toLocaleString();
+
+              const copyPayload = `Tool Joint Tensile Rating: ${formattedVal} ${displayUnit} (${result.governingMember} governs)\nGross section upper bound (not a rating): ${grossVal} ${displayUnit}`;
+
+              let statusChipHtml = '';
+              if (result.status) {
+                const chipBg = result.status === 'Warning' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.12)';
+                const chipColor = result.status === 'Warning' ? '#EF4444' : '#16A34A';
+                statusChipHtml = `
+                  <div style="margin-bottom:8px; display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; background:${chipBg}; color:${chipColor}; font-size:0.78rem; font-weight:600;">
+                    <span>${result.status === 'Warning' ? '⚠️' : '✓'} ${result.statusMsg}</span>
+                  </div>
+                `;
+              }
+
+              const ratioRowHtml = (result.tjVsPipeRatio !== null)
+                ? `<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                     <span>Tool Joint vs Pipe Body Ratio</span>
+                     <span style="font-weight:600; color:var(--text-primary);">${(result.tjVsPipeRatio * 100).toFixed(1)}% (Ratio: ${result.tjVsPipeRatio.toFixed(2)})</span>
+                   </div>`
+                : '';
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  ${statusChipHtml}
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Governing Section</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.governingMember} Governs (${result.minAreaIn2.toFixed(2)} in²)</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Gross section upper bound (not a rating)</span>
+                    <span style="font-weight:600; color:var(--text-secondary);">${grossVal} ${displayUnit}</span>
+                  </div>
+                  ${ratioRowHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcToolJointStrength({
+            yield: arg.yield,
+            tj_od: arg.tj_od,
+            tj_id: arg.tj_id,
+            pin_area: arg.pin_area,
+            box_area: arg.box_area,
+            pipe_yield: arg.pipe_yield
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'hook_load_calc') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `
+            <div style="margin-top:14px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; border-top:1px dashed var(--border-subtle); padding-top:8px;">
+              Estimated static hook load in stationary fluid. Excludes dynamic loads, hole drag, and acceleration. Screening calculation. Verify against API/manufacturer data and operator procedures.
+            </div>
+          `;
+
+          if (result && typeof result === 'object' && result.isValid) {
+            let loadVal = result.totalHookLoadLb;
+            let displayUnit = outUnit;
+            if (currentSys === 'si' && outQ && window.UnitsEngine) {
+              loadVal = window.UnitsEngine.convert(outQ.type, loadVal, outQ.native, outQ.si);
+              displayUnit = adaptUnitToSI(f.unit);
+            }
+            const formattedVal = Math.round(loadVal).toLocaleString();
+            document.getElementById('calc-output-val').innerHTML = `${formattedVal} <span class="unit-lbl" id="calc-output-unit">${displayUnit}</span>`;
+
+            if (detailsEl) {
+              const buoyedDsVal = (currentSys === 'si' && outQ && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert(outQ.type, result.buoyedDsLb, outQ.native, outQ.si)).toLocaleString()
+                : Math.round(result.buoyedDsLb).toLocaleString();
+              const buoyedBhaVal = (currentSys === 'si' && outQ && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert(outQ.type, result.buoyedBhaLb, outQ.native, outQ.si)).toLocaleString()
+                : Math.round(result.buoyedBhaLb).toLocaleString();
+              const blockVal = (currentSys === 'si' && outQ && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert(outQ.type, result.blockWtLb, outQ.native, outQ.si)).toLocaleString()
+                : Math.round(result.blockWtLb).toLocaleString();
+
+              const copyPayload = `Total Hook Load: ${formattedVal} ${displayUnit}\nBuoyancy Factor: ${result.buoyancyFactor.toFixed(4)}\nBuoyed Drillstring: ${buoyedDsVal} ${displayUnit}\nBuoyed BHA: ${buoyedBhaVal} ${displayUnit}\nBlock Assembly: ${blockVal} ${displayUnit}`;
+
+              let statusChipHtml = '';
+              if (result.status) {
+                const chipBg = result.status === 'Warning' ? 'rgba(239, 68, 68, 0.12)' : (result.status === 'Caution' ? 'rgba(234, 179, 8, 0.12)' : 'rgba(34, 197, 94, 0.12)');
+                const chipColor = result.status === 'Warning' ? '#EF4444' : (result.status === 'Caution' ? '#EAB308' : '#16A34A');
+                statusChipHtml = `
+                  <div style="margin-bottom:8px; display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; background:${chipBg}; color:${chipColor}; font-size:0.78rem; font-weight:600;">
+                    <span>${result.status === 'Warning' ? '⚠️' : (result.status === 'Caution' ? '⚡' : '✓')} ${result.statusMsg}</span>
+                  </div>
+                `;
+              }
+
+              const utilRowHtml = (result.utilizationPct !== null)
+                ? `<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                     <span>Hook Load Utilization</span>
+                     <span style="font-weight:600; color:var(--text-primary);">${result.utilizationPct.toFixed(1)}%</span>
+                   </div>`
+                : '';
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  ${statusChipHtml}
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Buoyancy Factor</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.buoyancyFactor.toFixed(4)}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Buoyed Drillstring</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${buoyedDsVal} ${displayUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Buoyed BHA</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${buoyedBhaVal} ${displayUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Block Assembly (not buoyed)</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${blockVal} ${displayUnit}</span>
+                  </div>
+                  ${utilRowHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcHookLoad({
+            ds_air: arg.ds_air,
+            mw: arg.mw,
+            bha_air: arg.bha_air,
+            block_wt: arg.block_wt,
+            limit: arg.limit
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'wob_calc') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `
+            <div style="margin-top:14px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; border-top:1px dashed var(--border-subtle); padding-top:8px;">
+              Compare readings at the same block position and rotation. Screening calculation. Verify against API/manufacturer data and operator procedures.
+            </div>
+          `;
+
+          if (result && typeof result === 'object' && result.isValid) {
+            let wobVal = result.wobLb;
+            let displayUnit = outUnit;
+            if (currentSys === 'si' && outQ && window.UnitsEngine) {
+              wobVal = window.UnitsEngine.convert(outQ.type, wobVal, outQ.native, outQ.si);
+              displayUnit = adaptUnitToSI(f.unit);
+            }
+            const formattedVal = Math.round(wobVal).toLocaleString();
+            document.getElementById('calc-output-val').innerHTML = `${formattedVal} <span class="unit-lbl" id="calc-output-unit">${displayUnit}</span>`;
+
+            if (detailsEl) {
+              const offVal = (currentSys === 'si' && outQ && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert(outQ.type, result.offBottomLb, outQ.native, outQ.si)).toLocaleString()
+                : Math.round(result.offBottomLb).toLocaleString();
+              const onVal = (currentSys === 'si' && outQ && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert(outQ.type, result.onBottomLb, outQ.native, outQ.si)).toLocaleString()
+                : Math.round(result.onBottomLb).toLocaleString();
+
+              let targetDetailsHtml = '';
+              let statusChipHtml = '';
+              if (result.targetWobLb !== null) {
+                const targetDisplay = (currentSys === 'si' && outQ && window.UnitsEngine)
+                  ? Math.round(window.UnitsEngine.convert(outQ.type, result.targetWobLb, outQ.native, outQ.si)).toLocaleString()
+                  : Math.round(result.targetWobLb).toLocaleString();
+                const diffDisplay = (currentSys === 'si' && outQ && window.UnitsEngine)
+                  ? Math.round(window.UnitsEngine.convert(outQ.type, result.targetDiffLb, outQ.native, outQ.si)).toLocaleString()
+                  : Math.round(result.targetDiffLb).toLocaleString();
+                const sign = result.targetDiffLb > 0 ? '+' : '';
+
+                if (result.status) {
+                  const chipBg = result.status === 'Warning' ? 'rgba(239, 68, 68, 0.12)' : (result.status === 'Caution' ? 'rgba(234, 179, 8, 0.12)' : 'rgba(34, 197, 94, 0.12)');
+                  const chipColor = result.status === 'Warning' ? '#EF4444' : (result.status === 'Caution' ? '#EAB308' : '#16A34A');
+                  statusChipHtml = `
+                    <div style="margin-bottom:8px; display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; background:${chipBg}; color:${chipColor}; font-size:0.78rem; font-weight:600;">
+                      <span>${result.status === 'Warning' ? '⚠️' : (result.status === 'Caution' ? '⚡' : '✓')} ${result.statusMsg}</span>
+                    </div>
+                  `;
+                }
+
+                targetDetailsHtml = `
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Target WOB</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${targetDisplay} ${displayUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Variance to Target</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${sign}${diffDisplay} ${displayUnit} (${result.targetPct.toFixed(1)}%)</span>
+                  </div>
+                `;
+              }
+
+              let copyPayload = `Bit Weight on Bottom (WOB): ${formattedVal} ${displayUnit}\nOff-Bottom Load: ${offVal} ${displayUnit}\nOn-Bottom Load: ${onVal} ${displayUnit}`;
+              if (result.targetWobLb !== null) {
+                copyPayload += `\nTarget WOB: ${result.targetWobLb.toLocaleString()} ${displayUnit}\nTarget %: ${result.targetPct.toFixed(1)}%\nStatus: ${result.statusMsg}`;
+              }
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  ${statusChipHtml}
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Off-Bottom Hook Load</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${offVal} ${displayUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>On-Bottom Hook Load</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${onVal} ${displayUnit}</span>
+                  </div>
+                  ${targetDetailsHtml}
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcBitWeightOnBottom({
+            hl_free: arg.hl_free,
+            hl_drill: arg.hl_drill,
+            target_wob: arg.target_wob
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit">${outUnit}</span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
+        if (f.id === 'safety_factor_calc') {
+          f.inputs.forEach(inp => {
+            const errEl = document.getElementById(`err-inp-${inp.key}`);
+            const inpEl = document.getElementById(`inp-${inp.key}`);
+            if (errEl) { errEl.style.display = 'none'; errEl.innerText = ''; }
+            if (inpEl) inpEl.classList.remove('has-error');
+          });
+
+          const footnoteHtml = `
+            <div style="margin-top:14px; font-size:0.75rem; color:var(--text-secondary); line-height:1.45; border-top:1px dashed var(--border-subtle); padding-top:8px;">
+              Static uniaxial loading assumed. Excludes fatigue, bending, torque, dynamic shock loads, and environmental degradation. Screening calculation. Verify against API/manufacturer data and operator procedures.
+            </div>
+          `;
+
+          if (result && typeof result === 'object' && result.isValid) {
+            const formattedVal = result.actualSf.toFixed(4);
+            document.getElementById('calc-output-val').innerHTML = `${formattedVal} <span class="unit-lbl" id="calc-output-unit"></span>`;
+
+            if (detailsEl) {
+              const forceUnit = (currentSys === 'si') ? 'daN' : 'lb';
+              const strengthDisplay = (currentSys === 'si' && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert('force', result.strengthLb, 'lbf', 'daN')).toLocaleString()
+                : Math.round(result.strengthLb).toLocaleString();
+              const loadDisplay = (currentSys === 'si' && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert('force', result.loadLb, 'lbf', 'daN')).toLocaleString()
+                : Math.round(result.loadLb).toLocaleString();
+              const maxAllowableDisplay = (currentSys === 'si' && window.UnitsEngine)
+                ? Math.round(window.UnitsEngine.convert('force', result.maxAllowableLoadLb, 'lbf', 'daN')).toLocaleString()
+                : Math.round(result.maxAllowableLoadLb).toLocaleString();
+
+              const chipBg = result.status === 'Warning' ? 'rgba(239, 68, 68, 0.12)' : (result.status === 'Caution' ? 'rgba(234, 179, 8, 0.12)' : 'rgba(34, 197, 94, 0.12)');
+              const chipColor = result.status === 'Warning' ? '#EF4444' : (result.status === 'Caution' ? '#EAB308' : '#16A34A');
+              const statusChipHtml = `
+                <div style="margin-bottom:8px; display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; background:${chipBg}; color:${chipColor}; font-size:0.78rem; font-weight:600;">
+                  <span>${result.status === 'Warning' ? '⚠️' : (result.status === 'Caution' ? '⚡' : '✓')} ${result.statusMsg}</span>
+                </div>
+              `;
+
+              const copyPayload = `Safety Factor: ${formattedVal}\nStatus: ${result.statusMsg}\nMax Allowable Load: ${maxAllowableDisplay} ${forceUnit}\nYield Utilization: ${result.utilizationPct.toFixed(1)}%\nApplied Load: ${loadDisplay} ${forceUnit}\nComponent Strength: ${strengthDisplay} ${forceUnit}\nRequired SF: ${result.requiredSf.toFixed(2)}`;
+
+              detailsEl.innerHTML = `
+                <div style="margin-top:10px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+                  ${statusChipHtml}
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Max Allowable Load (SF ${result.requiredSf.toFixed(2)})</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${maxAllowableDisplay} ${forceUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Yield Utilization</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${result.utilizationPct.toFixed(1)}% <span style="font-weight:400; color:var(--text-secondary);">(${result.allowableUtilizationPct.toFixed(1)}% of allowable)</span></span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Component Strength</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${strengthDisplay} ${forceUnit}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--text-secondary);">
+                    <span>Applied Tensile Load</span>
+                    <span style="font-weight:600; color:var(--text-primary);">${loadDisplay} ${forceUnit}</span>
+                  </div>
+                </div>
+                ${footnoteHtml}
+              `;
+            }
+            return;
+          }
+
+          const evalRes = calcSafetyFactor({
+            strength: arg.strength,
+            load: arg.load,
+            required_sf: arg.required_sf
+          });
+
+          (evalRes.errors || []).forEach(e => {
+            const errEl = document.getElementById(`err-inp-${e.field}`);
+            const inpEl = document.getElementById(`inp-${e.field}`);
+            if (errEl) { errEl.style.display = 'block'; errEl.innerText = e.message; }
+            if (inpEl) inpEl.classList.add('has-error');
+          });
+
+          document.getElementById('calc-output-val').innerHTML = `-- <span class="unit-lbl" id="calc-output-unit"></span>`;
+          if (detailsEl) {
+            detailsEl.innerHTML = `${footnoteHtml}`;
+          }
+          return;
+        }
+
         if (typeof result === 'number' && Number.isFinite(result)) {
           if (currentSys === 'si' && outQ && window.UnitsEngine) {
             finalVal = window.UnitsEngine.convert(outQ.type, result, outQ.native, outQ.si);
@@ -8914,11 +17710,68 @@ function renderDrillingCalcScreen() {
 
     f.inputs.forEach(inp => {
       const el = document.getElementById(`inp-${inp.key}`);
-      if (el) el.addEventListener('input', runCalc);
+      if (el) {
+        el.addEventListener('input', runCalc);
+        if (inp.type === 'toggle') {
+          el.addEventListener('change', runCalc);
+        }
+      }
     });
 
     runCalc();
   }
+}
+
+// Levenshtein distance for fuzzy matching
+function getEditDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          Math.min(
+            matrix[i][j - 1] + 1, // insertion
+            matrix[i - 1][j] + 1  // deletion
+          )
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+// Check if string matches search query
+function fuzzyMatch(str, query) {
+  if (!str || !query) return false;
+  str = String(str).toLowerCase();
+  query = String(query).toLowerCase().trim();
+  if (!query) return false;
+  if (str.includes(query)) return true;
+  
+  const words = query.split(/\s+/);
+  for (const word of words) {
+    if (word.length < 3) continue;
+    if (str.includes(word)) return true;
+    
+    // Check edit distance for words of target
+    const targetWords = str.split(/[\s_\-\/\(\)\.,]+/);
+    for (const targetWord of targetWords) {
+      if (Math.abs(targetWord.length - word.length) <= 2) {
+        const distance = getEditDistance(targetWord, word);
+        if (distance <= 1 || (word.length > 5 && distance <= 2)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 function updateCalcSearchResultsOnly() {
@@ -8934,20 +17787,29 @@ function updateCalcSearchResultsOnly() {
 
   const matches = [];
   (formulaDb.calculations || []).forEach(f => {
-    const combinedText = [f.name, f.desc, f.keywords, 'calculations', 'drilling'].filter(Boolean).join(' ');
+    const transName = (typeof t === 'function' ? t(f.name) : f.name) || '';
+    const transDesc = (typeof t === 'function' ? t(f.desc) : f.desc) || '';
+    const extraKeywords = (typeof curatedSynonymsMap !== 'undefined' && curatedSynonymsMap[f.id]) || [];
+    const combinedText = [f.name, f.desc, transName, transDesc, f.keywords, ...extraKeywords, 'calculations', 'drilling'].filter(Boolean).join(' ');
     if (fuzzyMatch(combinedText, query)) {
       matches.push({ ...f, sectionKey: 'drilling', cat: 'calculations' });
     }
   });
   if (typeof wellControlDb !== 'undefined') {
     (wellControlDb.surface || []).forEach(f => {
-      const combinedText = [f.name, f.desc, f.keywords, 'surface', 'wellcontrol'].filter(Boolean).join(' ');
+      const transName = (typeof t === 'function' ? t(f.name) : f.name) || '';
+      const transDesc = (typeof t === 'function' ? t(f.desc) : f.desc) || '';
+      const extraKeywords = (typeof curatedSynonymsMap !== 'undefined' && curatedSynonymsMap[f.id]) || [];
+      const combinedText = [f.name, f.desc, transName, transDesc, f.keywords, ...extraKeywords, 'surface', 'wellcontrol'].filter(Boolean).join(' ');
       if (fuzzyMatch(combinedText, query)) {
         matches.push({ ...f, sectionKey: 'wellcontrol', cat: 'surface' });
       }
     });
     (wellControlDb.subsea || []).forEach(f => {
-      const combinedText = [f.name, f.desc, f.keywords, 'subsea', 'wellcontrol'].filter(Boolean).join(' ');
+      const transName = (typeof t === 'function' ? t(f.name) : f.name) || '';
+      const transDesc = (typeof t === 'function' ? t(f.desc) : f.desc) || '';
+      const extraKeywords = (typeof curatedSynonymsMap !== 'undefined' && curatedSynonymsMap[f.id]) || [];
+      const combinedText = [f.name, f.desc, transName, transDesc, f.keywords, ...extraKeywords, 'subsea', 'wellcontrol'].filter(Boolean).join(' ');
       if (fuzzyMatch(combinedText, query)) {
         matches.push({ ...f, sectionKey: 'wellcontrol', cat: 'subsea' });
       }
@@ -8955,13 +17817,13 @@ function updateCalcSearchResultsOnly() {
   }
 
   if (countLabel) {
-    countLabel.textContent = `Search Results (${matches.length})`;
+    countLabel.textContent = `${t('Search Results')} (${matches.length})`;
   }
 
   if (resultsContainer) {
     resultsContainer.innerHTML = '';
     if (matches.length === 0) {
-      resultsContainer.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:0.85rem;">No matching formulas found.</div>`;
+      resultsContainer.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:0.85rem;">${t('No matching formulas found.')}</div>`;
     } else {
       matches.forEach(m => {
         const item = document.createElement('div');
@@ -8969,25 +17831,112 @@ function updateCalcSearchResultsOnly() {
         item.innerHTML = `
           <div class="card-left">
             <div class="card-info">
-              <span class="card-title">${m.name}</span>
-              <span class="card-desc">${m.desc}</span>
+              <span class="card-title">${t(m.name)}</span>
+              <span class="card-desc">${t(m.desc)}</span>
             </div>
           </div>
           <span class="card-chevron">&rsaquo;</span>
         `;
         item.onclick = () => {
-          calcSubState.view = 'formula';
-          calcSubState.section = m.sectionKey;
-          calcSubState.category = m.cat;
-          calcSubState.formulaId = m.id;
           calcSubState.search = '';
-          renderDrillingCalcScreen();
+          openFormulaDirectly(m.id, m.cat);
         };
         resultsContainer.appendChild(item);
       });
     }
   }
 }
+
+// Function to immediately update Calculation Hub upon language change without resetting inputs
+function updateCalculationHubLanguage(lang) {
+  if (typeof calcSubState === 'undefined') return;
+  if (calcSubState.view === 'categories' || calcSubState.view === 'list') {
+    renderDrillingCalcScreen();
+    return;
+  }
+  if (calcSubState.view === 'riser-margin') {
+    renderDrillingCalcScreen();
+    return;
+  }
+  if (calcSubState.view === 'formula') {
+    const found = findCalculator(calcSubState.formulaId, calcSubState.category);
+    if (!found) {
+      renderDrillingCalcScreen();
+      return;
+    }
+    const f = found.formula;
+    const formBackBtn = document.getElementById('form-back-btn');
+    if (formBackBtn) formBackBtn.textContent = t('Back to List');
+
+    const formHeader = document.querySelector('#screen-drilling-calc h3');
+    if (formHeader) formHeader.textContent = t('Calculator');
+
+    const titleEl = document.querySelector('#screen-drilling-calc h4');
+    if (titleEl) titleEl.textContent = t(f.name);
+
+    const descEl = document.getElementById('calc-formula-desc');
+    if (descEl) {
+      if (f.id === 'ds_weight') {
+        const segVal = document.getElementById('inp-calc_mode')?.value;
+        descEl.textContent = (segVal === 'in_mud') ?
+          t('Buoyed weight of the drill string submerged in drilling fluid.') :
+          t('Total dry weight of drill pipe, HWDP, and drill collar components.');
+      } else if (f.id === 'pipe_pulled') {
+        const segVal = document.getElementById('inp-pipe_mode')?.value;
+        descEl.textContent = (segVal === 'wet') ?
+          t('Equivalent volume of fluid displaced and pressure loss when POOH wet pipe (internal + metal).') :
+          t('Equivalent volume of fluid displaced and pressure loss when POOH dry pipe.');
+      } else if (f.id === 'dp_pulled_lose') {
+        const segVal = document.getElementById('inp-pipe_mode')?.value;
+        descEl.textContent = (segVal === 'wet') ?
+          t('Length of wet pipe and full stands pulled to lose a specific amount of hydrostatic head.') :
+          t('Length of dry pipe and full stands pulled to lose a specific amount of hydrostatic head.');
+      } else {
+        descEl.textContent = t(f.desc);
+      }
+    }
+
+    const resLabel = document.querySelector('#screen-drilling-calc .result-label');
+    if (resLabel) resLabel.textContent = t('Calculated Output');
+
+    (f.inputs || []).forEach(inp => {
+      const lbl = document.getElementById(`lbl-inp-${inp.key}`);
+      if (lbl) {
+        const activeSys = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed');
+        const displayLabel = (activeSys === 'si') ? adaptLabelToSI(inp.label) : inp.label;
+        lbl.textContent = t(displayLabel);
+      }
+      if (inp.type === 'toggle') {
+        const toggleLbl = document.querySelector(`#form-group-${inp.key} label:first-child`);
+        if (toggleLbl) {
+          if (f.id === 'pipe_pulled' && inp.key === 'calc_disp_toggle') {
+            const segVal = document.getElementById('inp-pipe_mode')?.value;
+            toggleLbl.textContent = (segVal === 'wet') ? t('Calculate from OD / ID') : t('Calculate displacement from OD / ID');
+          } else {
+            const activeSys = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed');
+            const displayLabel = (activeSys === 'si') ? adaptLabelToSI(inp.label) : inp.label;
+            toggleLbl.textContent = t(displayLabel);
+          }
+        }
+      }
+      if (inp.type === 'mode_toggle') {
+        const opt1 = (inp.options && inp.options[0]) || { id: 'od_id', label: 'OD / ID (in)' };
+        const opt2 = (inp.options && inp.options[1]) || { id: 'weight', label: 'Pipe weight (lb/ft)' };
+        const btn1 = document.getElementById(`btn-${inp.key}-${opt1.id}`);
+        const btn2 = document.getElementById(`btn-${inp.key}-${opt2.id}`);
+        const activeSys = (window.UnitsEngine ? window.UnitsEngine.getUnitSystem() : 'mixed');
+        if (btn1) btn1.textContent = t((activeSys === 'si') ? adaptLabelToSI(opt1.label) : opt1.label);
+        if (btn2) btn2.textContent = t((activeSys === 'si') ? adaptLabelToSI(opt2.label) : opt2.label);
+      }
+    });
+
+    // Re-run calc to re-render breakdown and disclaimers in new language while preserving inputs
+    if (typeof runCalc === 'function') {
+      runCalc();
+    }
+  }
+}
+window.updateCalculationHubLanguage = updateCalculationHubLanguage;
 
 function setupSearchInput() {
   const inp = document.getElementById('calc-search-inp');
@@ -9020,11 +17969,7 @@ wellControlSubState = {
 
 
 window.openWcFormula = (category, formulaId) => {
-  calcSubState.section = 'wellcontrol';
-  calcSubState.category = category;
-  calcSubState.formulaId = formulaId;
-  calcSubState.view = 'formula';
-  navigateTo('drilling-calc');
+  openFormulaDirectly(formulaId, category);
 };
 
 window.openWcEquations = (category) => {
@@ -9221,7 +18166,7 @@ if (wellControlSubState.view === 'clf-guide') {
       </div>
       <div class="wc-equation-card">
         <span class="wc-equation-name">Subsea Accumulator Capacity</span>
-        <span class="wc-equation-formula">Capacity = Bottles &times; Vol &times; (P_precharge + 0.052 &times; SW_Density &times; WD) &times; [1/P_min - 1/P_max]</span>
+        <span class="wc-equation-formula">Capacity = Bottles &times; Vol &times; [(P_pre + P_h)/(P_min + P_h) - (P_pre + P_h)/(P_max + P_h)] where P_h = 0.052 &times; SW &times; WD</span>
         <p class="wc-equation-desc">Usable subsea fluid volume adjusted for hydrostatic head of seawater column.</p>
       </div>
       <div class="wc-equation-card">
@@ -10363,10 +19308,7 @@ function renderDrillingGuideScreen() {
   for (const catKey in drillingGuideData) {
     const cat = drillingGuideData[catKey];
     const catId = `guide-cat-${catKey}`;
-    const isExpanded = (state.expandedGuideCategoryId === catId) || (!state.expandedGuideCategoryId && state.selectedGuideId && cat.items && cat.items.some(it => it.id === state.selectedGuideId));
-    if (isExpanded) {
-      state.expandedGuideCategoryId = catId;
-    }
+    const isExpanded = (state.expandedGuideCategoryId === catId);
     html += `
       <div class="guide-category-card guide-cat-accent-${cat.accent} ${isExpanded ? 'expanded' : ''}" id="${catId}">
         <div class="guide-category-header" onclick="toggleGuideCategory('${catId}')">
@@ -10411,10 +19353,10 @@ function renderDrillingGuideScreen() {
   container.innerHTML = html;
 
   const scroller = document.querySelector('#screen-drilling-guide .scroller');
-  if (scroller && state.guideScrollTop > 0) {
-    scroller.scrollTop = state.guideScrollTop;
+  if (scroller) {
+    scroller.scrollTop = state.guideScrollTop || 0;
     requestAnimationFrame(() => {
-      if (scroller) scroller.scrollTop = state.guideScrollTop;
+      if (scroller) scroller.scrollTop = state.guideScrollTop || 0;
     });
   }
 }
@@ -10539,19 +19481,53 @@ window.toggleGuideCategory = (cardId) => {
       list.style.maxHeight = list.scrollHeight + 'px';
     }
     if (cardId.startsWith('calc-cat-')) {
-      calcSubState.expandedCategoryId = cardId;
       const scroller = document.querySelector('#screen-drilling-calc .scroller');
-      if (scroller) calcSubState.listScrollTop = scroller.scrollTop;
+      const curScroll = scroller ? scroller.scrollTop : 0;
+      calcSubState.expandedCategoryId = cardId;
+      calcSubState.listScrollTop = curScroll;
+      if (navStack.length > 0 && navStack[navStack.length - 1].screen === 'drilling-calc' && navStack[navStack.length - 1].calcView === 'list' && navStack[navStack.length - 1].calcExpandedCategoryId) {
+        navStack[navStack.length - 1].calcExpandedCategoryId = cardId;
+        navStack[navStack.length - 1].calcScrollTop = curScroll;
+      } else {
+        navStack.push({
+          screen: 'drilling-calc',
+          calcView: 'list',
+          calcSection: calcSubState.section,
+          calcCategory: calcSubState.category,
+          calcFormulaId: null,
+          calcExpandedCategoryId: cardId,
+          calcScrollTop: curScroll
+        });
+      }
     } else if (cardId.startsWith('guide-cat-')) {
-      state.expandedGuideCategoryId = cardId;
       const scroller = document.querySelector('#screen-drilling-guide .scroller');
-      if (scroller) state.guideScrollTop = scroller.scrollTop;
+      const curScroll = scroller ? scroller.scrollTop : 0;
+      state.expandedGuideCategoryId = cardId;
+      state.guideScrollTop = curScroll;
+      if (navStack.length > 0 && navStack[navStack.length - 1].screen === 'drilling-guide' && navStack[navStack.length - 1].guideExpandedCategoryId) {
+        navStack[navStack.length - 1].guideExpandedCategoryId = cardId;
+        navStack[navStack.length - 1].guideScrollTop = curScroll;
+      } else {
+        navStack.push({
+          screen: 'drilling-guide',
+          guideExpandedCategoryId: cardId,
+          guideSelectedId: null,
+          guideScrollTop: curScroll
+        });
+      }
     }
   } else {
+    // User tapped the already expanded card to collapse it
     if (cardId.startsWith('calc-cat-')) {
       calcSubState.expandedCategoryId = null;
+      if (navStack.length > 0 && navStack[navStack.length - 1].screen === 'drilling-calc' && navStack[navStack.length - 1].calcExpandedCategoryId) {
+        navStack.pop();
+      }
     } else if (cardId.startsWith('guide-cat-')) {
       state.expandedGuideCategoryId = null;
+      if (navStack.length > 0 && navStack[navStack.length - 1].screen === 'drilling-guide' && navStack[navStack.length - 1].guideExpandedCategoryId) {
+        navStack.pop();
+      }
     }
   }
 };
@@ -10655,20 +19631,63 @@ window.switchGuideWellheadTab = (section) => {
 
 window.handleGuideItemClick = (itemId, categoryName) => {
   const scroller = document.querySelector('#screen-drilling-guide .scroller');
-  if (scroller) {
-    state.guideScrollTop = scroller.scrollTop;
+  const curScroll = scroller ? scroller.scrollTop : 0;
+  state.guideScrollTop = curScroll;
+
+  // Clear guide search query if active so category view renders cleanly on return
+  const guideSearch = document.getElementById('guide-search-input') || document.getElementById('guide-search-inp');
+  if (guideSearch && guideSearch.value) {
+    guideSearch.value = '';
   }
+
+  let foundCardId = null;
   for (const catKey in drillingGuideData) {
     const items = drillingGuideData[catKey].items || [];
     if (items.some(item => item.id === itemId)) {
-      state.expandedGuideCategoryId = 'guide-cat-' + catKey;
+      foundCardId = 'guide-cat-' + catKey;
       break;
     }
   }
+  if (foundCardId) {
+    state.expandedGuideCategoryId = foundCardId;
+  }
+
+  // Ensure hierarchical navigation stack for Drilling Guide:
+  if (navStack.length > 0 && navStack[navStack.length - 1].screen === 'drilling-guide') {
+    const topEntry = navStack[navStack.length - 1];
+    if (topEntry.guideExpandedCategoryId) {
+      topEntry.guideExpandedCategoryId = foundCardId || topEntry.guideExpandedCategoryId;
+      topEntry.guideScrollTop = curScroll;
+    } else if (foundCardId) {
+      // Top entry is collapsed categories (null). Push intermediate expanded category entry so reverse navigation collapses category before returning to Home!
+      navStack.push({
+        screen: 'drilling-guide',
+        guideExpandedCategoryId: foundCardId,
+        guideSelectedId: null,
+        guideSelectedCategory: categoryName,
+        guideScrollTop: curScroll
+      });
+    }
+  }
+
   state.selectedGuideId = itemId;
   state.selectedGuideCategory = categoryName;
-  pushNavHistory({ screen: 'drilling-guide-detail', itemId: itemId });
-  navigateTo('drilling-guide-detail');
+
+  if (!state.screenHistory.includes('drilling-guide')) {
+    state.screenHistory.push('drilling-guide');
+  }
+
+  navStack.push({
+    screen: 'drilling-guide-detail',
+    guideExpandedCategoryId: state.expandedGuideCategoryId,
+    guideSelectedId: itemId,
+    guideSelectedCategory: categoryName,
+    guideScrollTop: curScroll
+  });
+
+  _navDirection = 'forward';
+  state.currentScreen = 'drilling-guide-detail';
+  renderScreen();
 };
 
 window.renderDrillingGuideDetailScreen = () => {
