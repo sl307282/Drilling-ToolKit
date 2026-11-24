@@ -77,12 +77,6 @@ public class MainActivity extends BridgeActivity {
                 window.setAttributes(lp);
             }
 
-            // On Android versions prior to API 35 (Android 15), set system bar colors to match splash
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                int splashColor = Color.parseColor("#FFFFFF");
-                window.setNavigationBarColor(splashColor);
-                window.setStatusBarColor(splashColor);
-            }
             WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
             if (controller != null) {
                 controller.setAppearanceLightNavigationBars(true);

@@ -17,7 +17,10 @@
     public *;
 }
 -keep public class com.getcapacitor.** { *; }
--keep class com.drillingtoolkit.app.** { *; }
+# Keep entry points (Activity and Plugins), allow R8 to optimize and obfuscate all other classes
+-keep public class com.drillingtoolkit.app.MainActivity { public *; }
+-keep public class com.drillingtoolkit.app.ThemeManagerPlugin { public *; }
+-keep public class com.drillingtoolkit.app.CustomSplashScreenPlugin { public *; }
 -keepclassmembers class * {
     @com.getcapacitor.PluginMethod public *;
     @android.webkit.JavascriptInterface public <methods>;

@@ -582,12 +582,23 @@
    * Boundary Adapter Pattern
    */
   function toNative(quantityType, displayVal, displayUnit, nativeUnit) {
+    if (typeof quantityType === 'number' && typeof displayVal === 'string') {
+      const temp = quantityType;
+      quantityType = displayVal;
+      displayVal = temp;
+    }
     const from = displayUnit || getUnit(quantityType);
     const to = nativeUnit || NATIVE_UNITS[quantityType] || from;
     return convert(quantityType, displayVal, from, to);
   }
 
   function fromNative(quantityType, nativeVal, nativeUnit, displayUnit) {
+    // Robust argument swap guard if called as (val, quantityType)
+    if (typeof quantityType === 'number' && typeof nativeVal === 'string') {
+      const temp = quantityType;
+      quantityType = nativeVal;
+      nativeVal = temp;
+    }
     const from = nativeUnit || NATIVE_UNITS[quantityType] || 'api';
     const to = displayUnit || getUnit(quantityType);
     return convert(quantityType, nativeVal, from, to);

@@ -22,6 +22,7 @@
     root.relaxSchematicMarkers = exports.relaxSchematicMarkers;
     root.renderSchematicCallouts = exports.renderSchematicCallouts;
     root.renderVerticalDimensions = exports.renderVerticalDimensions;
+    root.renderWellCementingSchematic = exports.renderWellCementingSchematic;
     root.formatVol = exports.formatVol;
     root.formatDensity = exports.formatDensity;
     root.formatPressure = exports.formatPressure;
@@ -1081,7 +1082,732 @@
     return svg;
   }
 
+
+  /**
+   * Subsea / Well Cementing Schematic SVG Generator
+   */
+  function renderWellCementingSchematic(res, inp, unit) {
+    const isMetric = unit === 'm';
+
+    const airGapFt = Math.max(0, Number(inp.air_gap) || 0);
+    const waterDepthFt = Math.max(0, Number(inp.water_depth) || 0);
+    const mudlineFt = res.mudline !== undefined ? Number(res.mudline) : (airGapFt + waterDepthFt);
+    const tdFt = Math.max(mudlineFt + 10, Number(inp.td) || 0);
+
+    const hasAirGap = airGapFt > 0;
+    const hasWater = waterDepthFt > 0;
+    const hasOffshore = hasWater || hasAirGap;
+
+    const yTop = 50;
+    const yBot = 745;
+    const totalH = yBot - yTop; // 695 px
+
+    let hAir = 0;
+    let hWater = 0;
+    let hWell = totalH;
+
+    if (hasOffshore) {
+      // 1. Air gap: fixed small height (~6–8% of canvas, min 40 px)
+      hAir = hasAirGap ? Math.max(40, Math.round(totalH * 0.07)) : 0; // ~48 px
+
+      // 2. Water column: fixed compressed height (~20–25% of canvas)
+      // If waterDepth is small relative to TD (< 15% of TD), reduce compressed water band proportionally
+      if (hasWater) {
+        const baseHWater = Math.round(totalH * 0.22); // ~153 px
+        const waterRatio = tdFt > 0 ? (waterDepthFt / tdFt) : 1;
+        if (waterRatio < 0.15 && waterRatio > 0) {
+          hWater = Math.max(35, Math.round(baseHWater * (waterRatio / 0.15)));
+        } else {
+          hWater = baseHWater;
+        }
+      } else {
+        hWater = 0;
+      }
+
+      // 3. Below mudline: remaining ~65–70% of canvas, drawn to scale within segment
+      hWell = totalH - hAir - hWater;
+    }
+
+    const y0 = yTop;
+    const yAirPos = y0 + hAir;
+    const yMudPos = yAirPos + hWater;
+    const yTDPos = yMudPos + hWell;
+
+    // Single central helper depthToY(depthFt) used for EVERY element
+    function depthToY(d) {
+      if (d === undefined || d === null || isNaN(d)) return y0;
+      if (!hasOffshore) {
+        const maxD = Math.max(10, tdFt);
+        const clamped = Math.max(0, Math.min(maxD, Number(d)));
+        return y0 + (clamped / maxD) * totalH;
+      }
+
+      const numD = Number(d);
+      if (numD <= 0) return y0;
+
+      // Segment 1: RKB (0) -> Sea Level (airGapFt)
+      if (hasAirGap && numD <= airGapFt) {
+        return y0 + (numD / airGapFt) * hAir;
+      }
+
+      // Segment 2: Sea Level (airGapFt) -> Mudline (mudlineFt)
+      if (hasWater && numD <= mudlineFt) {
+        const waterDist = numD - airGapFt;
+        const totalWater = Math.max(1, mudlineFt - airGapFt);
+        return yAirPos + (waterDist / totalWater) * hWater;
+      }
+
+      // Segment 3: Sub-Mudline (mudlineFt -> tdFt) to scale
+      const subDist = numD - mudlineFt;
+      const totalSub = Math.max(1, tdFt - mudlineFt);
+      const clampedSub = Math.max(0, Math.min(totalSub, subDist));
+      return yMudPos + (clampedSub / totalSub) * hWell;
+    }
+
+    const yAir = depthToY(inp.air_gap);
+    const yMud = depthToY(mudlineFt);
+    const yHanger = (inp.hanger > 0) ? depthToY(inp.hanger) : null;
+    const yPrevShoe = (inp.prev_shoe > 0) ? depthToY(inp.prev_shoe) : null;
+    const yTOC = depthToY(res.toc);
+    const yTail = depthToY(res.tail_top);
+    const ySP = depthToY(res.sp_top);
+    const yF2 = depthToY(res.f2_top);
+    const yF1 = depthToY(res.f1_top);
+    const yFC = depthToY(res.fc);
+    const yShoe = depthToY(inp.shoe);
+    const yTD = depthToY(tdFt);
+
+    const cx = 250;
+    const ohLeft = 195;
+    const ohRight = 305;
+    const ohW = ohRight - ohLeft; // 110
+
+    const csgLeft = 215;
+    const csgRight = 285;
+    const csgW = csgRight - csgLeft; // 70
+
+    const annLeftW = csgLeft - ohLeft; // 20
+    const annRightW = ohRight - csgRight; // 20
+
+    const riserLeft = 205;
+    const riserRight = 295;
+
+    function fmtD(val) {
+      return formatMetricDepth(val, isMetric) + ' ' + (isMetric ? 'm' : 'ft');
+    }
+    function fmtH(val) {
+      return formatMetricDist(val, isMetric) + ' ' + (isMetric ? 'm' : 'ft');
+    }
+    function fmtV(val) {
+      if (window.CementingCommon && typeof window.CementingCommon.formatVol === 'function') {
+        return window.CementingCommon.formatVol(val, false);
+      }
+      return { val: Number(val || 0).toFixed(1), unit: 'bbl', full: `${Number(val || 0).toFixed(1)} bbl` };
+    }
+    function fmtMW(val) {
+      if (window.CementingCommon && typeof window.CementingCommon.formatDensity === 'function') {
+        return window.CementingCommon.formatDensity(val);
+      }
+      return { val: Number(val || 0).toFixed(2), unit: 'ppg', full: `${Number(val || 0).toFixed(2)} ppg` };
+    }
+
+    // Build SVG components
+    let svg = `<svg viewBox="-50 0 800 800" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background:#FAF8F5; border-radius:12px; font-family:'Outfit',sans-serif;">`;
+
+    // Definitions (patterns & filters)
+    svg += `
+      <defs>
+        <pattern id="mudline-pattern" width="10" height="10" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="10" x2="10" y2="0" stroke="#D6CBBF" stroke-width="1.5" />
+        </pattern>
+        <linearGradient id="seawater-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#E0F2FE" stop-opacity="0.85"/>
+          <stop offset="100%" stop-color="#BAE6FD" stop-opacity="0.95"/>
+        </linearGradient>
+        <linearGradient id="formation-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#FCF9F2" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="#F5EFE3" stop-opacity="0.95"/>
+        </linearGradient>
+        <linearGradient id="disp-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#0284C7" stop-opacity="0.4"/>
+        </linearGradient>
+      </defs>
+    `;
+
+    // 1. Air Gap Zone (RKB 0 to Sea Level)
+    if (hasAirGap && yAir > y0) {
+      svg += `
+        <!-- Air Gap Zone -->
+        <rect x="130" y="${y0}" width="240" height="${yAir - y0}" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="4,3" rx="2" />
+        <line x1="120" y1="${y0}" x2="380" y2="${y0}" stroke="#475569" stroke-width="2.5" />
+        <text x="140" y="${y0 + 15}" font-size="9.5" font-weight="700" fill="#64748B" letter-spacing="0.5">${t('AIR GAP')}</text>
+      `;
+    } else {
+      // Platform top reference
+      svg += `
+        <line x1="120" y1="${y0}" x2="380" y2="${y0}" stroke="#475569" stroke-width="2.5" />
+      `;
+    }
+
+    // 2. Water Column & Scale Break Indicator
+    if (hasWater && yMud > yAir) {
+      const yMidWater = (yAir + yMud) / 2;
+      svg += `
+        <!-- Water Column (Compressed) -->
+        <rect x="130" y="${yAir}" width="240" height="${yMud - yAir}" fill="url(#seawater-grad)" stroke="#0284C7" stroke-width="1.2" />
+        <path d="M 130 ${yAir} Q 150 ${yAir - 4}, 170 ${yAir} T 210 ${yAir} T 250 ${yAir} T 290 ${yAir} T 330 ${yAir} T 370 ${yAir}" fill="none" stroke="#0284C7" stroke-width="2.5"/>
+        <text x="140" y="${yAir + 14}" font-size="9.5" font-weight="700" fill="#0369A1" letter-spacing="0.5">${t('WATER COLUMN')}</text>
+
+        <!-- Scale Break Indicator (Zig-zag / Wavy Lines) -->
+        <g class="scale-break-group">
+          <rect x="131" y="${yMidWater - 10}" width="238" height="20" fill="url(#seawater-grad)" opacity="0.96"/>
+          <path d="M 132 ${yMidWater - 4} L 220 ${yMidWater - 4} L 228 ${yMidWater - 10} L 236 ${yMidWater + 2} L 244 ${yMidWater - 10} L 252 ${yMidWater + 2} L 260 ${yMidWater - 10} L 268 ${yMidWater - 4} L 368 ${yMidWater - 4}" fill="none" stroke="#0284C7" stroke-width="1.8"/>
+          <path d="M 132 ${yMidWater + 4} L 220 ${yMidWater + 4} L 228 ${yMidWater - 2} L 236 ${yMidWater + 10} L 244 ${yMidWater - 2} L 252 ${yMidWater + 10} L 260 ${yMidWater - 2} L 268 ${yMidWater + 4} L 368 ${yMidWater + 4}" fill="none" stroke="#0284C7" stroke-width="1.8"/>
+          <rect x="185" y="${yMidWater - 8}" width="130" height="16" rx="4" fill="#0284C7" opacity="0.95"/>
+          <text x="250" y="${yMidWater + 3.5}" font-size="9" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">≋ ${t('SCALE BREAK')} ≋</text>
+        </g>
+      `;
+    }
+
+    // 3. Highlighted Below-Mudline Focus Panel (The Actual Well)
+    const subMudlineTopY = hasOffshore ? yMud : y0;
+    svg += `
+      <!-- Sub-Mudline Well Section Highlight Panel -->
+      <rect x="120" y="${subMudlineTopY}" width="260" height="${Math.max(30, yTD - subMudlineTopY + 12)}" fill="url(#formation-grad)" stroke="#D6CBBF" stroke-width="1.5" rx="6" />
+      <rect x="120" y="${subMudlineTopY}" width="260" height="16" fill="#EDE4D6" opacity="0.7" rx="4" />
+      <text x="250" y="${subMudlineTopY + 11.5}" font-size="8.5" font-weight="700" fill="#786656" text-anchor="middle" letter-spacing="0.5">${t('SUB-MUDLINE WELL SECTION (TO SCALE)')}</text>
+    `;
+
+    // 4. Mudline / Seabed Bar
+    if (hasOffshore) {
+      svg += `
+        <rect x="115" y="${yMud}" width="270" height="12" fill="url(#mudline-pattern)" stroke="#8D7765" stroke-width="1" />
+        <line x1="110" y1="${yMud}" x2="390" y2="${yMud}" stroke="#8D7765" stroke-width="2.5" />
+        <text x="125" y="${yMud + 23}" font-size="9.5" font-weight="700" fill="#706053">${t('Seabed / Mudline')}</text>
+      `;
+    }
+
+    // 5. Open Hole Borehole Profile (from Prev Shoe or Mudline down to TD)
+    const topHoleY = yPrevShoe || yMud;
+    svg += `
+      <!-- Borehole Walls -->
+      <line x1="${ohLeft}" y1="${topHoleY}" x2="${ohLeft}" y2="${yTD}" stroke="#78716C" stroke-width="2.5" stroke-dasharray="4,2"/>
+      <line x1="${ohRight}" y1="${topHoleY}" x2="${ohRight}" y2="${yTD}" stroke="#78716C" stroke-width="2.5" stroke-dasharray="4,2"/>
+      <line x1="${ohLeft}" y1="${yTD}" x2="${ohRight}" y2="${yTD}" stroke="#78716C" stroke-width="3"/>
+    `;
+
+    // 6. Annulus Fluids (Left and Right)
+    const annTopY = inp.model === 'subsea' ? (yHanger || yMud) : yMud;
+    const topFluidY = inp.f1_vol > 0 ? yF1 : (inp.f2_vol > 0 ? yF2 : (inp.sp_vol > 0 ? ySP : yTOC));
+
+    // Annulus Mud (Hole Fluid)
+    if (topFluidY > annTopY) {
+      svg += `
+        <rect class="cement-svg-layer" data-name="Hole Fluid" data-depth="${fmtD(inp.air_gap + inp.water_depth)} - ${fmtD(inp.f1_vol > 0 ? res.f1_top : res.sp_top)}" data-vol="In Hole" data-mw="${fmtMW(inp.mw || inp.hole_fluid_mw).full}" x="${ohLeft}" y="${annTopY}" width="${annLeftW}" height="${topFluidY - annTopY}" fill="#C9D6DF" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Hole Fluid" data-depth="${fmtD(inp.air_gap + inp.water_depth)} - ${fmtD(inp.f1_vol > 0 ? res.f1_top : res.sp_top)}" data-vol="In Hole" data-mw="${fmtMW(inp.mw || inp.hole_fluid_mw).full}" x="${csgRight}" y="${annTopY}" width="${annRightW}" height="${topFluidY - annTopY}" fill="#C9D6DF" cursor="pointer"/>
+      `;
+    }
+
+    // 1st Mud/Wash (if f1_vol > 0)
+    if (inp.f1_vol > 0 && yF2 > yF1) {
+      svg += `
+        <rect class="cement-svg-layer" data-name="1st Mud Wash" data-depth="${fmtD(res.f1_top)} - ${fmtD(res.f2_top)}" data-vol="${fmtV(inp.f1_vol).full}" data-mw="${fmtMW(inp.f1_mw).full}" x="${ohLeft}" y="${yF1}" width="${annLeftW}" height="${yF2 - yF1}" fill="#E07B39" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="1st Mud Wash" data-depth="${fmtD(res.f1_top)} - ${fmtD(res.f2_top)}" data-vol="${fmtV(inp.f1_vol).full}" data-mw="${fmtMW(inp.f1_mw).full}" x="${csgRight}" y="${yF1}" width="${annRightW}" height="${yF2 - yF1}" fill="#E07B39" cursor="pointer"/>
+      `;
+    }
+
+    // 2nd Mud/Wash (if f2_vol > 0)
+    if (inp.f2_vol > 0 && ySP > yF2) {
+      svg += `
+        <rect class="cement-svg-layer" data-name="2nd Mud Wash" data-depth="${fmtD(res.f2_top)} - ${fmtD(res.sp_top)}" data-vol="${fmtV(inp.f2_vol).full}" data-mw="${fmtMW(inp.f2_mw).full}" x="${ohLeft}" y="${yF2}" width="${annLeftW}" height="${ySP - yF2}" fill="#9B59B6" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="2nd Mud Wash" data-depth="${fmtD(res.f2_top)} - ${fmtD(res.sp_top)}" data-vol="${fmtV(inp.f2_vol).full}" data-mw="${fmtMW(inp.f2_mw).full}" x="${csgRight}" y="${yF2}" width="${annRightW}" height="${ySP - yF2}" fill="#9B59B6" cursor="pointer"/>
+      `;
+    }
+
+    // Spacer
+    if (inp.sp_vol > 0 && yTOC > ySP) {
+      svg += `
+        <rect class="cement-svg-layer" data-name="Spacer" data-depth="${fmtD(res.sp_top)} - ${fmtD(res.toc)}" data-vol="${fmtV(inp.sp_vol).full}" data-mw="${fmtMW(inp.sp_mw).full}" x="${ohLeft}" y="${ySP}" width="${annLeftW}" height="${yTOC - ySP}" fill="#4A90D9" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Spacer" data-depth="${fmtD(res.sp_top)} - ${fmtD(res.toc)}" data-vol="${fmtV(inp.sp_vol).full}" data-mw="${fmtMW(inp.sp_mw).full}" x="${csgRight}" y="${ySP}" width="${annRightW}" height="${yTOC - ySP}" fill="#4A90D9" cursor="pointer"/>
+      `;
+    }
+
+    // Lead Slurry
+    if (inp.lead_vol > 0 && yTail > yTOC) {
+      svg += `
+        <rect class="cement-svg-layer" data-name="Lead Slurry" data-depth="${fmtD(res.toc)} - ${fmtD(res.tail_top)}" data-vol="${fmtV(inp.lead_vol).full}" data-mw="${fmtMW(inp.lead_mw).full}" x="${ohLeft}" y="${yTOC}" width="${annLeftW}" height="${yTail - yTOC}" fill="#B5D99C" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Lead Slurry" data-depth="${fmtD(res.toc)} - ${fmtD(res.tail_top)}" data-vol="${fmtV(inp.lead_vol).full}" data-mw="${fmtMW(inp.lead_mw).full}" x="${csgRight}" y="${yTOC}" width="${annRightW}" height="${yTail - yTOC}" fill="#B5D99C" cursor="pointer"/>
+      `;
+    }
+
+    // Tail Slurry (Annulus)
+    if (yShoe > yTail) {
+      svg += `
+        <rect class="cement-svg-layer" data-name="Tail Slurry (Annulus)" data-depth="${fmtD(res.tail_top)} - ${fmtD(inp.shoe)}" data-vol="${fmtV(inp.tail_vol).full}" data-mw="${fmtMW(inp.tail_mw).full}" x="${ohLeft}" y="${yTail}" width="${annLeftW}" height="${yShoe - yTail}" fill="#3E7D3A" cursor="pointer"/>
+        <rect class="cement-svg-layer" data-name="Tail Slurry (Annulus)" data-depth="${fmtD(res.tail_top)} - ${fmtD(inp.shoe)}" data-vol="${fmtV(inp.tail_vol).full}" data-mw="${fmtMW(inp.tail_mw).full}" x="${csgRight}" y="${yTail}" width="${annRightW}" height="${yShoe - yTail}" fill="#3E7D3A" cursor="pointer"/>
+      `;
+    }
+
+    // Rathole below shoe (filled with cement)
+    if (yTD > yShoe) {
+      const ratColor = (inp.tail_vol > 0) ? '#3E7D3A' : '#B5D99C';
+      svg += `
+        <rect class="cement-svg-layer" data-name="Rathole Cement" data-depth="${fmtD(inp.shoe)} - ${fmtD(inp.td)}" data-vol="${fmtV(res.rat_vol || 0).full}" data-mw="${fmtMW((inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0).full}" x="${ohLeft}" y="${yShoe}" width="${ohW}" height="${yTD - yShoe}" fill="${ratColor}" opacity="0.9" cursor="pointer"/>
+      `;
+    }
+
+    // Shoe Track interior (between FC and Shoe)
+    if (yShoe > yFC) {
+      const stColor = (inp.tail_vol > 0) ? '#3E7D3A' : '#B5D99C';
+      svg += `
+        <rect class="cement-svg-layer" data-name="Shoe Track Cement" data-depth="${fmtD(res.fc)} - ${fmtD(inp.shoe)}" data-vol="${fmtV(res.st_vol || 0).full}" data-mw="${fmtMW((inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0).full}" x="${csgLeft}" y="${yFC}" width="${csgW}" height="${yShoe - yFC}" fill="${stColor}" cursor="pointer"/>
+      `;
+    }
+
+    // Displacement Fluid inside Casing (above FC)
+    const topCsgY = inp.model === 'subsea' ? (yHanger || y0) : y0;
+    if (yFC > topCsgY) {
+      svg += `
+        <rect class="cement-svg-layer" data-name="Displacement Fluid" data-depth="${fmtD(0)} - ${fmtD(res.fc)}" data-vol="${fmtV(res.disp_tot || 0).full}" data-mw="${fmtMW(inp.disp_mw || inp.mw).full}" x="${csgLeft}" y="${topCsgY}" width="${csgW}" height="${yFC - topCsgY}" fill="#F2D388" cursor="pointer"/>
+      `;
+    }
+
+    // 7. Casing Walls & Float Collar
+    svg += `
+      <!-- Current Casing String -->
+      <line x1="${csgLeft}" y1="${topCsgY}" x2="${csgLeft}" y2="${yShoe}" stroke="#1E293B" stroke-width="2.8"/>
+      <line x1="${csgRight}" y1="${topCsgY}" x2="${csgRight}" y2="${yShoe}" stroke="#1E293B" stroke-width="2.8"/>
+
+      <!-- Casing Shoe Guide -->
+      <polygon points="${csgLeft},${yShoe} ${csgLeft - 4},${yShoe + 6} ${csgRight + 4},${yShoe + 6} ${csgRight},${yShoe}" fill="#0F172A" />
+
+      <!-- Float Collar -->
+      <line x1="${csgLeft}" y1="${yFC}" x2="${csgRight}" y2="${yFC}" stroke="#EF4444" stroke-width="3.5"/>
+      <circle cx="${cx}" cy="${yFC}" r="4" fill="#EF4444"/>
+    `;
+
+    // 8. Previous Casing (if present)
+    if (yPrevShoe && yPrevShoe > annTopY) {
+      const prevLeft = csgLeft - 8;
+      const prevRight = csgRight + 8;
+      svg += `
+        <line x1="${prevLeft}" y1="${annTopY}" x2="${prevLeft}" y2="${yPrevShoe}" stroke="#475569" stroke-width="2.5"/>
+        <line x1="${prevRight}" y1="${annTopY}" x2="${prevRight}" y2="${yPrevShoe}" stroke="#475569" stroke-width="2.5"/>
+        <polygon points="${prevLeft},${yPrevShoe} ${prevLeft - 6},${yPrevShoe + 8} ${prevLeft},${yPrevShoe + 8}" fill="#334155"/>
+        <polygon points="${prevRight},${yPrevShoe} ${prevRight + 6},${yPrevShoe + 8} ${prevRight},${yPrevShoe + 8}" fill="#334155"/>
+      `;
+    }
+
+    // 9. Marine Riser (if Subsea)
+    if (inp.model === 'subsea' && (yHanger || yMud)) {
+      const riserBot = yHanger || yMud;
+      svg += `
+        <!-- Marine Riser -->
+        <line x1="${riserLeft}" y1="${y0}" x2="${riserLeft}" y2="${riserBot}" stroke="#0369A1" stroke-width="3"/>
+        <line x1="${riserRight}" y1="${y0}" x2="${riserRight}" y2="${riserBot}" stroke="#0369A1" stroke-width="3"/>
+
+        ${yHanger ? `
+          <!-- Subsea Wellhead -->
+          <rect x="188" y="${yHanger - 12}" width="124" height="16" rx="3" fill="#1E293B" stroke="#0F172A" stroke-width="1.5"/>
+          <polygon points="196,${yHanger + 4} 304,${yHanger + 4} 292,${yHanger + 16} 208,${yHanger + 16}" fill="#334155"/>
+          <text x="130" y="${yHanger - 2}" font-size="9" font-weight="700" fill="#0369A1">${t('Subsea Wellhead')}</text>
+        ` : ''}
+      `;
+    }
+
+    // 10. Drill Pipe / Landing String
+    const dpBotY = inp.model === 'subsea' ? (yHanger || yFC) : yFC;
+    svg += `
+      <line x1="${cx}" y1="${y0}" x2="${cx}" y2="${dpBotY}" stroke="#475569" stroke-width="3"/>
+    `;
+
+    // 11. Balanced Left/Right Depth Callouts with Collision Avoidance & Rounded Pills
+    const leftMarkers = [];
+    const rightMarkers = [];
+
+    // Left Side Callouts: Structural / Geometry depths
+    leftMarkers.push({
+      d: 0,
+      targetY: y0,
+      label: `RKB 0 ${isMetric ? 'm' : 'ft'}`,
+      bg: '#2C1A11',
+      text: '#FFFFFF'
+    });
+
+    if (inp.prev_shoe > 0) {
+      leftMarkers.push({
+        d: inp.prev_shoe,
+        targetY: yPrevShoe,
+        label: `${t('Prev Shoe')} ${fmtD(inp.prev_shoe)}`,
+        bg: '#64748B',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (res.fc > 0) {
+      leftMarkers.push({
+        d: res.fc,
+        targetY: yFC,
+        label: `${t('Float Collar Depth')} ${fmtD(res.fc)}`,
+        bg: '#DC2626',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.shoe > 0) {
+      leftMarkers.push({
+        d: inp.shoe,
+        targetY: yShoe,
+        label: `${t('Casing Shoe')} ${fmtD(inp.shoe)}`,
+        bg: '#1E293B',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.td > 0) {
+      leftMarkers.push({
+        d: inp.td,
+        targetY: yTD,
+        label: `${t('Hole Depth (MD)')} ${fmtD(inp.td)}`,
+        bg: '#78716C',
+        text: '#FFFFFF'
+      });
+    }
+
+    // Right Side Callouts: Environmental & Fluid Top depths
+    if (hasAirGap && inp.air_gap > 0) {
+      rightMarkers.push({
+        d: inp.air_gap,
+        targetY: yAir,
+        label: `${t('Sea Level')} ${fmtD(inp.air_gap)}`,
+        bg: '#0284C7',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (hasWater && mudlineFt > (inp.air_gap || 0)) {
+      rightMarkers.push({
+        d: mudlineFt,
+        targetY: yMud,
+        label: `${t('Mudline')} ${fmtD(mudlineFt)}`,
+        bg: '#8D7765',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.model === 'subsea' && inp.hanger > 0) {
+      rightMarkers.push({
+        d: inp.hanger,
+        targetY: yHanger,
+        label: `${t('Hanger')} ${fmtD(inp.hanger)}`,
+        bg: '#0369A1',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.f1_vol > 0 && res.f1_top !== undefined) {
+      rightMarkers.push({
+        d: res.f1_top,
+        targetY: yF1,
+        label: `${t('1st Mud Wash Top')} ${fmtD(res.f1_top)}`,
+        bg: '#E07B39',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.f2_vol > 0 && res.f2_top !== undefined) {
+      rightMarkers.push({
+        d: res.f2_top,
+        targetY: yF2,
+        label: `${t('2nd Mud Wash Top')} ${fmtD(res.f2_top)}`,
+        bg: '#9B59B6',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.sp_vol > 0 && res.sp_top !== undefined) {
+      rightMarkers.push({
+        d: res.sp_top,
+        targetY: ySP,
+        label: `${t('Spacer Top')} ${fmtD(res.sp_top)}`,
+        bg: '#4A90D9',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (res.total_slurry > 0 && res.toc > 0) {
+      const tocLabel = (inp.lead_vol > 0) ? t('Lead Slurry Top') : t('TOC');
+      rightMarkers.push({
+        d: res.toc,
+        targetY: yTOC,
+        label: `${tocLabel} ${fmtD(res.toc)}`,
+        bg: '#15803D',
+        text: '#FFFFFF'
+      });
+    }
+
+    if (inp.tail_vol > 0 && res.tail_top > 0 && Math.abs(res.tail_top - res.toc) > 0.5) {
+      rightMarkers.push({
+        d: res.tail_top,
+        targetY: yTail,
+        label: `${t('Tail Top')} ${fmtD(res.tail_top)}`,
+        bg: '#3E7D3A',
+        text: '#FFFFFF'
+      });
+    }
+
+    const calloutsFn = (window.CementingCommon && typeof window.CementingCommon.renderSchematicCallouts === 'function')
+      ? window.CementingCommon.renderSchematicCallouts
+      : null;
+
+    if (calloutsFn) {
+      svg += calloutsFn({
+        leftMarkers,
+        rightMarkers,
+        ohLeft,
+        ohRight,
+        leftTagRight: 135,
+        rightTagX: 355,
+        minGap: 18,
+        minY: 45,
+        maxY: 765
+      });
+    }
+
+    // 8. Vertical Span Dimension Lines & Brackets for All Active Zones & Fluids
+    const dimensions = [];
+
+    // Air Gap (when > 0)
+    if (hasAirGap && inp.air_gap > 0 && yAir > y0) {
+      dimensions.push({
+        id: 'air_gap',
+        type: 'env',
+        track: 'inner',
+        topY: y0,
+        botY: yAir,
+        topD: 0,
+        botD: inp.air_gap,
+        label: t('Air Gap'),
+        heightStr: fmtH(inp.air_gap),
+        color: '#0284C7',
+        bg: '#0284C7'
+      });
+    }
+
+    // Water Depth (when > 0)
+    if (hasWater && waterDepthFt > 0 && yMud > yAir) {
+      dimensions.push({
+        id: 'water_depth',
+        type: 'env',
+        track: 'inner',
+        topY: yAir,
+        botY: yMud,
+        topD: inp.air_gap || 0,
+        botD: mudlineFt,
+        label: t('Water Depth'),
+        heightStr: fmtH(waterDepthFt),
+        color: '#0369A1',
+        bg: '#0369A1'
+      });
+    }
+
+    // Displacement Fluid inside Casing/String
+    const topCsgD = inp.model === 'subsea' ? (inp.hanger || 0) : 0;
+    const fcDepth = res.fc !== undefined ? Number(res.fc) : (Number(inp.shoe) - (Number(inp.shoe_track_len) || 0));
+    if (fcDepth > topCsgD && yFC > topCsgY) {
+      const dispMw = inp.disp_mw || inp.mw || 0;
+      dimensions.push({
+        id: 'displacement',
+        type: 'internal',
+        track: 'internal',
+        topY: topCsgY,
+        botY: yFC,
+        topD: topCsgD,
+        botD: fcDepth,
+        label: t('Displacement Fluid'),
+        heightStr: fmtH(fcDepth - topCsgD),
+        mwStr: fmtMW(dispMw).full,
+        color: '#D97706',
+        bg: '#1E293B'
+      });
+    }
+
+    // Shoe Track Cement inside Casing (between FC and Shoe)
+    if (inp.shoe > fcDepth && yShoe > yFC) {
+      const stMw = (inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0;
+      dimensions.push({
+        id: 'shoe_track',
+        type: 'internal',
+        track: 'internal',
+        topY: yFC,
+        botY: yShoe,
+        topD: fcDepth,
+        botD: inp.shoe,
+        label: t('Shoe Track'),
+        heightStr: fmtH(inp.shoe - fcDepth),
+        mwStr: fmtMW(stMw).full,
+        color: '#3E7D3A',
+        bg: '#1E293B'
+      });
+    }
+
+    // Annular Fluids:
+    const annTopD = inp.model === 'subsea' ? (inp.hanger || mudlineFt) : mudlineFt;
+    const topFluidD = inp.f1_vol > 0 ? res.f1_top : (inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc));
+
+    // Annulus Hole Fluid / Original Mud
+    if (topFluidD > annTopD && topFluidY > annTopY) {
+      const holeMw = inp.mw || inp.hole_fluid_mw || 0;
+      dimensions.push({
+        id: 'hole_fluid',
+        type: 'annulus',
+        track: 'inner',
+        topY: annTopY,
+        botY: topFluidY,
+        topD: annTopD,
+        botD: topFluidD,
+        label: t('Hole Fluid'),
+        heightStr: fmtH(topFluidD - annTopD),
+        mwStr: fmtMW(holeMw).full,
+        color: '#64748B',
+        bg: '#334155'
+      });
+    }
+
+    // 1st Mud Wash
+    if (inp.f1_vol > 0 && res.f1_top !== undefined) {
+      const f1NextTop = inp.f2_vol > 0 ? res.f2_top : (inp.sp_vol > 0 ? res.sp_top : res.toc);
+      const f1NextY = inp.f2_vol > 0 ? yF2 : (inp.sp_vol > 0 ? ySP : yTOC);
+      if (f1NextTop > res.f1_top && f1NextY > yF1) {
+        dimensions.push({
+          id: 'f1_mud',
+          type: 'annulus',
+          track: 'inner',
+          topY: yF1,
+          botY: f1NextY,
+          topD: res.f1_top,
+          botD: f1NextTop,
+          label: t('1st Mud Wash'),
+          heightStr: fmtH(f1NextTop - res.f1_top),
+          mwStr: fmtMW(inp.f1_mw).full,
+          color: '#E07B39',
+          bg: '#E07B39'
+        });
+      }
+    }
+
+    // 2nd Mud Wash
+    if (inp.f2_vol > 0 && res.f2_top !== undefined) {
+      const f2NextTop = inp.sp_vol > 0 ? res.sp_top : res.toc;
+      const f2NextY = inp.sp_vol > 0 ? ySP : yTOC;
+      if (f2NextTop > res.f2_top && f2NextY > yF2) {
+        dimensions.push({
+          id: 'f2_mud',
+          type: 'annulus',
+          track: 'inner',
+          topY: yF2,
+          botY: f2NextY,
+          topD: res.f2_top,
+          botD: f2NextTop,
+          label: t('2nd Mud Wash'),
+          heightStr: fmtH(f2NextTop - res.f2_top),
+          mwStr: fmtMW(inp.f2_mw).full,
+          color: '#9B59B6',
+          bg: '#9B59B6'
+        });
+      }
+    }
+
+    // Spacer
+    if (inp.sp_vol > 0 && res.sp_top !== undefined && res.toc > res.sp_top && yTOC > ySP) {
+      dimensions.push({
+        id: 'spacer',
+        type: 'annulus',
+        track: 'inner',
+        topY: ySP,
+        botY: yTOC,
+        topD: res.sp_top,
+        botD: res.toc,
+        label: t('Spacer'),
+        heightStr: fmtH(res.toc - res.sp_top),
+        mwStr: fmtMW(inp.sp_mw).full,
+        color: '#4A90D9',
+        bg: '#4A90D9'
+      });
+    }
+
+    // Lead Slurry
+    if (inp.lead_vol > 0 && res.toc !== undefined && res.tail_top > res.toc && yTail > yTOC) {
+      dimensions.push({
+        id: 'lead_slurry',
+        type: 'annulus',
+        track: 'inner',
+        topY: yTOC,
+        botY: yTail,
+        topD: res.toc,
+        botD: res.tail_top,
+        label: t('Lead Slurry'),
+        heightStr: fmtH(res.tail_top - res.toc),
+        mwStr: fmtMW(inp.lead_mw).full,
+        color: '#15803D',
+        bg: '#15803D'
+      });
+    }
+
+    // Tail Slurry
+    const tailStartD = (inp.lead_vol > 0 && res.tail_top > 0) ? res.tail_top : res.toc;
+    const tailStartY = (inp.lead_vol > 0 && res.tail_top > 0) ? yTail : yTOC;
+    const tailEndD = tdFt;
+    const tailEndY = yTD;
+    if (tailEndD > tailStartD && tailEndY > tailStartY && (inp.tail_vol > 0 || res.total_slurry > 0)) {
+      const tailMw = (inp.tail_vol > 0 ? inp.tail_mw : inp.lead_mw) || 0;
+      dimensions.push({
+        id: 'tail_slurry',
+        type: 'annulus',
+        track: 'inner',
+        topY: tailStartY,
+        botY: tailEndY,
+        topD: tailStartD,
+        botD: tailEndD,
+        label: t('Tail Slurry'),
+        heightStr: fmtH(tailEndD - tailStartD),
+        mwStr: fmtMW(tailMw).full,
+        color: '#3E7D3A',
+        bg: '#3E7D3A'
+      });
+    }
+
+    const dimensionsFn = (window.CementingCommon && typeof window.CementingCommon.renderVerticalDimensions === 'function')
+      ? window.CementingCommon.renderVerticalDimensions
+      : null;
+
+    if (dimensionsFn) {
+      svg += dimensionsFn({
+        dimensions,
+        isMetric,
+        ohLeft,
+        ohRight,
+        internalX: cx,
+        innerTrackX: 505,
+        outerTrackX: 645,
+        extStartX: 475,
+        minGap: 18,
+        minY: 45,
+        maxY: 765
+      });
+    }
+
+    svg += `</svg>`;
+    return svg;
+  }
+
+  /**
+   * Bind Tap / Click on Schematic Layers to Show Tooltip
+   */
+
   return {
+    renderWellCementingSchematic,
     M_PER_FT,
     FT_PER_M,
     CAPACITY_DATA,

@@ -32,11 +32,6 @@ public class ThemeManagerPlugin extends Plugin {
 
             Window window = getActivity().getWindow();
             if (window != null) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                    int navColor = Color.parseColor(isDark ? "#141210" : "#FAF8F5");
-                    window.setNavigationBarColor(navColor);
-                    window.setStatusBarColor(navColor);
-                }
                 WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
                 if (controller != null) {
                     controller.setAppearanceLightNavigationBars(!isDark);
