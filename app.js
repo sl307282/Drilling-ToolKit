@@ -3874,6 +3874,12 @@ function renderScreen() {
   }
 
   // Dynamic content builders per screen
+  if (screenId.startsWith('subsea-')) {
+    state.flowType = 'subsea';
+  } else if (screenId.startsWith('surface-')) {
+    state.flowType = 'surface';
+  }
+
   switch (screenId) {
     case 'surface-hole-size':
     case 'subsea-hole-size':
@@ -3942,6 +3948,11 @@ function renderScreen() {
 // SCREEN 1: Hole Size Selection
 // ==========================================
 function renderHoleSizeSelection() {
+  if (state.currentScreen === 'subsea-hole-size') {
+    state.flowType = 'subsea';
+  } else if (state.currentScreen === 'surface-hole-size') {
+    state.flowType = 'surface';
+  }
   const container = document.getElementById(`hole-sizes-container-${state.flowType}`);
   container.innerHTML = '';
 
@@ -5528,9 +5539,6 @@ function renderCalculations() {
     const waterDepthVal = state.calcInputs.marineWaterDepth;
     const seabedDepthVal = state.calcInputs.marineSeabedDepth;
     const isSeabedOverridden = !!state.calcInputs.marineSeabedOverride;
-    const casingIdVal = state.calcInputs.marineCasingID;
-    const holeSizeVal = state.calcInputs.marineHoleSize;
-    const pumpOutputVal = state.calcInputs.marinePumpOutput;
 
     marineCard = document.createElement('div');
     marineCard.id = 'subsea-marine-elevations-card';
@@ -5557,7 +5565,7 @@ function renderCalculations() {
         </div>
       </div>
 
-      <div class="form-group" style="margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:6px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
           <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Seabed Depth from RKB', 'Seabed Depth from RKB')} (${dUnit})</label>
           <button type="button" id="reset-seabed-auto" style="border:none; background:none; font-size:0.75rem; color:var(--accent-color); font-weight:600; cursor:pointer; padding:0; display:${isSeabedOverridden ? 'inline' : 'none'};">${t('Reset to Auto', 'Reset to Auto')}</button>
@@ -5567,45 +5575,6 @@ function renderCalculations() {
           ${editIcon}
         </div>
         <div id="marine-seabed-error" class="validation-error" style="color:var(--danger-color, #d32f2f); font-size:0.75rem; margin-top:4px; display:none;"></div>
-      </div>
-
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:12px;">
-        <div class="form-group">
-          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Casing / Conductor ID', 'Casing / Conductor ID')} (in)</label>
-          <div style="position:relative; width:100%;">
-            <input type="number" step="any" class="form-input" id="marine-casing-id" value="${casingIdVal}" style="width:100%; padding-right:25px;">
-            ${editIcon}
-          </div>
-          <select id="marine-casing-quickselect" style="margin-top:5px; width:100%; font-size:0.75rem; padding:4px 6px; border-radius:6px; background:var(--input-bg, #f5f5f5); border:1px solid var(--border-color); color:var(--text-secondary);">
-            <option value="28.0" ${casingIdVal == 28.0 ? 'selected' : ''}>30" Conductor (28.0" ID)</option>
-            <option value="35.0" ${casingIdVal == 35.0 ? 'selected' : ''}>36" Conductor (35.0" ID)</option>
-            <option value="29.0" ${casingIdVal == 29.0 ? 'selected' : ''}>30" Conductor (29.0" ID)</option>
-            <option value="23.0" ${casingIdVal == 23.0 ? 'selected' : ''}>24" Casing (23.0" ID)</option>
-            <option value="18.73" ${casingIdVal == 18.73 ? 'selected' : ''}>20" Casing (18.73" ID)</option>
-            <option value="15.0" ${casingIdVal == 15.0 ? 'selected' : ''}>16" Casing (15.0" ID)</option>
-            <option value="12.415" ${casingIdVal == 12.415 ? 'selected' : ''}>13 3/8" Casing (12.415" ID)</option>
-            <option value="8.681" ${casingIdVal == 8.681 ? 'selected' : ''}>9 5/8" Casing (8.681" ID)</option>
-            <option value="custom">Custom ID...</option>
-          </select>
-          <div id="marine-casing-warning" style="color:var(--warning-color, #e65100); font-size:0.75rem; margin-top:4px; display:none;"></div>
-          <div id="marine-casing-error" class="validation-error" style="color:var(--danger-color, #d32f2f); font-size:0.75rem; margin-top:4px; display:none;"></div>
-        </div>
-
-        <div class="form-group">
-          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Hole Size', 'Hole Size')} (in)</label>
-          <div style="position:relative; width:100%;">
-            <input type="number" step="any" class="form-input" id="marine-hole-size" value="${holeSizeVal}" style="width:100%; padding-right:25px;">
-            ${editIcon}
-          </div>
-        </div>
-      </div>
-
-      <div class="form-group" style="margin-bottom:6px;">
-        <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Pump Output', 'Pump Output')} (bbl/stroke)</label>
-        <div style="position:relative; width:100%;">
-          <input type="number" step="any" class="form-input" id="marine-pump-output" value="${pumpOutputVal}" style="width:100%; padding-right:25px;">
-          ${editIcon}
-        </div>
       </div>
     `;
     container.appendChild(marineCard);
@@ -5890,21 +5859,10 @@ function renderCalculations() {
       state.calcInputs.marineAirGap = getVal(container.querySelector('#marine-air-gap'));
       state.calcInputs.marineWaterDepth = getVal(container.querySelector('#marine-water-depth'));
       state.calcInputs.marineSeabedDepth = getVal(container.querySelector('#marine-seabed-depth'));
-      state.calcInputs.marineRiserID = getVal(container.querySelector('#marine-riser-id'));
-      state.calcInputs.marineCasingID = getVal(container.querySelector('#marine-casing-id'));
-      state.calcInputs.marineHoleSize = getVal(container.querySelector('#marine-hole-size'));
-      state.calcInputs.marinePumpOutput = getVal(container.querySelector('#marine-pump-output'));
 
       state.calcInputs.airGap = state.calcInputs.marineAirGap;
       state.calcInputs.waterDepth = state.calcInputs.marineWaterDepth;
       state.calcInputs.seabedDepth = state.calcInputs.marineSeabedDepth;
-      if (state.calcInputs.marineCasingID) state.casingID = String(state.calcInputs.marineCasingID);
-      if (state.calcInputs.marinePumpOutput) {
-        state.reference.pumpOutput = convertPumpOutputBack(parseFloat(state.calcInputs.marinePumpOutput) || 0.1176, state.globalUnit);
-      }
-      if (state.calcInputs.marineHoleSize) {
-        state.selectedHoleSize = String(state.calcInputs.marineHoleSize);
-      }
 
       if (state.hasRiser !== false && state.sectionType !== 'riserless') {
         state.calcInputs.riserLength = getVal(container.querySelector('#' + 'riserlength-calc'));
@@ -6110,14 +6068,10 @@ function renderCalculations() {
     const seabedEl = container.querySelector('#marine-seabed-depth');
     const shoeMEl = container.querySelector('#shoe-md-calc');
     const holeMEl = container.querySelector('#hole-md-calc');
-    const casingIdEl = container.querySelector('#marine-casing-id');
-    const holeSizeEl = container.querySelector('#marine-hole-size');
 
     const seabedVal = parseFloat(seabedEl ? seabedEl.value : '') || 0;
     const shoeMVal = parseFloat(shoeMEl ? shoeMEl.value : '') || 0;
     const holeMVal = parseFloat(holeMEl ? holeMEl.value : '') || 0;
-    const casingIdVal = parseFloat(casingIdEl ? casingIdEl.value : '') || 0;
-    const holeSizeVal = parseFloat(holeSizeEl ? holeSizeEl.value : '') || 0;
 
     let hasBlockingError = false;
 
@@ -6159,32 +6113,6 @@ function renderCalculations() {
       }
     }
 
-    // Casing ID vs string OD at depth
-    const stringOD = Math.max(parseFloat(state.drillstring.dpSize) || 5.0, parseFloat(state.drillstring.dcSize) || 6.5);
-    const casingErrEl = container.querySelector('#marine-casing-error');
-    if (casingErrEl) {
-      if (casingIdVal > 0 && casingIdVal <= stringOD) {
-        casingErrEl.textContent = `${t('Casing ID must be larger than string OD', 'Casing ID must be larger than string OD')} (${stringOD}")`;
-        casingErrEl.style.display = 'block';
-        if (casingIdEl) casingIdEl.style.border = '2px solid var(--danger-color, #d32f2f)';
-        hasBlockingError = true;
-      } else {
-        casingErrEl.style.display = 'none';
-        if (casingIdEl) casingIdEl.style.border = '';
-      }
-    }
-
-    // Casing ID >= Hole Size warning (non-blocking)
-    const casingWarnEl = container.querySelector('#marine-casing-warning');
-    if (casingWarnEl) {
-      if (casingIdVal > 0 && holeSizeVal > 0 && casingIdVal >= holeSizeVal) {
-        casingWarnEl.textContent = t('Casing ID is usually smaller than hole size', 'Casing ID is usually smaller than hole size');
-        casingWarnEl.style.display = 'block';
-      } else {
-        casingWarnEl.style.display = 'none';
-      }
-    }
-
     const runBtn = container.querySelector('#run-calc-btn');
     if (runBtn) {
       if (hasBlockingError) {
@@ -6206,10 +6134,6 @@ function renderCalculations() {
     const waterDepthIn = container.querySelector('#marine-water-depth');
     const seabedIn = container.querySelector('#marine-seabed-depth');
     const resetSeabedBtn = container.querySelector('#reset-seabed-auto');
-    const casingIdIn = container.querySelector('#marine-casing-id');
-    const casingSelect = container.querySelector('#marine-casing-quickselect');
-    const holeSizeIn = container.querySelector('#marine-hole-size');
-    const pumpOutIn = container.querySelector('#marine-pump-output');
 
     const updateSeabedFromElevations = () => {
       if (!state.calcInputs.marineSeabedOverride && seabedIn) {
@@ -6242,53 +6166,6 @@ function renderCalculations() {
         state.calcInputs.marineSeabedOverride = false;
         resetSeabedBtn.style.display = 'none';
         updateSeabedFromElevations();
-      });
-    }
-
-    if (casingSelect) {
-      casingSelect.addEventListener('change', () => {
-        if (casingSelect.value && casingSelect.value !== 'custom' && casingIdIn) {
-          casingIdIn.value = casingSelect.value;
-          state.calcInputs.marineCasingID = casingSelect.value;
-          state.casingID = casingSelect.value;
-          validateMarineElevations();
-          syncStateFromInputs();
-          runCalculationsEngine();
-        }
-      });
-    }
-
-    if (casingIdIn) {
-      casingIdIn.addEventListener('input', () => {
-        state.calcInputs.marineCasingID = casingIdIn.value;
-        state.casingID = casingIdIn.value;
-        if (casingSelect) {
-          const match = Array.from(casingSelect.options).find(o => o.value === casingIdIn.value);
-          casingSelect.value = match ? match.value : 'custom';
-        }
-        validateMarineElevations();
-        syncStateFromInputs();
-        runCalculationsEngine();
-      });
-    }
-
-    if (holeSizeIn) {
-      holeSizeIn.addEventListener('input', () => {
-        state.calcInputs.marineHoleSize = holeSizeIn.value;
-        state.selectedHoleSize = holeSizeIn.value;
-        const titleEl = document.querySelector(`#screen-${state.flowType}-calculations .screen-title`);
-        if (titleEl) titleEl.textContent = `${holeSizeIn.value}" Hole`;
-        validateMarineElevations();
-        syncStateFromInputs();
-        runCalculationsEngine();
-      });
-    }
-
-    if (pumpOutIn) {
-      pumpOutIn.addEventListener('input', () => {
-        state.calcInputs.marinePumpOutput = pumpOutIn.value;
-        syncStateFromInputs();
-        runCalculationsEngine();
       });
     }
 
@@ -6511,7 +6388,7 @@ function runCalculationsEngine() {
   // SUBSEA CALCULATION ENGINE & EXPANDED RESULTS
   // ==========================================
   if (state.flowType === 'subsea') {
-    const holeSizeNum = parseFloat(inputs.marineHoleSize || state.selectedHoleSize || 36);
+    const holeSizeNum = parseFloat(state.selectedHoleSize || (ref && ref.selectedHoleSize) || 36);
     const airGapM = toMeters(inputs.marineAirGap !== undefined ? inputs.marineAirGap : 25);
     const waterDepthM = toMeters(inputs.marineWaterDepth !== undefined ? inputs.marineWaterDepth : 300);
     const seabedM = toMeters(inputs.marineSeabedDepth !== undefined ? inputs.marineSeabedDepth : (airGapM + waterDepthM));
@@ -6519,7 +6396,7 @@ function runCalculationsEngine() {
     const returnsMode = isRiserless ? 'riserless' : 'risered';
     const isWithRiser = !isRiserless;
     state.calcInputs.marineReturnsMode = returnsMode;
-    const casingIdNum = parseFloat(inputs.marineCasingID || state.casingID || (holeSizeNum >= 26 ? 28.0 : 18.73));
+    const casingIdNum = parseFloat(state.casingID || (ref && ref.casingID) || (holeSizeNum >= 26 ? 28.0 : 18.73));
     const riserIdNum = parseFloat(inputs.marineRiserID || 18.75);
     const riserLenM = isWithRiser ? toMeters(inputs.riserLength || seabedM) : 0;
     const poBbl = effectivePumpOutput > 0 ? (effectivePumpOutput / 158.987) : 0.1176;

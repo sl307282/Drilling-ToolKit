@@ -1024,7 +1024,21 @@
     const holeMD = parseFloat(inputs.holeMD || 0);
     const shoeMD = parseFloat(inputs.shoeMD || 0);
 
-    const pumpOutput = parseFloat(inputs.pumpOutput || (ref && ref.pumpOutput) || 0.1176); // bbl/stk
+    // Capacities in bbl/m
+    const capMultiplier = opts.capacitiesInLiters ? (1 / 158.987295) : 1.0;
+    const safeRef = ref || {};
+    const refCaps = safeRef.capacities || {};
+    const refOH = safeRef.openHoleAnnular || {};
+    const refCas = safeRef.casingAnnular || {};
+
+    let pumpOutput = parseFloat(inputs.pumpOutput);
+    if (isNaN(pumpOutput) || pumpOutput <= 0) {
+      if (safeRef && safeRef.pumpOutput) {
+        pumpOutput = parseFloat(safeRef.pumpOutput) * capMultiplier;
+      } else {
+        pumpOutput = 0.1176;
+      }
+    }
     const spm = parseFloat(inputs.spm || 60);
 
     // Drillstring lengths
@@ -1053,11 +1067,6 @@
     const dp2ID = parseFloat(inputs.dp2ID || dpID);
     const dp3OD = parseFloat(inputs.dp3OD || dpOD);
     const dp3ID = parseFloat(inputs.dp3ID || dpID);
-
-    // Capacities in bbl/m
-    const capMultiplier = opts.capacitiesInLiters ? (1 / 158.987295) : 1.0;
-    const safeRef = ref || {};
-    const refCaps = safeRef.capacities || {};
 
     const isReasonablePipeCap = (capBblM) => (typeof capBblM === 'number' && !isNaN(capBblM) && capBblM > 0.001 && capBblM < 0.5);
 
@@ -1114,11 +1123,22 @@
     const dp2InOH = overlap(dp2Start, dp2End, shoeMD, holeMD);
     const dpInOH = overlap(dpStart, dpEnd, shoeMD, holeMD);
 
-    const openHoleAnnularCapDC = bblMAnn(holeSize, dcOD);
-    const openHoleAnnularCapDC2 = bblMAnn(holeSize, dc2OD);
-    const openHoleAnnularCapDC3 = bblMAnn(holeSize, dc3OD);
-    const openHoleAnnularCapHWDP = bblMAnn(holeSize, hwdpOD);
-    const openHoleAnnularCapDP = bblMAnn(holeSize, dpOD);
+    const getSafeAnnCap = (refVal, d1, d2) => {
+      const calcCap = bblMAnn(d1, d2);
+      if (opts.useRefCapacities && refVal !== undefined && refVal !== null) {
+        const parsed = parseFloat(refVal) * capMultiplier;
+        if (typeof parsed === 'number' && !isNaN(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+      return calcCap;
+    };
+
+    const openHoleAnnularCapDC = getSafeAnnCap(refOH.DC, holeSize, dcOD);
+    const openHoleAnnularCapDC2 = getSafeAnnCap(refOH.DC2, holeSize, dc2OD);
+    const openHoleAnnularCapDC3 = getSafeAnnCap(refOH.DC3, holeSize, dc3OD);
+    const openHoleAnnularCapHWDP = getSafeAnnCap(refOH.HWDP, holeSize, hwdpOD);
+    const openHoleAnnularCapDP = getSafeAnnCap(refOH.DP, holeSize, dpOD);
 
     const openHoleAnnularVolume = (dcInOH * openHoleAnnularCapDC) +
                                   (dc2InOH * openHoleAnnularCapDC2) +
@@ -1145,11 +1165,11 @@
     const dp2InCas = overlap(dp2Start, dp2End, casedTop, casedBottom);
     const dpInCas = overlap(dpStart, dpEnd, casedTop, casedBottom);
 
-    const casAnnCapDC = bblMAnn(casingID, dcOD);
-    const casAnnCapDC2 = bblMAnn(casingID, dc2OD);
-    const casAnnCapDC3 = bblMAnn(casingID, dc3OD);
-    const casAnnCapHWDP = bblMAnn(casingID, hwdpOD);
-    const casAnnCapDP = bblMAnn(casingID, dpOD);
+    const casAnnCapDC = getSafeAnnCap(refCas.DC, casingID, dcOD);
+    const casAnnCapDC2 = getSafeAnnCap(refCas.DC2, casingID, dc2OD);
+    const casAnnCapDC3 = getSafeAnnCap(refCas.DC3, casingID, dc3OD);
+    const casAnnCapHWDP = getSafeAnnCap(refCas.HWDP, casingID, hwdpOD);
+    const casAnnCapDP = getSafeAnnCap(refCas.DP, casingID, dpOD);
 
     const casedAnnularVolume = (dcInCas * casAnnCapDC) +
                                (dc2InCas * casAnnCapDC2) +

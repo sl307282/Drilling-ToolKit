@@ -749,6 +749,24 @@ assert.strictEqual(marineRes.strokes.totalCycleStrokes, 14243, `Total cycle stro
 assert.strictEqual(marineRes.strokes.bottomsUpStrokes, marineRes.strokes.bitToSeabedStrokes, 'Bottoms-up must equal bit-to-seabed in riserless mode');
 assert.strictEqual(marineRes.volumes.riserAnnularVolume, 0, 'Riser annular volume must be 0 in riserless mode');
 
+// Verify that custom edited ref values in ref.openHoleAnnular and ref.casingAnnular are respected
+const customRef = {
+  pumpOutput: 18.69,
+  capacities: { DC: 4.02, HWDP: 9.15, DP: 9.15 },
+  openHoleAnnular: { DC: 650.0, HWDP: 660.0, DP: 660.0 }, // in L/m
+  casingAnnular: { DC: 380.0, HWDP: 390.0, DP: 390.0 } // in L/m
+};
+const customMarineRes = WellControlEngine.calculateMarineSegmentVolumes(
+  marineTestInputs,
+  customRef,
+  { useRefCapacities: true, capacitiesInLiters: true }
+);
+assert.ok(customMarineRes.volumes.openHoleAnnularVolume > 0, 'Custom ref OH volume must be valid');
+assert.ok(customMarineRes.volumes.casedAnnularVolume > 0, 'Custom ref Cased volume must be valid');
+// OH volume with custom 650 & 660 L/m:
+// 100m DC @ 650 L/m + 50m HWDP @ 660 L/m + 150m DP @ 660 L/m = 65000 + 33000 + 99000 = 197000 L / 158.987295 = 1239.09 bbl
+assert.ok(Math.abs(customMarineRes.volumes.openHoleAnnularVolume - (197000 / 158.987295)) < 0.2, 'OH volume with custom ref values verified');
+
 console.log('PASSED: Subsea 36" riserless marine segment calculations match exact hand-calculated oilfield formulas!\n');
 
 console.log('====================================================');
