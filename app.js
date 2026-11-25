@@ -5511,9 +5511,10 @@ function renderCalculations() {
       state.calcInputs.marineSeabedDepth = (parseFloat(state.calcInputs.marineAirGap) || 25) + (parseFloat(state.calcInputs.marineWaterDepth) || 300);
     }
     const curHoleNum = parseFloat(state.selectedHoleSize) || 36;
-    if (!state.calcInputs.marineReturnsMode) {
-      state.calcInputs.marineReturnsMode = (state.hasRiser === false || curHoleNum >= 26) ? 'riserless' : 'risered';
-    }
+    const isRiserlessHole = (state.hasRiser === false || state.sectionType === 'riserless');
+    state.calcInputs.marineReturnsMode = isRiserlessHole ? 'riserless' : 'risered';
+    state.hasRiser = !isRiserlessHole;
+    state.sectionType = state.calcInputs.marineReturnsMode;
     if (!state.calcInputs.marineRiserID) state.calcInputs.marineRiserID = 18.75;
     if (!state.calcInputs.marineCasingID) {
       state.calcInputs.marineCasingID = state.casingID || (curHoleNum >= 36 ? '28.0' : (curHoleNum === 26 ? '28.0' : (curHoleNum === 17.5 ? '18.73' : (curHoleNum === 12.25 ? '12.415' : '8.681'))));
@@ -5527,8 +5528,6 @@ function renderCalculations() {
     const waterDepthVal = state.calcInputs.marineWaterDepth;
     const seabedDepthVal = state.calcInputs.marineSeabedDepth;
     const isSeabedOverridden = !!state.calcInputs.marineSeabedOverride;
-    const returnsMode = state.calcInputs.marineReturnsMode;
-    const riserIdVal = state.calcInputs.marineRiserID;
     const casingIdVal = state.calcInputs.marineCasingID;
     const holeSizeVal = state.calcInputs.marineHoleSize;
     const pumpOutputVal = state.calcInputs.marinePumpOutput;
@@ -5568,22 +5567,6 @@ function renderCalculations() {
           ${editIcon}
         </div>
         <div id="marine-seabed-error" class="validation-error" style="color:var(--danger-color, #d32f2f); font-size:0.75rem; margin-top:4px; display:none;"></div>
-      </div>
-
-      <div class="form-group" style="margin-bottom:12px;">
-        <label style="display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Returns Mode', 'Returns Mode')}</label>
-        <div class="segmented-control" id="marine-returns-mode-toggle" style="margin-bottom:8px;">
-          <button type="button" class="segmented-control-btn ${returnsMode === 'riserless' ? 'active' : ''}" data-marine-mode="riserless">${t('Riserless', 'Riserless')}</button>
-          <button type="button" class="segmented-control-btn ${returnsMode === 'risered' ? 'active' : ''}" data-marine-mode="risered">${t('With Riser', 'With Riser')}</button>
-        </div>
-      </div>
-
-      <div id="marine-riser-id-group" class="form-group" style="margin-bottom:12px; display:${returnsMode === 'risered' ? 'block' : 'none'};">
-        <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Riser ID', 'Riser ID')} (in)</label>
-        <div style="position:relative; width:100%;">
-          <input type="number" step="any" class="form-input" id="marine-riser-id" value="${riserIdVal}" style="width:100%; padding-right:25px;">
-          ${editIcon}
-        </div>
       </div>
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:12px;">
@@ -6262,25 +6245,6 @@ function renderCalculations() {
       });
     }
 
-    const returnsToggle = container.querySelector('#marine-returns-mode-toggle');
-    if (returnsToggle) {
-      returnsToggle.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const mode = e.currentTarget.getAttribute('data-marine-mode');
-          returnsToggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-          e.currentTarget.classList.add('active');
-          state.calcInputs.marineReturnsMode = mode;
-          state.hasRiser = (mode === 'risered');
-          state.sectionType = mode;
-          const riserGroup = container.querySelector('#marine-riser-id-group');
-          if (riserGroup) riserGroup.style.display = (mode === 'risered' ? 'block' : 'none');
-          validateMarineElevations();
-          syncStateFromInputs();
-          runCalculationsEngine();
-        });
-      });
-    }
-
     if (casingSelect) {
       casingSelect.addEventListener('change', () => {
         if (casingSelect.value && casingSelect.value !== 'custom' && casingIdIn) {
@@ -6551,8 +6515,10 @@ function runCalculationsEngine() {
     const airGapM = toMeters(inputs.marineAirGap !== undefined ? inputs.marineAirGap : 25);
     const waterDepthM = toMeters(inputs.marineWaterDepth !== undefined ? inputs.marineWaterDepth : 300);
     const seabedM = toMeters(inputs.marineSeabedDepth !== undefined ? inputs.marineSeabedDepth : (airGapM + waterDepthM));
-    const returnsMode = inputs.marineReturnsMode || (state.hasRiser === false || state.sectionType === 'riserless' ? 'riserless' : 'risered');
-    const isWithRiser = (returnsMode === 'risered');
+    const isRiserless = (state.hasRiser === false || state.sectionType === 'riserless');
+    const returnsMode = isRiserless ? 'riserless' : 'risered';
+    const isWithRiser = !isRiserless;
+    state.calcInputs.marineReturnsMode = returnsMode;
     const casingIdNum = parseFloat(inputs.marineCasingID || state.casingID || (holeSizeNum >= 26 ? 28.0 : 18.73));
     const riserIdNum = parseFloat(inputs.marineRiserID || 18.75);
     const riserLenM = isWithRiser ? toMeters(inputs.riserLength || seabedM) : 0;
