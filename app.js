@@ -57,22 +57,71 @@ const DB = {
     "CHOKE LINE": { capacity: 3.167 }
   },
   openHoleVolumes: {
-    "36": { "5_DP": 643.56, "5_HWDP": 642.85, "6-1/2_DC": 635.39, "8_DC": 624.37, "9-1/2_DC": 611.04 },
-    "26": { "5_DP": 329.10, "5_HWDP": 328.71, "6-1/2_DC": 321.90, "8_DC": 310.07, "9-1/2_DC": 296.77 },
-    "17.5": { "5_DP": 141.25, "5_HWDP": 141.25, "6-1/2_DC": 133.79, "8_DC": 122.77, "9-1/2_DC": 109.47 },
-    "12.25": { "5_DP": 62.10, "5_HWDP": 62.10, "6-1/2_DC": 54.60, "8_DC": 43.61, "9-1/2_DC": 30.31 },
-    "8.5": { "5_DP": 23.37, "5_HWDP": 22.66, "6-1/2_DC": 15.20 }
+    // Standard Annular Capacity Presets (stored internally as L/m; displayed as bbl/m or bbl/ft based on unit)
+    // 42" Open Hole: DC 1 (6-1/2") = 5.4487 bbl/m (866.274 L/m), HWDP (5") = 5.5739 bbl/m (886.180 L/m), DP 1 (5") = 5.5739 bbl/m (886.180 L/m)
+    "42": {
+      "5_DP": 886.18,
+      "5_HWDP": 886.18,
+      "6-1/2_DC": 866.27,
+      "6.5_DC": 866.27,
+      "8_DC": 855.25,
+      "9-1/2_DC": 841.95
+    },
+    // 36" Open Hole: DC 1 (6-1/2") = 3.9562 bbl/m (628.986 L/m), HWDP (5") = 4.0814 bbl/m (648.891 L/m), DP 1 (5") = 4.0814 bbl/m (648.891 L/m)
+    "36": {
+      "5_DP": 648.89,
+      "5_HWDP": 648.89,
+      "6-1/2_DC": 628.99,
+      "6.5_DC": 628.99,
+      "8_DC": 617.96,
+      "9-1/2_DC": 604.67
+    },
+    "26": { "5_DP": 329.10, "5_HWDP": 328.71, "6-1/2_DC": 321.90, "6.5_DC": 321.90, "8_DC": 310.07, "9-1/2_DC": 296.77 },
+    "17.5": { "5_DP": 141.25, "5_HWDP": 141.25, "6-1/2_DC": 133.79, "6.5_DC": 133.79, "8_DC": 122.77, "9-1/2_DC": 109.47 },
+    "12.25": { "5_DP": 62.10, "5_HWDP": 62.10, "6-1/2_DC": 54.60, "6.5_DC": 54.60, "8_DC": 43.61, "9-1/2_DC": 30.31 },
+    "8.5": { "5_DP": 23.37, "5_HWDP": 22.66, "6-1/2_DC": 15.20, "6.5_DC": 15.20 }
   },
   casingVolumes: {
-    "42": { "5_DP": 880.00, "5_HWDP": 879.30, "6-1/2_DC": 871.80, "8_DC": 860.80, "9-1/2_DC": 847.50 },
-    "30": { "5_DP": 383.70, "5_HWDP": 383.05, "6-1/2_DC": 375.59, "8_DC": 364.57, "9-1/2_DC": 351.27 },
-    "20": { "5_DP": 164.50, "5_HWDP": 163.81, "6-1/2_DC": 156.35, "8_DC": 145.33, "9-1/2_DC": 132.03 },
-    "13.375": { "5_DP": 66.13, "5_HWDP": 65.42, "6-1/2_DC": 57.96, "8_DC": 46.94, "9-1/2_DC": 33.64 },
-    "9.625": { "5_DP": 24.95, "5_HWDP": 24.24, "6-1/2_DC": 16.78 },
+    "48": {
+      "5_DP": 1059.50,
+      "5_HWDP": 1059.50,
+      "6-1/2_DC": 1050.77,
+      "6.5_DC": 1050.77,
+      "8_DC": 1039.80,
+      "9-1/2_DC": 1026.50
+    },
+    "42": {
+      "5_DP": 798.05,
+      "5_HWDP": 798.05,
+      "6-1/2_DC": 789.31,
+      "6.5_DC": 789.31,
+      "8_DC": 778.29,
+      "9-1/2_DC": 764.99
+    },
+    "36": {
+      "5_DP": 573.08,
+      "5_HWDP": 573.08,
+      "6-1/2_DC": 564.34,
+      "6.5_DC": 564.34,
+      "8_DC": 553.32,
+      "9-1/2_DC": 540.03
+    },
+    "30": {
+      "5_DP": 383.70,
+      "5_HWDP": 383.05,
+      "6-1/2_DC": 375.59,
+      "6.5_DC": 375.59,
+      "8_DC": 364.57,
+      "9-1/2_DC": 351.27
+    },
+    "20": { "5_DP": 164.50, "5_HWDP": 163.81, "6-1/2_DC": 156.35, "6.5_DC": 156.35, "8_DC": 145.33, "9-1/2_DC": 132.03 },
+    "13.375": { "5_DP": 66.13, "5_HWDP": 65.42, "6-1/2_DC": 57.96, "6.5_DC": 57.96, "8_DC": 46.94, "9-1/2_DC": 33.64 },
+    "9.625": { "5_DP": 24.95, "5_HWDP": 24.24, "6-1/2_DC": 16.78, "6.5_DC": 16.78 },
     "RISER": { "5_DP": 189.52 }
   },
   holeToPreviousCasing: {
-    "36": "42",
+    "42": "36",
+    "36": "30",
     "26": "30",
     "17.5": "20",
     "12.25": "13.375",
@@ -106,8 +155,16 @@ let state = {
   selectedGuideCategory: null,
 
   // Selection State
-  selectedHoleSize: localStorage.getItem('selectedHoleSize') || '17.5',
+  hasRiser: localStorage.getItem('subseaHasRiser') !== null ? (localStorage.getItem('subseaHasRiser') === 'true') : false,
+  sectionType: localStorage.getItem('subseaSectionType') || 'riserless',
+  selectedHoleSize: localStorage.getItem('selectedHoleSize') || '26',
+  casingOD: localStorage.getItem('subseaCasingOD') || '30',
+  casingID: localStorage.getItem('subseaCasingID') || '28',
   customHoleSize: '',
+  customHoleSizeRiserless: localStorage.getItem('customHoleSizeRiserless') || '',
+  customCasingODRiserless: localStorage.getItem('customCasingODRiserless') || '',
+  customCasingIDRiserless: localStorage.getItem('customCasingIDRiserless') || '',
+  customHoleSizeRiser: localStorage.getItem('customHoleSizeRiser') || '',
 
   drillstring: safeJSONParse(localStorage.getItem('drillstringSetup'), {
     dcType: '1',
@@ -149,7 +206,24 @@ let state = {
     // Ensure subsea fields always exist even on old localStorage data
     if (saved.riserAnnular === undefined || saved.riserAnnular === null) saved.riserAnnular = defaults.riserAnnular;
     if (saved.chokeCapacity === undefined || saved.chokeCapacity === null) saved.chokeCapacity = defaults.chokeCapacity;
+    const isSubseaRiserless = localStorage.getItem('flowType') === 'subsea' && (localStorage.getItem('subseaHasRiser') === 'false' || localStorage.getItem('subseaSectionType') === 'riserless');
+    if (isSubseaRiserless) {
+      saved.riserAnnular = 0;
+      saved.chokeCapacity = 0;
+    }
     if (!saved.capacities) saved.capacities = defaults.capacities;
+    // Sanitize corrupted or out-of-range tubular capacities (> 50 L/m is physically impossible for drillstring)
+    if (saved.capacities) {
+      if (typeof saved.capacities.DP !== 'number' || isNaN(saved.capacities.DP) || saved.capacities.DP <= 0 || saved.capacities.DP > 50) {
+        saved.capacities.DP = defaults.capacities.DP;
+      }
+      if (typeof saved.capacities.HWDP !== 'number' || isNaN(saved.capacities.HWDP) || saved.capacities.HWDP <= 0 || saved.capacities.HWDP > 50) {
+        saved.capacities.HWDP = defaults.capacities.HWDP;
+      }
+      if (typeof saved.capacities.DC !== 'number' || isNaN(saved.capacities.DC) || saved.capacities.DC <= 0 || saved.capacities.DC > 50) {
+        saved.capacities.DC = defaults.capacities.DC;
+      }
+    }
     if (!saved.openHoleAnnular) saved.openHoleAnnular = defaults.openHoleAnnular;
     if (!saved.casingAnnular) saved.casingAnnular = defaults.casingAnnular;
     if (saved.pumpOutput === undefined) saved.pumpOutput = defaults.pumpOutput;
@@ -295,35 +369,67 @@ const getPipeCapacity = (type, size) => {
 };
 
 const getOHAnnularCapacity = (holeSize, pipeType, pipeSize) => {
-  // Try direct DB lookup
-  const holeKey = holeSize.toString();
-  const pipeKey = `${pipeSize}_${pipeType}`;
-  if (DB.openHoleVolumes[holeKey] && DB.openHoleVolumes[holeKey][pipeKey]) {
-    return DB.openHoleVolumes[holeKey][pipeKey];
-  }
-  // Safe Fallback: Calculate: 0.5067 * (HoleOD^2 - PipeOD^2)
+  let pOD = parseFloat(String(pipeSize || '').replace('-', '.'));
+  if (pipeSize === '6-1/2') pOD = 6.5;
+  if (pipeSize === '4-3/4') pOD = 4.75;
+  if (pipeSize === '6-3/4') pOD = 6.75;
+  if (pipeSize === '9-1/2') pOD = 9.5;
+  if (isNaN(pOD) || pOD <= 0) pOD = 5.0;
+
   let hOD = parseFloat(holeSize);
-  let pOD = parseFloat(pipeSize);
-  if (isNaN(hOD)) hOD = 12.25;
-  if (isNaN(pOD)) pOD = 5.0;
-  const cap = 0.5067 * (hOD * hOD - pOD * pOD);
-  return Math.max(0, cap);
+  if (isNaN(hOD) || hOD <= 0) hOD = 26.0;
+
+  // Try direct DB lookup
+  const holeKey = holeSize ? holeSize.toString() : '';
+  const pipeKey = `${pipeSize}_${pipeType}`;
+  const normPipeKey = `${pOD}_${pipeType}`;
+  if (holeKey && DB.openHoleVolumes[holeKey]) {
+    if (DB.openHoleVolumes[holeKey][pipeKey] !== undefined) {
+      return DB.openHoleVolumes[holeKey][pipeKey];
+    }
+    if (DB.openHoleVolumes[holeKey][normPipeKey] !== undefined) {
+      return DB.openHoleVolumes[holeKey][normPipeKey];
+    }
+  }
+
+  // Safe Fallback: Custom Hole formula (Hole_ID² - Pipe_OD²) / 1029.4 * 3.28084 (bbl/m converted to L/m)
+  const capBblM = ((hOD * hOD - pOD * pOD) / 1029.4) * 3.28084;
+  const capLM = capBblM * 158.987294928;
+  return Math.max(0, capLM);
 };
 
-const getCasingAnnularCapacity = (casingSize, pipeType, pipeSize) => {
-  const casingKey = casingSize.toString();
-  const pipeKey = `${pipeSize}_${pipeType}`;
-  if (DB.casingVolumes[casingKey] && DB.casingVolumes[casingKey][pipeKey]) {
-    return DB.casingVolumes[casingKey][pipeKey];
+const getCasingAnnularCapacity = (casingSize, pipeType, pipeSize, customCasingID) => {
+  let pOD = parseFloat(String(pipeSize || '').replace('-', '.'));
+  if (pipeSize === '6-1/2') pOD = 6.5;
+  if (pipeSize === '4-3/4') pOD = 4.75;
+  if (pipeSize === '6-3/4') pOD = 6.75;
+  if (pipeSize === '9-1/2') pOD = 9.5;
+  if (isNaN(pOD) || pOD <= 0) pOD = 5.0;
+
+  if (customCasingID && parseFloat(customCasingID) > 0) {
+    let cID = parseFloat(customCasingID);
+    const capBblM = ((cID * cID - pOD * pOD) / 1029.4) * 3.28084;
+    return Math.max(0, capBblM * 158.987294928);
   }
-  // Safe Fallback: Casing Inside Diameter is approx Casing Size - 0.5 inch
+
+  const casingKey = casingSize ? casingSize.toString() : '';
+  const pipeKey = `${pipeSize}_${pipeType}`;
+  const normPipeKey = `${pOD}_${pipeType}`;
+  if (casingKey && DB.casingVolumes[casingKey]) {
+    if (DB.casingVolumes[casingKey][pipeKey] !== undefined) {
+      return DB.casingVolumes[casingKey][pipeKey];
+    }
+    if (DB.casingVolumes[casingKey][normPipeKey] !== undefined) {
+      return DB.casingVolumes[casingKey][normPipeKey];
+    }
+  }
+
+  // Safe Fallback: Casing ID is approx Casing OD - 2.0" for large conductor (>20") or - 0.5"
   let cOD = parseFloat(casingSize);
-  let pOD = parseFloat(pipeSize);
-  if (isNaN(cOD)) cOD = 13.375;
-  if (isNaN(pOD)) pOD = 5.0;
-  let cID = cOD - 0.5;
-  const cap = 0.5067 * (cID * cID - pOD * pOD);
-  return Math.max(0, cap);
+  if (isNaN(cOD) || cOD <= 0) cOD = 30.0;
+  let cID = cOD > 20 ? (cOD - 2.0) : (cOD - 0.5);
+  const capBblM = ((cID * cID - pOD * pOD) / 1029.4) * 3.28084;
+  return Math.max(0, capBblM * 158.987294928);
 };
 
 // Direction flag for slide animation: 'forward' | 'back'
@@ -361,6 +467,12 @@ const navigateTo = (screenId) => {
 
   const current = state.currentScreen;
   if (current === screenId && screenId !== 'drilling-calc' && screenId !== 'drilling-guide' && screenId !== 'drilling-guide-detail') return;
+
+  // Block Kill Data Sheet in riserless mode
+  if (screenId === 'kill-data-sheet' && state.flowType === 'subsea' && state.hasRiser === false) {
+    showToast(t("Kill Data Sheet is not available in riserless mode.", "Kill Data Sheet is not available in riserless mode."));
+    return;
+  }
 
   // Ensure cementingState is set to chooser if entering without active section/view or from planner home
   if (screenId === 'cement-planner-subsea') {
@@ -496,6 +608,8 @@ const saveCalculationToHistory = (type, resultsData, warningsList) => {
     type: type, // 'kill_sheet' or 'dashboard'
     flowType: state.flowType,
     rigType: rigType,
+    hasRiser: state.flowType === 'subsea' ? (state.hasRiser !== false) : null,
+    sectionType: state.flowType === 'subsea' ? (state.sectionType || (state.hasRiser !== false ? 'risered' : 'riserless')) : null,
     holeSize: state.selectedHoleSize,
     jobName: state.calcInputs.jobName || 'Well #1',
     unitSystem: state.globalUnit,
@@ -569,7 +683,7 @@ window.renderHistoryScreen = () => {
           ${item.jobName || 'Well #1'} — ${title}
         </div>
         <div style="font-size:0.8rem; color:var(--text-secondary);">
-          <span style="font-weight:600; color:var(--text-primary);">${item.holeSize}" Hole</span> • ${desc}
+          <span style="font-weight:600; color:var(--text-primary);">${item.holeSize}" Hole${item.flowType === 'subsea' ? ` (${(item.hasRiser === false || item.sectionType === 'riserless') ? t('Riserless', 'Riserless') : t('Riser', 'Riser')})` : ''}</span> • ${desc}
         </div>
       </div>
     `;
@@ -620,7 +734,7 @@ window.viewHistorySnapshot = (id) => {
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
         <div>
           <h3 style="font-size:1rem; font-weight:700; margin:0 0 4px; color:var(--text-primary);">${item.jobName || 'Well Record'} Snapshot</h3>
-          <span style="font-size:0.75rem; color:var(--text-secondary);">${item.date} • ${item.flowType === 'subsea' ? 'Subsea' : 'Surface'}</span>
+          <span style="font-size:0.75rem; color:var(--text-secondary);">${item.date} • ${item.flowType === 'subsea' ? ((item.hasRiser === false || item.sectionType === 'riserless') ? 'Subsea (Riserless)' : 'Subsea (Riser)') : 'Surface'}</span>
         </div>
         <button id="close-wc-history-modal" style="background:none; border:none; padding:4px; cursor:pointer; color:var(--text-secondary);">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -761,6 +875,12 @@ window.loadHistoryItem = (id) => {
 
   state.flowType = item.flowType;
   state.selectedHoleSize = item.holeSize;
+  if (item.flowType === 'subsea') {
+    state.hasRiser = item.hasRiser !== undefined ? item.hasRiser : (item.sectionType === 'riserless' ? false : true);
+    state.sectionType = item.sectionType || (state.hasRiser ? 'risered' : 'riserless');
+    localStorage.setItem('subseaHasRiser', state.hasRiser ? 'true' : 'false');
+    localStorage.setItem('subseaSectionType', state.sectionType);
+  }
   state.calcInputs = JSON.parse(JSON.stringify(item.inputs));
 
   localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
@@ -3850,111 +3970,491 @@ function renderHoleSizeSelection() {
         renderHoleSizeSelection();
       });
     });
-  } else {
-    state.rigType = 'SUBSEA_FLOATER';
+
+    const isJackup = (state.rigType === 'JACKUP');
+    const standardSizes = isJackup ? [
+      { label: '36"', val: '36' },
+      { label: '26"', val: '26' },
+      { label: '17 ½"', val: '17.5' },
+      { label: '12 ¼"', val: '12.25' },
+      { label: '8 ½"', val: '8.5' }
+    ] : [
+      { label: '26"', val: '26' },
+      { label: '17 ½"', val: '17.5' },
+      { label: '12 ¼"', val: '12.25' },
+      { label: '8 ½"', val: '8.5' }
+    ];
+
+    const grid = document.createElement('div');
+    grid.className = 'sizes-grid';
+
+    standardSizes.forEach(size => {
+      const card = document.createElement('div');
+      card.className = `size-card ${state.selectedHoleSize === size.val && !state.customHoleSize ? 'active' : ''}`;
+      card.innerHTML = `
+        <div class="size-card-title">${size.label}</div>
+        <div class="size-card-subtitle">${t('Standard Hole', 'Standard Hole')}</div>
+      `;
+      card.addEventListener('click', () => {
+        state.selectedHoleSize = size.val;
+        state.customHoleSize = '';
+        if (parseFloat(size.val) < 36 || state.rigType === 'LAND') {
+          state.calcInputs.airGap = null;
+          state.calcInputs.waterDepth = null;
+          state.calcInputs.hasSurfaceConductor = false;
+        }
+        showToast(`${t('Selected hole size:', 'Selected hole size:')} ${size.label}`);
+        navigateTo(`${state.flowType}-drillstring`);
+      });
+      grid.appendChild(card);
+    });
+
+    const customCard = document.createElement('div');
+    const hasCustom = !!state.customHoleSize;
+    customCard.className = `size-card ${hasCustom ? 'active' : ''}`;
+    customCard.innerHTML = `
+      <div class="size-card-title">${hasCustom ? state.customHoleSize + '"' : t('Custom', 'Custom')}</div>
+      <div class="size-card-subtitle">${t('Custom Hole', 'Custom Hole')}</div>
+    `;
+
+    customCard.addEventListener('click', () => {
+      const inputContainer = document.getElementById(`custom-hole-input-container-${state.flowType}`);
+      if (inputContainer) {
+        inputContainer.style.display = 'block';
+        const input = document.getElementById(`custom-hole-input-${state.flowType}`);
+        if (input) {
+          input.focus();
+          input.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+      container.querySelectorAll('.size-card').forEach(c => c.classList.remove('active'));
+      customCard.classList.add('active');
+    });
+    grid.appendChild(customCard);
+    container.appendChild(grid);
+
+    const customGroup = document.createElement('div');
+    customGroup.id = `custom-hole-input-container-${state.flowType}`;
+    customGroup.className = 'form-group content-card';
+    customGroup.style.display = hasCustom ? 'block' : 'none';
+    customGroup.innerHTML = `
+      <label style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; display:block;">${t('Custom Hole Size Input', 'Custom Hole Size Input')}</label>
+      <div style="display:flex; gap:10px;">
+        <input type="number" step="0.01" class="form-input" id="custom-hole-input-${state.flowType}" 
+               placeholder="e.g. 14.75" value="${state.customHoleSize}" style="margin-bottom:0; flex:1;">
+        <button class="btn btn-primary" id="custom-hole-go-${state.flowType}" style="padding:12px 24px; font-size:0.9rem; margin-bottom:0;">${t('Next', 'Next')}</button>
+      </div>
+    `;
+    container.appendChild(customGroup);
+
+    document.getElementById(`custom-hole-go-${state.flowType}`).addEventListener('click', () => {
+      const inputVal = document.getElementById(`custom-hole-input-${state.flowType}`).value;
+      if (inputVal && parseFloat(inputVal) > 0) {
+        state.selectedHoleSize = inputVal;
+        state.customHoleSize = inputVal;
+        if (parseFloat(inputVal) < 36 || state.rigType === 'LAND') {
+          state.calcInputs.airGap = null;
+          state.calcInputs.waterDepth = null;
+          state.calcInputs.hasSurfaceConductor = false;
+        }
+        showToast(`Custom hole size set: ${inputVal}"`);
+        navigateTo(`${state.flowType}-drillstring`);
+      } else {
+        showToast("Please enter a valid hole size.");
+      }
+    });
+
+    return;
   }
 
-  const isJackup = (state.flowType === 'surface' && state.rigType === 'JACKUP');
-  const standardSizes = isJackup ? [
-    { label: '36"', val: '36' },
-    { label: '26"', val: '26' },
-    { label: '17 ½"', val: '17.5' },
-    { label: '12 ¼"', val: '12.25' },
-    { label: '8 ½"', val: '8.5' }
-  ] : [
-    { label: '26"', val: '26' },
-    { label: '17 ½"', val: '17.5' },
-    { label: '12 ¼"', val: '12.25' },
-    { label: '8 ½"', val: '8.5' }
-  ];
+  // ==========================================
+  // SUBSEA HOLE SELECTION: Riserless vs Riser
+  // ==========================================
+  state.rigType = 'SUBSEA_FLOATER';
 
-  // Grid for standard sizes
-  const grid = document.createElement('div');
-  grid.className = 'sizes-grid';
+  const riserlessConfigs = (window.WellControlConfig && window.WellControlConfig.SUBSEA_HOLE_CONFIGS) 
+    ? window.WellControlConfig.SUBSEA_HOLE_CONFIGS.riserless 
+    : [
+        { id: '42', label: '42"', val: '42', holeOD: 42, hasRiser: false, sectionType: 'riserless', conductorCasingOD: 36, conductorCasingID: 34, casingLabel: '36"' },
+        { id: '36', label: '36"', val: '36', holeOD: 36, hasRiser: false, sectionType: 'riserless', conductorCasingOD: 30, conductorCasingID: 28, casingLabel: '30"' },
+        { id: '26', label: '26"', val: '26', holeOD: 26, hasRiser: false, sectionType: 'riserless', conductorCasingOD: 30, conductorCasingID: 28, casingLabel: '30"' },
+        { id: 'custom_riserless', label: 'Custom', val: 'custom_riserless', isCustom: true, hasRiser: false, sectionType: 'riserless', subtitle: 'Custom Hole (Riserless)' }
+      ];
 
-  standardSizes.forEach(size => {
-    const card = document.createElement('div');
-    card.className = `size-card ${state.selectedHoleSize === size.val && !state.customHoleSize ? 'active' : ''}`;
-    card.innerHTML = `
-      <div class="size-card-title">${size.label}</div>
-      <div class="size-card-subtitle">${t('Standard Hole', 'Standard Hole')}</div>
-    `;
-    card.addEventListener('click', () => {
-      state.selectedHoleSize = size.val;
-      state.customHoleSize = '';
-      if (parseFloat(size.val) < 36 || state.rigType === 'LAND') {
-        state.calcInputs.airGap = null;
-        state.calcInputs.waterDepth = null;
-        state.calcInputs.hasSurfaceConductor = false;
+  const riseredConfigs = (window.WellControlConfig && window.WellControlConfig.SUBSEA_HOLE_CONFIGS)
+    ? window.WellControlConfig.SUBSEA_HOLE_CONFIGS.risered
+    : [
+        { id: '17.5', label: '17 ½"', val: '17.5', holeOD: 17.5, hasRiser: true, sectionType: 'risered', conductorCasingOD: 20, conductorCasingID: 18.73, casingLabel: '20"' },
+        { id: '12.25', label: '12 ¼"', val: '12.25', holeOD: 12.25, hasRiser: true, sectionType: 'risered', conductorCasingOD: 13.375, conductorCasingID: 12.415, casingLabel: '13 3/8"' },
+        { id: '8.5', label: '8 ½"', val: '8.5', holeOD: 8.5, hasRiser: true, sectionType: 'risered', conductorCasingOD: 9.625, conductorCasingID: 8.681, casingLabel: '9 5/8"' },
+        { id: 'custom_riser', label: 'Custom', val: 'custom_riser', isCustom: true, hasRiser: true, sectionType: 'risered', subtitle: 'Custom Hole (Riser)' }
+      ];
+
+  // Default selection is 26" under Riserless
+  if (!state.selectedHoleSize) {
+    state.selectedHoleSize = '26';
+    state.hasRiser = false;
+    state.sectionType = 'riserless';
+    state.casingOD = '30';
+    state.casingID = '28';
+  }
+
+  // 2-Option Segmented Pill-Tab Selector (Riserless | With Riser)
+  const subseaTabToggle = document.createElement('div');
+  subseaTabToggle.className = 'segmented-control';
+  subseaTabToggle.style.marginBottom = '16px';
+  const curSubseaTab = (state.hasRiser === true || state.sectionType === 'risered') ? 'risered' : 'riserless';
+  subseaTabToggle.innerHTML = `
+    <button type="button" class="segmented-control-btn ${curSubseaTab === 'riserless' ? 'active' : ''}" data-subsea-tab="riserless">${t('Riserless', 'Riserless')}</button>
+    <button type="button" class="segmented-control-btn ${curSubseaTab === 'risered' ? 'active' : ''}" data-subsea-tab="risered">${t('With Riser', 'With Riser')}</button>
+  `;
+  container.appendChild(subseaTabToggle);
+
+  subseaTabToggle.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const newTab = e.currentTarget.getAttribute('data-subsea-tab');
+      if (state.sectionType === newTab) return;
+      state.sectionType = newTab;
+      state.hasRiser = (newTab === 'risered');
+      localStorage.setItem('subseaSectionType', newTab);
+      localStorage.setItem('subseaHasRiser', state.hasRiser ? 'true' : 'false');
+
+      // Update default hole size if active hole size is from other tab
+      if (newTab === 'riserless') {
+        if (!['42', '36', '26'].includes(String(state.selectedHoleSize)) && state.selectedHoleSize !== state.customHoleSizeRiserless) {
+          state.selectedHoleSize = '26';
+          state.casingOD = '30';
+          state.casingID = '28';
+          localStorage.setItem('selectedHoleSize', '26');
+          localStorage.setItem('subseaCasingOD', '30');
+          localStorage.setItem('subseaCasingID', '28');
+        }
+      } else {
+        if (!['17.5', '12.25', '8.5'].includes(String(state.selectedHoleSize)) && state.selectedHoleSize !== state.customHoleSizeRiser) {
+          state.selectedHoleSize = '17.5';
+          state.casingOD = '20';
+          state.casingID = '18.73';
+          localStorage.setItem('selectedHoleSize', '17.5');
+          localStorage.setItem('subseaCasingOD', '20');
+          localStorage.setItem('subseaCasingID', '18.73');
+        }
       }
-      showToast(`${t('Selected hole size:', 'Selected hole size:')} ${size.label}`);
-      navigateTo(`${state.flowType}-drillstring`);
+      renderHoleSizeSelection();
     });
-    grid.appendChild(card);
   });
 
-  // Custom size card
-  const customCard = document.createElement('div');
-  const hasCustom = !!state.customHoleSize;
-  customCard.className = `size-card ${hasCustom ? 'active' : ''}`;
-  customCard.innerHTML = `
-    <div class="size-card-title">${hasCustom ? state.customHoleSize + '"' : t('Custom', 'Custom')}</div>
-    <div class="size-card-subtitle">${t('Custom Hole', 'Custom Hole')}</div>
-  `;
+  if (curSubseaTab === 'riserless') {
+    // ----------------------------------------------------
+    // TAB 1: RISERLESS SECTION
+    // ----------------------------------------------------
+    const gridRiserless = document.createElement('div');
+    gridRiserless.className = 'sizes-grid';
 
-  customCard.addEventListener('click', () => {
-    // Show custom input section and focus it
-    const inputContainer = document.getElementById(`custom-hole-input-container-${state.flowType}`);
-    if (inputContainer) {
-      inputContainer.style.display = 'block';
-      const input = document.getElementById(`custom-hole-input-${state.flowType}`);
-      if (input) {
-        input.focus();
-        input.scrollIntoView({ behavior: 'smooth' });
+    riserlessConfigs.forEach(size => {
+      if (size.isCustom) {
+        const customCard = document.createElement('div');
+        const isCustomActive = (state.hasRiser === false && (state.selectedHoleSize === 'custom_riserless' || !!state.customHoleSizeRiserless));
+        customCard.className = `size-card ${isCustomActive ? 'active' : ''}`;
+        customCard.innerHTML = `
+          <div class="size-card-title">${state.customHoleSizeRiserless ? state.customHoleSizeRiserless + '"' : t('Custom', 'Custom')}</div>
+          <div class="size-card-subtitle">${t('Custom Hole (Riserless)', 'Custom Hole (Riserless)')}</div>
+        `;
+        customCard.addEventListener('click', () => {
+          container.querySelectorAll('.size-card').forEach(c => c.classList.remove('active'));
+          customCard.classList.add('active');
+
+          const inputContainer = document.getElementById('custom-hole-input-container-riserless');
+          if (inputContainer) {
+            inputContainer.style.display = 'block';
+            const hInput = document.getElementById('custom-riserless-hole-od');
+            if (hInput) {
+              hInput.focus();
+              hInput.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        });
+        gridRiserless.appendChild(customCard);
+      } else {
+        const card = document.createElement('div');
+        const isActive = (state.hasRiser === false && state.selectedHoleSize === size.val && !state.customHoleSizeRiserless);
+        card.className = `size-card ${isActive ? 'active' : ''}`;
+        card.innerHTML = `
+          <div class="size-card-title">${size.label}</div>
+          <div class="size-card-subtitle">${t('Standard Hole', 'Standard Hole')}</div>
+        `;
+        card.addEventListener('click', () => {
+          state.hasRiser = false;
+          state.sectionType = 'riserless';
+          state.selectedHoleSize = size.val;
+          state.customHoleSize = '';
+          state.customHoleSizeRiserless = '';
+          state.casingOD = String(size.conductorCasingOD);
+          state.casingID = String(size.conductorCasingID);
+          state.calcInputs.riserLength = 0;
+          state.calcInputs.chokeLength = 0;
+          state.calcInputs.bopStatus = 'open';
+          state.calcInputs.airGap = 0;
+          state.calcInputs.waterDepth = 0;
+          state.calcInputs.hasSurfaceConductor = false;
+
+          localStorage.setItem('subseaHasRiser', 'false');
+          localStorage.setItem('subseaSectionType', 'riserless');
+          localStorage.setItem('selectedHoleSize', size.val);
+          localStorage.setItem('subseaCasingOD', state.casingOD);
+          localStorage.setItem('subseaCasingID', state.casingID);
+          localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
+
+          // Immediately prime reference values for this hole size
+          if (state.reference) {
+            state.reference.selectedHoleSize = size.val;
+            state.reference.casingOD = state.casingOD;
+            state.reference.casingID = state.casingID;
+            if (!state.reference.openHoleAnnular) state.reference.openHoleAnnular = {};
+            state.reference.openHoleAnnular.DC = getOHAnnularCapacity(size.val, 'DC', state.drillstring.dcSize || '6-1/2');
+            state.reference.openHoleAnnular.HWDP = getOHAnnularCapacity(size.val, 'HWDP', state.drillstring.hwdpSize || '5');
+            state.reference.openHoleAnnular.DP = getOHAnnularCapacity(size.val, 'DP', state.drillstring.dpSize || '5');
+
+            if (!state.reference.casingAnnular) state.reference.casingAnnular = {};
+            state.reference.casingAnnular.DC = getCasingAnnularCapacity(state.casingOD, 'DC', state.drillstring.dcSize || '6-1/2', state.casingID);
+            state.reference.casingAnnular.HWDP = getCasingAnnularCapacity(state.casingOD, 'HWDP', state.drillstring.hwdpSize || '5', state.casingID);
+            state.reference.casingAnnular.DP = getCasingAnnularCapacity(state.casingOD, 'DP', state.drillstring.dpSize || '5', state.casingID);
+
+            state.reference.riserAnnular = 0;
+            state.reference.chokeCapacity = 0;
+            localStorage.setItem('drillingToolkitReferences', JSON.stringify(state.reference));
+          }
+
+          showToast(`${t('Selected hole size:', 'Selected hole size:')} ${size.label}`);
+          navigateTo(`${state.flowType}-drillstring`);
+        });
+        gridRiserless.appendChild(card);
       }
-    }
-    // Highlight custom card as active
-    container.querySelectorAll('.size-card').forEach(c => c.classList.remove('active'));
-    customCard.classList.add('active');
-  });
-  grid.appendChild(customCard);
+    });
+    container.appendChild(gridRiserless);
 
-  container.appendChild(grid);
+    // Custom Riserless Input Form Container
+    const hasCustomRiserless = (state.hasRiser === false && !!state.customHoleSizeRiserless);
+    const customGroupRiserless = document.createElement('div');
+    customGroupRiserless.id = 'custom-hole-input-container-riserless';
+    customGroupRiserless.className = 'form-group content-card';
+    customGroupRiserless.style.display = hasCustomRiserless ? 'block' : 'none';
+    customGroupRiserless.innerHTML = `
+      <label style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; display:block;">
+        ${t('Custom Hole (Riserless) Input', 'Custom Hole (Riserless) Input')}
+      </label>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:4px;">
+            ${t('Hole OD (in)', 'Hole OD (in)')} *
+          </label>
+          <input type="number" step="0.01" class="form-input" id="custom-riserless-hole-od" placeholder="e.g. 20" value="${state.customHoleSizeRiserless || ''}" style="margin-bottom:0;">
+        </div>
+        <div>
+          <label style="font-size:0.78rem; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:4px;">
+            ${t('Conductor / Casing OD (in)', 'Conductor / Casing OD (in)')} *
+          </label>
+          <input type="number" step="0.01" class="form-input" id="custom-riserless-casing-od" placeholder="e.g. 24" value="${state.customCasingODRiserless || ''}" style="margin-bottom:0;">
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:0.78rem; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:4px;">
+          ${t('Conductor / Casing ID (in)', 'Conductor / Casing ID (in)')} *
+        </label>
+        <input type="number" step="0.01" class="form-input" id="custom-riserless-casing-id" placeholder="e.g. 22" value="${state.customCasingIDRiserless || ''}" style="margin-bottom:0;">
+      </div>
+      <button class="btn btn-primary" id="custom-riserless-go" style="width:100%; padding:12px; font-size:0.9rem; margin-bottom:0;">
+        ${t('Next', 'Next')}
+      </button>
+    `;
+    container.appendChild(customGroupRiserless);
 
-  // Custom Input group (Initially hidden unless custom is selected)
-  const customGroup = document.createElement('div');
-  customGroup.id = `custom-hole-input-container-${state.flowType}`;
-  customGroup.className = 'form-group content-card';
-  customGroup.style.display = hasCustom ? 'block' : 'none';
-  customGroup.innerHTML = `
-    <label style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; display:block;">${t('Custom Hole Size Input', 'Custom Hole Size Input')}</label>
-    <div style="display:flex; gap:10px;">
-      <input type="number" step="0.01" class="form-input" id="custom-hole-input-${state.flowType}" 
-             placeholder="e.g. 14.75" value="${state.customHoleSize}" style="margin-bottom:0; flex:1;">
-      <button class="btn btn-primary" id="custom-hole-go-${state.flowType}" style="padding:12px 24px; font-size:0.9rem; margin-bottom:0;">${t('Next', 'Next')}</button>
-    </div>
-  `;
-  container.appendChild(customGroup);
+    const riserlessGoBtn = customGroupRiserless.querySelector('#custom-riserless-go');
+    if (riserlessGoBtn) {
+      riserlessGoBtn.addEventListener('click', () => {
+        const hVal = parseFloat(customGroupRiserless.querySelector('#custom-riserless-hole-od').value);
+        const cOdVal = parseFloat(customGroupRiserless.querySelector('#custom-riserless-casing-od').value);
+        const cIdVal = parseFloat(customGroupRiserless.querySelector('#custom-riserless-casing-id').value);
+        const dcOD = parseFloat(state.drillstring.dcSize) || 6.5;
 
-  document.getElementById(`custom-hole-go-${state.flowType}`).addEventListener('click', () => {
-    const inputVal = document.getElementById(`custom-hole-input-${state.flowType}`).value;
-    if (inputVal && parseFloat(inputVal) > 0) {
-      state.selectedHoleSize = inputVal;
-      state.customHoleSize = inputVal;
-      if (parseFloat(inputVal) < 36 || state.rigType === 'LAND') {
-        state.calcInputs.airGap = null;
-        state.calcInputs.waterDepth = null;
+        if (isNaN(hVal) || hVal <= 0 || isNaN(cOdVal) || cOdVal <= 0 || isNaN(cIdVal) || cIdVal <= 0) {
+          showToast(t("Please enter valid positive numbers.", "Please enter valid positive numbers."));
+          return;
+        }
+        if (cIdVal <= dcOD) {
+          showToast(`${t('Casing ID must be larger than Drill Collar OD', 'Casing ID must be larger than Drill Collar OD')} (${dcOD}").`);
+          return;
+        }
+        if (cIdVal >= hVal) {
+          showToast(t('Casing ID must be smaller than Hole OD', 'Casing ID must be smaller than Hole OD') + ".");
+          return;
+        }
+        if (cIdVal >= cOdVal) {
+          showToast(t('Casing ID must be smaller than Casing OD', 'Casing ID must be smaller than Casing OD') + ".");
+          return;
+        }
+
+        state.hasRiser = false;
+        state.sectionType = 'riserless';
+        state.selectedHoleSize = String(hVal);
+        state.customHoleSize = String(hVal);
+        state.customHoleSizeRiserless = String(hVal);
+        state.casingOD = String(cOdVal);
+        state.casingID = String(cIdVal);
+        state.customCasingODRiserless = String(cOdVal);
+        state.customCasingIDRiserless = String(cIdVal);
+
+        state.calcInputs.riserLength = 0;
+        state.calcInputs.chokeLength = 0;
+        state.calcInputs.bopStatus = 'open';
+        state.calcInputs.airGap = 0;
+        state.calcInputs.waterDepth = 0;
         state.calcInputs.hasSurfaceConductor = false;
-      }
-      showToast(`Custom hole size set: ${inputVal}"`);
-      navigateTo(`${state.flowType}-drillstring`);
-    } else {
-      showToast("Please enter a valid hole size.");
-    }
-  });
 
-  // If subsea stack, add Choke Line Friction card below customGroup
-  if (state.flowType === 'subsea') {
+        localStorage.setItem('subseaHasRiser', 'false');
+        localStorage.setItem('subseaSectionType', 'riserless');
+        localStorage.setItem('selectedHoleSize', String(hVal));
+        localStorage.setItem('subseaCasingOD', state.casingOD);
+        localStorage.setItem('subseaCasingID', state.casingID);
+        localStorage.setItem('customHoleSizeRiserless', state.customHoleSizeRiserless);
+        localStorage.setItem('customCasingODRiserless', state.customCasingODRiserless);
+        localStorage.setItem('customCasingIDRiserless', state.customCasingIDRiserless);
+        localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
+
+        // Immediately prime reference values for this custom hole size
+        if (state.reference) {
+          state.reference.selectedHoleSize = String(hVal);
+          state.reference.casingOD = state.casingOD;
+          state.reference.casingID = state.casingID;
+          if (!state.reference.openHoleAnnular) state.reference.openHoleAnnular = {};
+          state.reference.openHoleAnnular.DC = getOHAnnularCapacity(String(hVal), 'DC', state.drillstring.dcSize || '6-1/2');
+          state.reference.openHoleAnnular.HWDP = getOHAnnularCapacity(String(hVal), 'HWDP', state.drillstring.hwdpSize || '5');
+          state.reference.openHoleAnnular.DP = getOHAnnularCapacity(String(hVal), 'DP', state.drillstring.dpSize || '5');
+
+          if (!state.reference.casingAnnular) state.reference.casingAnnular = {};
+          state.reference.casingAnnular.DC = getCasingAnnularCapacity(state.casingOD, 'DC', state.drillstring.dcSize || '6-1/2', state.casingID);
+          state.reference.casingAnnular.HWDP = getCasingAnnularCapacity(state.casingOD, 'HWDP', state.drillstring.hwdpSize || '5', state.casingID);
+          state.reference.casingAnnular.DP = getCasingAnnularCapacity(state.casingOD, 'DP', state.drillstring.dpSize || '5', state.casingID);
+
+          state.reference.riserAnnular = 0;
+          state.reference.chokeCapacity = 0;
+          localStorage.setItem('drillingToolkitReferences', JSON.stringify(state.reference));
+        }
+
+        showToast(`${t('Custom hole size set:', 'Custom hole size set:')} ${hVal}"`);
+        navigateTo(`${state.flowType}-drillstring`);
+      });
+    }
+  } else {
+    // ----------------------------------------------------
+    // TAB 2: WITH RISER SECTION
+    // ----------------------------------------------------
+    const gridRiser = document.createElement('div');
+    gridRiser.className = 'sizes-grid';
+
+    riseredConfigs.forEach(size => {
+      if (size.isCustom) {
+        const customCard = document.createElement('div');
+        const isCustomActive = (state.hasRiser === true && (state.selectedHoleSize === 'custom_riser' || !!state.customHoleSizeRiser));
+        customCard.className = `size-card ${isCustomActive ? 'active' : ''}`;
+        customCard.innerHTML = `
+          <div class="size-card-title">${state.customHoleSizeRiser ? state.customHoleSizeRiser + '"' : t('Custom', 'Custom')}</div>
+          <div class="size-card-subtitle">${t('Custom Hole (Riser)', 'Custom Hole (Riser)')}</div>
+        `;
+        customCard.addEventListener('click', () => {
+          container.querySelectorAll('.size-card').forEach(c => c.classList.remove('active'));
+          customCard.classList.add('active');
+
+          const inputContainer = document.getElementById('custom-hole-input-container-risered');
+          if (inputContainer) {
+            inputContainer.style.display = 'block';
+            const input = document.getElementById('custom-hole-input-risered');
+            if (input) {
+              input.focus();
+              input.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        });
+        gridRiser.appendChild(customCard);
+      } else {
+        const card = document.createElement('div');
+        const isActive = (state.hasRiser === true && state.selectedHoleSize === size.val && !state.customHoleSizeRiser);
+        card.className = `size-card ${isActive ? 'active' : ''}`;
+        card.innerHTML = `
+          <div class="size-card-title">${size.label}</div>
+          <div class="size-card-subtitle">${t('Standard Hole', 'Standard Hole')}</div>
+        `;
+        card.addEventListener('click', () => {
+          state.hasRiser = true;
+          state.sectionType = 'risered';
+          state.selectedHoleSize = size.val;
+          state.customHoleSize = '';
+          state.customHoleSizeRiser = '';
+          state.casingOD = String(size.conductorCasingOD);
+          state.casingID = String(size.conductorCasingID);
+
+          localStorage.setItem('subseaHasRiser', 'true');
+          localStorage.setItem('subseaSectionType', 'risered');
+          localStorage.setItem('selectedHoleSize', size.val);
+          localStorage.setItem('subseaCasingOD', state.casingOD);
+          localStorage.setItem('subseaCasingID', state.casingID);
+
+          showToast(`${t('Selected hole size:', 'Selected hole size:')} ${size.label}`);
+          navigateTo(`${state.flowType}-drillstring`);
+        });
+        gridRiser.appendChild(card);
+      }
+    });
+    container.appendChild(gridRiser);
+
+    // Custom Riser Input Form Container
+    const hasCustomRiser = (state.hasRiser === true && !!state.customHoleSizeRiser);
+    const customGroupRiser = document.createElement('div');
+    customGroupRiser.id = 'custom-hole-input-container-risered';
+    customGroupRiser.className = 'form-group content-card';
+    customGroupRiser.style.display = hasCustomRiser ? 'block' : 'none';
+    customGroupRiser.innerHTML = `
+      <label style="font-size:0.85rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; display:block;">
+        ${t('Custom Hole Size Input', 'Custom Hole Size Input')}
+      </label>
+      <div style="display:flex; gap:10px;">
+        <input type="number" step="0.01" class="form-input" id="custom-hole-input-risered" 
+               placeholder="e.g. 14.75" value="${state.customHoleSizeRiser || ''}" style="margin-bottom:0; flex:1;">
+        <button class="btn btn-primary" id="custom-hole-go-risered" style="padding:12px 24px; font-size:0.9rem; margin-bottom:0;">
+          ${t('Next', 'Next')}
+        </button>
+      </div>
+    `;
+    container.appendChild(customGroupRiser);
+
+    const riserGoBtn = customGroupRiser.querySelector('#custom-hole-go-risered');
+    if (riserGoBtn) {
+      riserGoBtn.addEventListener('click', () => {
+        const inputVal = customGroupRiser.querySelector('#custom-hole-input-risered').value;
+        if (inputVal && parseFloat(inputVal) > 0) {
+          state.hasRiser = true;
+          state.sectionType = 'risered';
+          state.selectedHoleSize = inputVal;
+          state.customHoleSize = inputVal;
+          state.customHoleSizeRiser = inputVal;
+          state.casingOD = '20';
+          state.casingID = '18.73';
+
+          localStorage.setItem('subseaHasRiser', 'true');
+          localStorage.setItem('subseaSectionType', 'risered');
+          localStorage.setItem('selectedHoleSize', inputVal);
+          localStorage.setItem('customHoleSizeRiser', inputVal);
+          localStorage.setItem('subseaCasingOD', state.casingOD);
+          localStorage.setItem('subseaCasingID', state.casingID);
+
+          showToast(`${t('Custom hole size set:', 'Custom hole size set:')} ${inputVal}"`);
+          navigateTo(`${state.flowType}-drillstring`);
+        } else {
+          showToast(t("Please enter a valid hole size.", "Please enter a valid hole size."));
+        }
+      });
+    }
+
+    // How to take CLF's card (only under With Riser tab!)
     const clfGuideCard = document.createElement('div');
     clfGuideCard.className = 'content-card compact-card';
     clfGuideCard.style.marginTop = '20px';
@@ -3972,8 +4472,8 @@ function renderHoleSizeSelection() {
           </svg>
         </div>
         <div style="flex:1;">
-          <h3 style="font-size:0.85rem; font-weight:700; color:var(--text-primary); margin:0;">How to take CLF's</h3>
-          <p style="font-size:0.7rem; color:var(--text-secondary); margin:2px 0 0 0; line-height:1.3;">Understanding Choke Line Friction measurements for subsea wells</p>
+          <h3 style="font-size:0.85rem; font-weight:700; color:var(--text-primary); margin:0;">${t("How to take CLF's", "How to take CLF's")}</h3>
+          <p style="font-size:0.7rem; color:var(--text-secondary); margin:2px 0 0 0; line-height:1.3;">${t('Understanding Choke Line Friction measurements for subsea wells', 'Understanding Choke Line Friction measurements for subsea wells')}</p>
         </div>
         <span style="font-size:1.4rem; color:var(--text-secondary);">&rsaquo;</span>
       </div>
@@ -4149,11 +4649,14 @@ function renderDrillstringSetup() {
     if (!refDS.dcSize3 || state.drillstring.dcSize3 !== refDS.dcSize3) {
       state.reference.capacities.DC3 = getPipeCapacity('DC', state.drillstring.dcSize3);
     }
-    if (!refDS.hwdpSize || state.drillstring.hwdpSize !== refDS.hwdpSize) {
+    if (!refDS.dpSize || state.drillstring.dpSize !== refDS.dpSize || state.reference.capacities.DP > 50) {
+      state.reference.capacities.DP = getPipeCapacity('DP', state.drillstring.dpSize);
+    }
+    if (!refDS.hwdpSize || state.drillstring.hwdpSize !== refDS.hwdpSize || state.reference.capacities.HWDP > 50) {
       state.reference.capacities.HWDP = getPipeCapacity('HWDP', state.drillstring.hwdpSize);
     }
-    if (!refDS.dpSize || state.drillstring.dpSize !== refDS.dpSize) {
-      state.reference.capacities.DP = getPipeCapacity('DP', state.drillstring.dpSize);
+    if (!refDS.dcSize || state.drillstring.dcSize !== refDS.dcSize || state.reference.capacities.DC > 50) {
+      state.reference.capacities.DC = getPipeCapacity('DC', state.drillstring.dcSize);
     }
     if (!refDS.dpSize2 || state.drillstring.dpSize2 !== refDS.dpSize2) {
       state.reference.capacities.DP2 = getPipeCapacity('DP', state.drillstring.dpSize2);
@@ -4186,35 +4689,43 @@ function renderDrillstringSetup() {
     }
 
     // Auto-detect previous casing and resolve Casing annular volumes
-    const prevCasing = DB.holeToPreviousCasing[state.selectedHoleSize] || '20';
-    const oldPrevCasing = refHole ? (DB.holeToPreviousCasing[refHole] || '20') : null;
+    const prevCasing = (state.flowType === 'subsea' && state.casingOD) 
+      ? state.casingOD 
+      : (DB.holeToPreviousCasing[state.selectedHoleSize] || '20');
+    const oldPrevCasing = refHole ? ((state.flowType === 'subsea' && state.reference.casingOD) ? state.reference.casingOD : (DB.holeToPreviousCasing[refHole] || '20')) : null;
+    const customCasingID = (state.flowType === 'subsea' && state.casingID) ? state.casingID : null;
     if (!refHole || prevCasing !== oldPrevCasing || !refDS.dcSize || state.drillstring.dcSize !== refDS.dcSize) {
-      state.reference.casingAnnular.DC = getCasingAnnularCapacity(prevCasing, 'DC', state.drillstring.dcSize);
+      state.reference.casingAnnular.DC = getCasingAnnularCapacity(prevCasing, 'DC', state.drillstring.dcSize, customCasingID);
     }
     if (!refHole || prevCasing !== oldPrevCasing || !refDS.dcSize2 || state.drillstring.dcSize2 !== refDS.dcSize2) {
-      state.reference.casingAnnular.DC2 = getCasingAnnularCapacity(prevCasing, 'DC', state.drillstring.dcSize2);
+      state.reference.casingAnnular.DC2 = getCasingAnnularCapacity(prevCasing, 'DC', state.drillstring.dcSize2, customCasingID);
     }
     if (!refHole || prevCasing !== oldPrevCasing || !refDS.dcSize3 || state.drillstring.dcSize3 !== refDS.dcSize3) {
-      state.reference.casingAnnular.DC3 = getCasingAnnularCapacity(prevCasing, 'DC', state.drillstring.dcSize3);
+      state.reference.casingAnnular.DC3 = getCasingAnnularCapacity(prevCasing, 'DC', state.drillstring.dcSize3, customCasingID);
     }
     if (!refHole || prevCasing !== oldPrevCasing || !refDS.hwdpSize || state.drillstring.hwdpSize !== refDS.hwdpSize) {
-      state.reference.casingAnnular.HWDP = getCasingAnnularCapacity(prevCasing, 'HWDP', state.drillstring.hwdpSize);
+      state.reference.casingAnnular.HWDP = getCasingAnnularCapacity(prevCasing, 'HWDP', state.drillstring.hwdpSize, customCasingID);
     }
     if (!refHole || prevCasing !== oldPrevCasing || !refDS.dpSize || state.drillstring.dpSize !== refDS.dpSize) {
-      state.reference.casingAnnular.DP = getCasingAnnularCapacity(prevCasing, 'DP', state.drillstring.dpSize);
+      state.reference.casingAnnular.DP = getCasingAnnularCapacity(prevCasing, 'DP', state.drillstring.dpSize, customCasingID);
     }
     if (!refHole || prevCasing !== oldPrevCasing || !refDS.dpSize2 || state.drillstring.dpSize2 !== refDS.dpSize2) {
-      state.reference.casingAnnular.DP2 = getCasingAnnularCapacity(prevCasing, 'DP', state.drillstring.dpSize2);
+      state.reference.casingAnnular.DP2 = getCasingAnnularCapacity(prevCasing, 'DP', state.drillstring.dpSize2, customCasingID);
     }
     if (!refHole || prevCasing !== oldPrevCasing || !refDS.dpSize3 || state.drillstring.dpSize3 !== refDS.dpSize3) {
-      state.reference.casingAnnular.DP3 = getCasingAnnularCapacity(prevCasing, 'DP', state.drillstring.dpSize3);
+      state.reference.casingAnnular.DP3 = getCasingAnnularCapacity(prevCasing, 'DP', state.drillstring.dpSize3, customCasingID);
     }
 
     // Subsea specific capacities
     if (state.flowType === 'subsea') {
-      if (!refDS.dpSize || state.drillstring.dpSize !== refDS.dpSize) {
-        state.reference.riserAnnular = DB.casingVolumes.RISER[`${state.drillstring.dpSize}_DP`] || DB.casingVolumes.RISER["5_DP"];
-        state.reference.chokeCapacity = DB.pipeData["CHOKE LINE"].capacity;
+      if (state.hasRiser !== false) {
+        if (!refDS.dpSize || state.drillstring.dpSize !== refDS.dpSize) {
+          state.reference.riserAnnular = DB.casingVolumes.RISER[`${state.drillstring.dpSize}_DP`] || DB.casingVolumes.RISER["5_DP"];
+          state.reference.chokeCapacity = DB.pipeData["CHOKE LINE"].capacity;
+        }
+      } else {
+        state.reference.riserAnnular = 0;
+        state.reference.chokeCapacity = 0;
       }
     }
 
@@ -4363,7 +4874,7 @@ function renderReferenceValues() {
     `;
   }
 
-  if (state.flowType === 'subsea') {
+  if (state.flowType === 'subsea' && state.hasRiser !== false) {
     sec1Rows += `
       <tr>
         <td>${t('Marine Riser', 'Marine Riser')}</td>
@@ -4400,11 +4911,59 @@ function renderReferenceValues() {
   container.appendChild(sec1);
 
   // SECTION 2: Open Hole Annular Volume
+  const curHole = state.selectedHoleSize || '26';
+  const curCasing = (state.flowType === 'subsea' && state.casingOD) 
+    ? state.casingOD 
+    : (DB.holeToPreviousCasing[curHole] || '30');
+  const prevCasing = curCasing;
+  const curCasingID = (state.flowType === 'subsea' && state.casingID) ? state.casingID : null;
+
+  const holeMismatch = (!state.reference || state.reference.selectedHoleSize !== curHole);
+
+  const getSafeOHCap = (key, pipeType, pipeSize) => {
+    if (!holeMismatch && state.reference && state.reference.openHoleAnnular) {
+      const val = state.reference.openHoleAnnular[key];
+      if (val !== undefined && val !== null && !isNaN(val) && val > 0) return val;
+    }
+    return getOHAnnularCapacity(curHole, pipeType, pipeSize);
+  };
+
+  const getSafeCasCap = (key, pipeType, pipeSize) => {
+    if (!holeMismatch && state.reference && state.reference.casingAnnular) {
+      const val = state.reference.casingAnnular[key];
+      if (val !== undefined && val !== null && !isNaN(val) && val > 0) return val;
+    }
+    return getCasingAnnularCapacity(curCasing, pipeType, pipeSize, curCasingID);
+  };
+
+  if (holeMismatch && state.reference) {
+    state.reference.selectedHoleSize = curHole;
+    state.reference.casingOD = curCasing;
+    state.reference.casingID = curCasingID;
+    if (!state.reference.openHoleAnnular) state.reference.openHoleAnnular = {};
+    state.reference.openHoleAnnular.DC = getOHAnnularCapacity(curHole, 'DC', state.drillstring.dcSize || '6-1/2');
+    state.reference.openHoleAnnular.DC2 = getOHAnnularCapacity(curHole, 'DC', state.drillstring.dcSize2 || '6-1/2');
+    state.reference.openHoleAnnular.DC3 = getOHAnnularCapacity(curHole, 'DC', state.drillstring.dcSize3 || '6-1/2');
+    state.reference.openHoleAnnular.HWDP = getOHAnnularCapacity(curHole, 'HWDP', state.drillstring.hwdpSize || '5');
+    state.reference.openHoleAnnular.DP = getOHAnnularCapacity(curHole, 'DP', state.drillstring.dpSize || '5');
+    state.reference.openHoleAnnular.DP2 = getOHAnnularCapacity(curHole, 'DP', state.drillstring.dpSize2 || '5');
+    state.reference.openHoleAnnular.DP3 = getOHAnnularCapacity(curHole, 'DP', state.drillstring.dpSize3 || '5');
+
+    if (!state.reference.casingAnnular) state.reference.casingAnnular = {};
+    state.reference.casingAnnular.DC = getCasingAnnularCapacity(curCasing, 'DC', state.drillstring.dcSize || '6-1/2', curCasingID);
+    state.reference.casingAnnular.DC2 = getCasingAnnularCapacity(curCasing, 'DC', state.drillstring.dcSize2 || '6-1/2', curCasingID);
+    state.reference.casingAnnular.DC3 = getCasingAnnularCapacity(curCasing, 'DC', state.drillstring.dcSize3 || '6-1/2', curCasingID);
+    state.reference.casingAnnular.HWDP = getCasingAnnularCapacity(curCasing, 'HWDP', state.drillstring.hwdpSize || '5', curCasingID);
+    state.reference.casingAnnular.DP = getCasingAnnularCapacity(curCasing, 'DP', state.drillstring.dpSize || '5', curCasingID);
+    state.reference.casingAnnular.DP2 = getCasingAnnularCapacity(curCasing, 'DP', state.drillstring.dpSize2 || '5', curCasingID);
+    state.reference.casingAnnular.DP3 = getCasingAnnularCapacity(curCasing, 'DP', state.drillstring.dpSize3 || '5', curCasingID);
+  }
+
   let sec2Rows = `
     <tr>
       <td>DC 1 in Open Hole</td>
       <td>${state.selectedHoleSize}"</td>
-      <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dc-input" value="${convertCapacity(state.reference.openHoleAnnular.DC, state.globalUnit).toFixed(5)}"></td>
+      <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dc-input" value="${convertCapacity(getSafeOHCap('DC', 'DC', state.drillstring.dcSize), state.globalUnit).toFixed(5)}"></td>
     </tr>
   `;
   if (parseInt(state.drillstring.dcType) >= 2) {
@@ -4412,7 +4971,7 @@ function renderReferenceValues() {
       <tr>
         <td>DC 2 in Open Hole</td>
         <td>${state.selectedHoleSize}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dc2-input" value="${convertCapacity(state.reference.openHoleAnnular.DC2, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dc2-input" value="${convertCapacity(getSafeOHCap('DC2', 'DC', state.drillstring.dcSize2), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4421,7 +4980,7 @@ function renderReferenceValues() {
       <tr>
         <td>DC 3 in Open Hole</td>
         <td>${state.selectedHoleSize}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dc3-input" value="${convertCapacity(state.reference.openHoleAnnular.DC3, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dc3-input" value="${convertCapacity(getSafeOHCap('DC3', 'DC', state.drillstring.dcSize3), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4429,12 +4988,12 @@ function renderReferenceValues() {
     <tr>
       <td>HWDP in Open Hole</td>
       <td>${state.selectedHoleSize}"</td>
-      <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-hwdp-input" value="${convertCapacity(state.reference.openHoleAnnular.HWDP, state.globalUnit).toFixed(5)}"></td>
+      <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-hwdp-input" value="${convertCapacity(getSafeOHCap('HWDP', 'HWDP', state.drillstring.hwdpSize), state.globalUnit).toFixed(5)}"></td>
     </tr>
     <tr>
       <td>DP 1 in Open Hole</td>
       <td>${state.selectedHoleSize}"</td>
-      <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dp-input" value="${convertCapacity(state.reference.openHoleAnnular.DP, state.globalUnit).toFixed(5)}"></td>
+      <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dp-input" value="${convertCapacity(getSafeOHCap('DP', 'DP', state.drillstring.dpSize), state.globalUnit).toFixed(5)}"></td>
     </tr>
   `;
   if (parseInt(state.drillstring.dpType) >= 2) {
@@ -4442,7 +5001,7 @@ function renderReferenceValues() {
       <tr>
         <td>DP 2 in Open Hole</td>
         <td>${state.selectedHoleSize}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dp2-input" value="${convertCapacity(state.reference.openHoleAnnular.DP2, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dp2-input" value="${convertCapacity(getSafeOHCap('DP2', 'DP', state.drillstring.dpSize2), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4451,7 +5010,7 @@ function renderReferenceValues() {
       <tr>
         <td>DP 3 in Open Hole</td>
         <td>${state.selectedHoleSize}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dp3-input" value="${convertCapacity(state.reference.openHoleAnnular.DP3, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="oh-dp3-input" value="${convertCapacity(getSafeOHCap('DP3', 'DP', state.drillstring.dpSize3), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4478,12 +5037,11 @@ function renderReferenceValues() {
   container.appendChild(sec2);
 
   // SECTION 3: Casing Annular Volume
-  const prevCasing = DB.holeToPreviousCasing[state.selectedHoleSize] || '20';
   let sec3Rows = `
     <tr>
       <td>DC 1 in Casing</td>
       <td>${prevCasing}"</td>
-      <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dc-input" value="${convertCapacity(state.reference.casingAnnular.DC, state.globalUnit).toFixed(5)}"></td>
+      <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dc-input" value="${convertCapacity(getSafeCasCap('DC', 'DC', state.drillstring.dcSize), state.globalUnit).toFixed(5)}"></td>
     </tr>
   `;
   if (parseInt(state.drillstring.dcType) >= 2) {
@@ -4491,7 +5049,7 @@ function renderReferenceValues() {
       <tr>
         <td>DC 2 in Casing</td>
         <td>${prevCasing}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dc2-input" value="${convertCapacity(state.reference.casingAnnular.DC2, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dc2-input" value="${convertCapacity(getSafeCasCap('DC2', 'DC', state.drillstring.dcSize2), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4500,7 +5058,7 @@ function renderReferenceValues() {
       <tr>
         <td>DC 3 in Casing</td>
         <td>${prevCasing}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dc3-input" value="${convertCapacity(state.reference.casingAnnular.DC3, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dc3-input" value="${convertCapacity(getSafeCasCap('DC3', 'DC', state.drillstring.dcSize3), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4508,12 +5066,12 @@ function renderReferenceValues() {
     <tr>
       <td>HWDP in Casing</td>
       <td>${prevCasing}"</td>
-      <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-hwdp-input" value="${convertCapacity(state.reference.casingAnnular.HWDP, state.globalUnit).toFixed(5)}"></td>
+      <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-hwdp-input" value="${convertCapacity(getSafeCasCap('HWDP', 'HWDP', state.drillstring.hwdpSize), state.globalUnit).toFixed(5)}"></td>
     </tr>
     <tr>
       <td>DP 1 in Casing</td>
       <td>${prevCasing}"</td>
-      <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dp-input" value="${convertCapacity(state.reference.casingAnnular.DP, state.globalUnit).toFixed(5)}"></td>
+      <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dp-input" value="${convertCapacity(getSafeCasCap('DP', 'DP', state.drillstring.dpSize), state.globalUnit).toFixed(5)}"></td>
     </tr>
   `;
   if (parseInt(state.drillstring.dpType) >= 2) {
@@ -4521,7 +5079,7 @@ function renderReferenceValues() {
       <tr>
         <td>DP 2 in Casing</td>
         <td>${prevCasing}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dp2-input" value="${convertCapacity(state.reference.casingAnnular.DP2, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dp2-input" value="${convertCapacity(getSafeCasCap('DP2', 'DP', state.drillstring.dpSize2), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4530,7 +5088,7 @@ function renderReferenceValues() {
       <tr>
         <td>DP 3 in Casing</td>
         <td>${prevCasing}"</td>
-        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dp3-input" value="${convertCapacity(state.reference.casingAnnular.DP3, state.globalUnit).toFixed(5)}"></td>
+        <td style="text-align:right"><input type="number" step="any" class="table-input" id="cas-dp3-input" value="${convertCapacity(getSafeCasCap('DP3', 'DP', state.drillstring.dpSize3), state.globalUnit).toFixed(5)}"></td>
       </tr>
     `;
   }
@@ -4557,7 +5115,7 @@ function renderReferenceValues() {
   container.appendChild(sec3);
 
   // SECTION 4: Subsea Annular Volume between Riser and DP
-  if (state.flowType === 'subsea') {
+  if (state.flowType === 'subsea' && state.hasRiser !== false) {
     const sec4Subsea = document.createElement('div');
     sec4Subsea.className = 'content-card';
     sec4Subsea.innerHTML = `
@@ -4731,7 +5289,11 @@ function renderReferenceValues() {
     state.reference.pumpEfficiency = 100; // Permanently assumed 100% efficiency
 
     // Save current configuration metadata
+    state.reference.hasRiser = (state.flowType === 'subsea') ? (state.hasRiser !== false) : null;
+    state.reference.sectionType = (state.flowType === 'subsea') ? (state.sectionType || (state.hasRiser !== false ? 'risered' : 'riserless')) : null;
     state.reference.selectedHoleSize = state.selectedHoleSize;
+    state.reference.casingOD = state.casingOD;
+    state.reference.casingID = state.casingID;
     state.reference.drillstring = {
       dcType: state.drillstring.dcType,
       dcSize: state.drillstring.dcSize,
@@ -4813,7 +5375,8 @@ function renderCalculations() {
   const vUnit = isBblFt || (unitLabel === 'bbl/m') ? 'bbl' : 'lts';
 
   // Title displays
-  const titleDisplay = `${state.selectedHoleSize}" Hole`;
+  const isCustomHole = (state.flowType === 'subsea' && ((state.customHoleSizeRiserless && state.selectedHoleSize === state.customHoleSizeRiserless) || (state.customHoleSizeRiser && state.selectedHoleSize === state.customHoleSizeRiser))) || (state.flowType === 'surface' && state.customHoleSize && state.selectedHoleSize === state.customHoleSize);
+  const titleDisplay = isCustomHole ? `Custom ${state.selectedHoleSize}" Hole` : `${state.selectedHoleSize}" Hole`;
   const headerTitleEl = document.querySelector(`#screen-${state.flowType}-calculations .screen-title`);
   if (headerTitleEl) headerTitleEl.textContent = titleDisplay;
 
@@ -4937,6 +5500,134 @@ function renderCalculations() {
     </div>
   `;
 
+  // ==========================================
+  // SUBSEA: Marine Elevations Card (above Wellbore and String Parameters)
+  // ==========================================
+  let marineCard = null;
+  if (state.flowType === 'subsea') {
+    if (state.calcInputs.marineAirGap === undefined) state.calcInputs.marineAirGap = 25;
+    if (state.calcInputs.marineWaterDepth === undefined) state.calcInputs.marineWaterDepth = 300;
+    if (state.calcInputs.marineSeabedDepth === undefined) {
+      state.calcInputs.marineSeabedDepth = (parseFloat(state.calcInputs.marineAirGap) || 25) + (parseFloat(state.calcInputs.marineWaterDepth) || 300);
+    }
+    const curHoleNum = parseFloat(state.selectedHoleSize) || 36;
+    if (!state.calcInputs.marineReturnsMode) {
+      state.calcInputs.marineReturnsMode = (state.hasRiser === false || curHoleNum >= 26) ? 'riserless' : 'risered';
+    }
+    if (!state.calcInputs.marineRiserID) state.calcInputs.marineRiserID = 18.75;
+    if (!state.calcInputs.marineCasingID) {
+      state.calcInputs.marineCasingID = state.casingID || (curHoleNum >= 36 ? '28.0' : (curHoleNum === 26 ? '28.0' : (curHoleNum === 17.5 ? '18.73' : (curHoleNum === 12.25 ? '12.415' : '8.681'))));
+    }
+    if (!state.calcInputs.marineHoleSize) state.calcInputs.marineHoleSize = state.selectedHoleSize || '36';
+    if (!state.calcInputs.marinePumpOutput) {
+      state.calcInputs.marinePumpOutput = state.reference && state.reference.pumpOutput ? (convertPumpOutput(state.reference.pumpOutput, 'bbl/m')).toFixed(4) : '0.1176';
+    }
+
+    const airGapVal = state.calcInputs.marineAirGap;
+    const waterDepthVal = state.calcInputs.marineWaterDepth;
+    const seabedDepthVal = state.calcInputs.marineSeabedDepth;
+    const isSeabedOverridden = !!state.calcInputs.marineSeabedOverride;
+    const returnsMode = state.calcInputs.marineReturnsMode;
+    const riserIdVal = state.calcInputs.marineRiserID;
+    const casingIdVal = state.calcInputs.marineCasingID;
+    const holeSizeVal = state.calcInputs.marineHoleSize;
+    const pumpOutputVal = state.calcInputs.marinePumpOutput;
+
+    marineCard = document.createElement('div');
+    marineCard.id = 'subsea-marine-elevations-card';
+    marineCard.className = 'content-card';
+    marineCard.style.borderLeft = '4px solid var(--accent-color)';
+    marineCard.style.marginBottom = '15px';
+    marineCard.innerHTML = `
+      <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600;">${t('Marine Elevations', 'Marine Elevations')}</h3>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:12px;">
+        <div class="form-group">
+          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Air Gap', 'Air Gap')} (${dUnit})</label>
+          <div style="position:relative; width:100%;">
+            <input type="number" step="any" class="form-input" id="marine-air-gap" value="${airGapVal}" style="width:100%; padding-right:25px;">
+            ${editIcon}
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Water Depth', 'Water Depth')} (${dUnit})</label>
+          <div style="position:relative; width:100%;">
+            <input type="number" step="any" class="form-input" id="marine-water-depth" value="${waterDepthVal}" style="width:100%; padding-right:25px;">
+            ${editIcon}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Seabed Depth from RKB', 'Seabed Depth from RKB')} (${dUnit})</label>
+          <button type="button" id="reset-seabed-auto" style="border:none; background:none; font-size:0.75rem; color:var(--accent-color); font-weight:600; cursor:pointer; padding:0; display:${isSeabedOverridden ? 'inline' : 'none'};">${t('Reset to Auto', 'Reset to Auto')}</button>
+        </div>
+        <div style="position:relative; width:100%;">
+          <input type="number" step="any" class="form-input" id="marine-seabed-depth" value="${seabedDepthVal}" style="width:100%; padding-right:25px; ${isSeabedOverridden ? '' : 'background-color:var(--input-disabled-bg);'}">
+          ${editIcon}
+        </div>
+        <div id="marine-seabed-error" class="validation-error" style="color:var(--danger-color, #d32f2f); font-size:0.75rem; margin-top:4px; display:none;"></div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Returns Mode', 'Returns Mode')}</label>
+        <div class="segmented-control" id="marine-returns-mode-toggle" style="margin-bottom:8px;">
+          <button type="button" class="segmented-control-btn ${returnsMode === 'riserless' ? 'active' : ''}" data-marine-mode="riserless">${t('Riserless', 'Riserless')}</button>
+          <button type="button" class="segmented-control-btn ${returnsMode === 'risered' ? 'active' : ''}" data-marine-mode="risered">${t('With Riser', 'With Riser')}</button>
+        </div>
+      </div>
+
+      <div id="marine-riser-id-group" class="form-group" style="margin-bottom:12px; display:${returnsMode === 'risered' ? 'block' : 'none'};">
+        <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Riser ID', 'Riser ID')} (in)</label>
+        <div style="position:relative; width:100%;">
+          <input type="number" step="any" class="form-input" id="marine-riser-id" value="${riserIdVal}" style="width:100%; padding-right:25px;">
+          ${editIcon}
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:12px;">
+        <div class="form-group">
+          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Casing / Conductor ID', 'Casing / Conductor ID')} (in)</label>
+          <div style="position:relative; width:100%;">
+            <input type="number" step="any" class="form-input" id="marine-casing-id" value="${casingIdVal}" style="width:100%; padding-right:25px;">
+            ${editIcon}
+          </div>
+          <select id="marine-casing-quickselect" style="margin-top:5px; width:100%; font-size:0.75rem; padding:4px 6px; border-radius:6px; background:var(--input-bg, #f5f5f5); border:1px solid var(--border-color); color:var(--text-secondary);">
+            <option value="28.0" ${casingIdVal == 28.0 ? 'selected' : ''}>30" Conductor (28.0" ID)</option>
+            <option value="35.0" ${casingIdVal == 35.0 ? 'selected' : ''}>36" Conductor (35.0" ID)</option>
+            <option value="29.0" ${casingIdVal == 29.0 ? 'selected' : ''}>30" Conductor (29.0" ID)</option>
+            <option value="23.0" ${casingIdVal == 23.0 ? 'selected' : ''}>24" Casing (23.0" ID)</option>
+            <option value="18.73" ${casingIdVal == 18.73 ? 'selected' : ''}>20" Casing (18.73" ID)</option>
+            <option value="15.0" ${casingIdVal == 15.0 ? 'selected' : ''}>16" Casing (15.0" ID)</option>
+            <option value="12.415" ${casingIdVal == 12.415 ? 'selected' : ''}>13 3/8" Casing (12.415" ID)</option>
+            <option value="8.681" ${casingIdVal == 8.681 ? 'selected' : ''}>9 5/8" Casing (8.681" ID)</option>
+            <option value="custom">Custom ID...</option>
+          </select>
+          <div id="marine-casing-warning" style="color:var(--warning-color, #e65100); font-size:0.75rem; margin-top:4px; display:none;"></div>
+          <div id="marine-casing-error" class="validation-error" style="color:var(--danger-color, #d32f2f); font-size:0.75rem; margin-top:4px; display:none;"></div>
+        </div>
+
+        <div class="form-group">
+          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Hole Size', 'Hole Size')} (in)</label>
+          <div style="position:relative; width:100%;">
+            <input type="number" step="any" class="form-input" id="marine-hole-size" value="${holeSizeVal}" style="width:100%; padding-right:25px;">
+            ${editIcon}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:6px;">
+        <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Pump Output', 'Pump Output')} (bbl/stroke)</label>
+        <div style="position:relative; width:100%;">
+          <input type="number" step="any" class="form-input" id="marine-pump-output" value="${pumpOutputVal}" style="width:100%; padding-right:25px;">
+          ${editIcon}
+        </div>
+      </div>
+    `;
+    container.appendChild(marineCard);
+  }
+
   // Input Form Card
   const formCard = document.createElement('div');
   formCard.className = 'content-card';
@@ -4974,6 +5665,7 @@ function renderCalculations() {
           <input type="number" step="any" class="form-input" id="shoe-md-calc" value="${state.calcInputs.shoeMD || defaultShoe}" ${state.calcInputs.wellType === 'vertical' ? 'disabled style="background-color:var(--input-disabled-bg); width:100%;"' : 'style="width:100%; padding-right:25px;"'}>
           ${state.calcInputs.wellType === 'vertical' ? '' : editIcon}
         </div>
+        <div id="shoe-md-marine-error" class="validation-error" style="color:var(--danger-color, #d32f2f); font-size:0.75rem; margin-top:4px; display:none;"></div>
       </div>
     </div>
 
@@ -5023,7 +5715,7 @@ function renderCalculations() {
     </div>
     ` : ''}
 
-    ${state.flowType === 'subsea' ? `
+    ${(state.flowType === 'subsea' && state.hasRiser !== false) ? `
     <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
       <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('Riser Length', 'Riser Length')} (${dUnit})</label>
       <div style="position:relative; width:140px; display:inline-block;">
@@ -5033,7 +5725,7 @@ function renderCalculations() {
     </div>
     ` : ''}
 
-    ${state.flowType === 'subsea' && state.calcInputs.bopStatus === 'closed' ? `
+    ${(state.flowType === 'subsea' && state.hasRiser !== false && state.calcInputs.bopStatus === 'closed') ? `
     <div class="form-group-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:15px;">
       <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary); flex:1;">${t('Choke Line Length', 'Choke Line Length')} (${dUnit})</label>
       <div style="position:relative; width:140px; display:inline-block;">
@@ -5056,20 +5748,26 @@ function renderCalculations() {
   // BOP Toggle for subsea stack (positioned next to GO)
   let bopToggleMarkup = '';
   if (state.flowType === 'subsea') {
-    bopToggleMarkup = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-        <button class="btn btn-primary" id="run-calc-btn" style="padding: 12px 20px; font-size: 0.9rem; margin-bottom: 0; white-space: nowrap;">${t('Calculate', 'Calculate')}</button>
-        <div class="bop-toggle-container" style="margin-bottom: 0; align-items: flex-end;">
-          <span class="bop-toggle-label" style="margin-bottom: 5px;">
-            ${t('BOP:', 'BOP:')} <strong style="color:var(--text-primary); font-weight:700;">${state.calcInputs.bopStatus === 'closed' ? t('CLOSED', 'CLOSED') : t('OPEN', 'OPEN')}</strong>
-          </span>
-          <label class="switch bop-switch" style="margin-top: 4px;">
-            <input type="checkbox" id="bop-status-toggle" ${state.calcInputs.bopStatus === 'closed' ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
+    if (state.hasRiser !== false) {
+      bopToggleMarkup = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+          <button class="btn btn-primary" id="run-calc-btn" style="padding: 12px 20px; font-size: 0.9rem; margin-bottom: 0; white-space: nowrap;">${t('Calculate', 'Calculate')}</button>
+          <div class="bop-toggle-container" style="margin-bottom: 0; align-items: flex-end;">
+            <span class="bop-toggle-label" style="margin-bottom: 5px;">
+              ${t('BOP:', 'BOP:')} <strong style="color:var(--text-primary); font-weight:700;">${state.calcInputs.bopStatus === 'closed' ? t('CLOSED', 'CLOSED') : t('OPEN', 'OPEN')}</strong>
+            </span>
+            <label class="switch bop-switch" style="margin-top: 4px;">
+              <input type="checkbox" id="bop-status-toggle" ${state.calcInputs.bopStatus === 'closed' ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      bopToggleMarkup = `
+        <button class="btn btn-primary" id="run-calc-btn" style="width: 100%; margin-bottom: 25px;">${t('Calculate', 'Calculate')}</button>
+      `;
+    }
   }
 
   // BOP toggle container wrapper
@@ -5078,13 +5776,16 @@ function renderCalculations() {
     bopToggleWrapper.innerHTML = bopToggleMarkup;
     container.appendChild(bopToggleWrapper);
 
-    // Bind BOP switch
-    container.querySelector('#' + 'bop-status-toggle').addEventListener('change', (e) => {
-      state.calcInputs.bopStatus = e.target.checked ? 'closed' : 'open';
-      showToast(`BOP Status changed to: ${state.calcInputs.bopStatus.toUpperCase()}`);
-      renderCalculations();
-      runCalculationsEngine();
-    });
+    // Bind BOP switch if present
+    const bopToggle = container.querySelector('#' + 'bop-status-toggle');
+    if (bopToggle) {
+      bopToggle.addEventListener('change', (e) => {
+        state.calcInputs.bopStatus = e.target.checked ? 'closed' : 'open';
+        showToast(`BOP Status changed to: ${state.calcInputs.bopStatus.toUpperCase()}`);
+        renderCalculations();
+        runCalculationsEngine();
+      });
+    }
   }
 
   // GO Button (Rendered only for Surface, since Subsea has it inline)
@@ -5118,34 +5819,37 @@ function renderCalculations() {
   if (state.calcInputs.killSICP === undefined) state.calcInputs.killSICP = defaultSICP;
   if (state.calcInputs.killSCR === undefined) state.calcInputs.killSCR = defaultSCR;
 
-  // Kill Sheet Button Section
-  const killSheetBtnCard = document.createElement('div');
-  killSheetBtnCard.id = 'kill-sheet-btn-card';
-  killSheetBtnCard.className = 'content-card compact-card';
-  killSheetBtnCard.style.marginTop = '20px';
-  killSheetBtnCard.style.borderTop = '4px solid var(--accent-color)';
-  killSheetBtnCard.style.display = showResults ? 'block' : 'none';
+  // Kill Sheet Button Section (not shown in riserless mode)
+  const isRiserless = (state.flowType === 'subsea' && state.hasRiser === false);
+  if (!isRiserless) {
+    const killSheetBtnCard = document.createElement('div');
+    killSheetBtnCard.id = 'kill-sheet-btn-card';
+    killSheetBtnCard.className = 'content-card compact-card';
+    killSheetBtnCard.style.marginTop = '20px';
+    killSheetBtnCard.style.borderTop = '4px solid var(--accent-color)';
+    killSheetBtnCard.style.display = showResults ? 'block' : 'none';
 
-  killSheetBtnCard.innerHTML = `
-    <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600; color:var(--text-primary);">Well Control Kill Sheet</h3>
-    <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:15px; line-height:1.4;">
-      Access the complete well control Kill Data Sheet to compute maximum pressures, kill mud weight, initial/final circulating pressures, and step-down charts.
-    </p>
-    <button class="btn btn-primary" id="open-kill-sheet-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-        <polyline points="14 2 14 8 20 8"></polyline>
-        <line x1="16" y1="13" x2="8" y2="13"></line>
-        <line x1="16" y1="17" x2="8" y2="17"></line>
-      </svg>
-      OPEN KILL DATA SHEET
-    </button>
-  `;
-  container.appendChild(killSheetBtnCard);
+    killSheetBtnCard.innerHTML = `
+      <h3 style="font-size:0.95rem; margin-bottom:12px; font-weight:600; color:var(--text-primary);">Well Control Kill Sheet</h3>
+      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:15px; line-height:1.4;">
+        Access the complete well control Kill Data Sheet to compute maximum pressures, kill mud weight, initial/final circulating pressures, and step-down charts.
+      </p>
+      <button class="btn btn-primary" id="open-kill-sheet-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+        OPEN KILL DATA SHEET
+      </button>
+    `;
+    container.appendChild(killSheetBtnCard);
 
-  container.querySelector('#' + 'open-kill-sheet-btn').onclick = () => {
-    navigateTo('kill-data-sheet');
-  };
+    container.querySelector('#' + 'open-kill-sheet-btn').onclick = () => {
+      navigateTo('kill-data-sheet');
+    };
+  }
 
   // Sync Input Elements Values & Bind change listeners
   const holeMEl = container.querySelector('#' + 'hole-md-calc');
@@ -5199,9 +5903,38 @@ function renderCalculations() {
     state.calcInputs.dpLength3 = getVal(container.querySelector('#' + 'dp-len-calc-3'));
 
     if (state.flowType === 'subsea') {
-      state.calcInputs.riserLength = getVal(container.querySelector('#' + 'riserlength-calc'));
-      if (state.calcInputs.bopStatus === 'closed') {
-        state.calcInputs.chokeLength = getVal(container.querySelector('#' + 'choke-len-calc'));
+      const getVal = (el) => el && el.value !== '' ? (parseFloat(String(el.value).replace(',', '.')) || 0) : '';
+      state.calcInputs.marineAirGap = getVal(container.querySelector('#marine-air-gap'));
+      state.calcInputs.marineWaterDepth = getVal(container.querySelector('#marine-water-depth'));
+      state.calcInputs.marineSeabedDepth = getVal(container.querySelector('#marine-seabed-depth'));
+      state.calcInputs.marineRiserID = getVal(container.querySelector('#marine-riser-id'));
+      state.calcInputs.marineCasingID = getVal(container.querySelector('#marine-casing-id'));
+      state.calcInputs.marineHoleSize = getVal(container.querySelector('#marine-hole-size'));
+      state.calcInputs.marinePumpOutput = getVal(container.querySelector('#marine-pump-output'));
+
+      state.calcInputs.airGap = state.calcInputs.marineAirGap;
+      state.calcInputs.waterDepth = state.calcInputs.marineWaterDepth;
+      state.calcInputs.seabedDepth = state.calcInputs.marineSeabedDepth;
+      if (state.calcInputs.marineCasingID) state.casingID = String(state.calcInputs.marineCasingID);
+      if (state.calcInputs.marinePumpOutput) {
+        state.reference.pumpOutput = convertPumpOutputBack(parseFloat(state.calcInputs.marinePumpOutput) || 0.1176, state.globalUnit);
+      }
+      if (state.calcInputs.marineHoleSize) {
+        state.selectedHoleSize = String(state.calcInputs.marineHoleSize);
+      }
+
+      if (state.hasRiser !== false && state.sectionType !== 'riserless') {
+        state.calcInputs.riserLength = getVal(container.querySelector('#' + 'riserlength-calc'));
+        if (state.calcInputs.bopStatus === 'closed') {
+          state.calcInputs.chokeLength = getVal(container.querySelector('#' + 'choke-len-calc'));
+        } else {
+          state.calcInputs.chokeLength = 0;
+        }
+      } else {
+        state.calcInputs.riserLength = 0;
+        state.calcInputs.chokeLength = 0;
+        state.calcInputs.bopStatus = 'open';
+        state.calcInputs.hasSurfaceConductor = false;
       }
     } else {
       if (state.rigType === 'LAND' || !state.rigType) {
@@ -5385,6 +6118,220 @@ function renderCalculations() {
     });
   }
 
+  // ==========================================
+  // Marine Elevations Validation & Event Listeners
+  // ==========================================
+  const validateMarineElevations = () => {
+    if (state.flowType !== 'subsea') return true;
+
+    const seabedEl = container.querySelector('#marine-seabed-depth');
+    const shoeMEl = container.querySelector('#shoe-md-calc');
+    const holeMEl = container.querySelector('#hole-md-calc');
+    const casingIdEl = container.querySelector('#marine-casing-id');
+    const holeSizeEl = container.querySelector('#marine-hole-size');
+
+    const seabedVal = parseFloat(seabedEl ? seabedEl.value : '') || 0;
+    const shoeMVal = parseFloat(shoeMEl ? shoeMEl.value : '') || 0;
+    const holeMVal = parseFloat(holeMEl ? holeMEl.value : '') || 0;
+    const casingIdVal = parseFloat(casingIdEl ? casingIdEl.value : '') || 0;
+    const holeSizeVal = parseFloat(holeSizeEl ? holeSizeEl.value : '') || 0;
+
+    let hasBlockingError = false;
+
+    // Seabed error: Seabed depth must be > 0 and < Shoe MD
+    const seabedErrEl = container.querySelector('#marine-seabed-error');
+    if (seabedErrEl) {
+      if (seabedVal <= 0) {
+        seabedErrEl.textContent = t('Seabed depth must be greater than 0', 'Seabed depth must be greater than 0');
+        seabedErrEl.style.display = 'block';
+        if (seabedEl) seabedEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        hasBlockingError = true;
+      } else if (shoeMVal > 0 && seabedVal >= shoeMVal) {
+        seabedErrEl.textContent = t('Seabed depth must be shallower than shoe depth', 'Seabed depth must be shallower than shoe depth');
+        seabedErrEl.style.display = 'block';
+        if (seabedEl) seabedEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        hasBlockingError = true;
+      } else {
+        seabedErrEl.style.display = 'none';
+        if (seabedEl) seabedEl.style.border = '';
+      }
+    }
+
+    // Shoe MD error: Shoe MD must be > Seabed and <= Hole MD
+    const shoeErrEl = container.querySelector('#shoe-md-marine-error');
+    if (shoeErrEl) {
+      if (shoeMVal > 0 && seabedVal > 0 && shoeMVal <= seabedVal) {
+        shoeErrEl.textContent = t('Shoe is above the seabed', 'Shoe is above the seabed');
+        shoeErrEl.style.display = 'block';
+        if (shoeMEl) shoeMEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        hasBlockingError = true;
+      } else if (shoeMVal > 0 && holeMVal > 0 && shoeMVal > holeMVal) {
+        shoeErrEl.textContent = t('Shoe depth cannot exceed bit/hole depth', 'Shoe depth cannot exceed bit/hole depth');
+        shoeErrEl.style.display = 'block';
+        if (shoeMEl) shoeMEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        hasBlockingError = true;
+      } else {
+        shoeErrEl.style.display = 'none';
+        if (shoeMEl) shoeMEl.style.border = '';
+      }
+    }
+
+    // Casing ID vs string OD at depth
+    const stringOD = Math.max(parseFloat(state.drillstring.dpSize) || 5.0, parseFloat(state.drillstring.dcSize) || 6.5);
+    const casingErrEl = container.querySelector('#marine-casing-error');
+    if (casingErrEl) {
+      if (casingIdVal > 0 && casingIdVal <= stringOD) {
+        casingErrEl.textContent = `${t('Casing ID must be larger than string OD', 'Casing ID must be larger than string OD')} (${stringOD}")`;
+        casingErrEl.style.display = 'block';
+        if (casingIdEl) casingIdEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        hasBlockingError = true;
+      } else {
+        casingErrEl.style.display = 'none';
+        if (casingIdEl) casingIdEl.style.border = '';
+      }
+    }
+
+    // Casing ID >= Hole Size warning (non-blocking)
+    const casingWarnEl = container.querySelector('#marine-casing-warning');
+    if (casingWarnEl) {
+      if (casingIdVal > 0 && holeSizeVal > 0 && casingIdVal >= holeSizeVal) {
+        casingWarnEl.textContent = t('Casing ID is usually smaller than hole size', 'Casing ID is usually smaller than hole size');
+        casingWarnEl.style.display = 'block';
+      } else {
+        casingWarnEl.style.display = 'none';
+      }
+    }
+
+    const runBtn = container.querySelector('#run-calc-btn');
+    if (runBtn) {
+      if (hasBlockingError) {
+        runBtn.disabled = true;
+        runBtn.style.opacity = '0.5';
+        runBtn.style.cursor = 'not-allowed';
+      } else {
+        runBtn.disabled = false;
+        runBtn.style.opacity = '1';
+        runBtn.style.cursor = 'pointer';
+      }
+    }
+
+    return !hasBlockingError;
+  };
+
+  if (state.flowType === 'subsea') {
+    const airGapIn = container.querySelector('#marine-air-gap');
+    const waterDepthIn = container.querySelector('#marine-water-depth');
+    const seabedIn = container.querySelector('#marine-seabed-depth');
+    const resetSeabedBtn = container.querySelector('#reset-seabed-auto');
+    const casingIdIn = container.querySelector('#marine-casing-id');
+    const casingSelect = container.querySelector('#marine-casing-quickselect');
+    const holeSizeIn = container.querySelector('#marine-hole-size');
+    const pumpOutIn = container.querySelector('#marine-pump-output');
+
+    const updateSeabedFromElevations = () => {
+      if (!state.calcInputs.marineSeabedOverride && seabedIn) {
+        const ag = parseFloat(airGapIn ? airGapIn.value : 0) || 0;
+        const wd = parseFloat(waterDepthIn ? waterDepthIn.value : 0) || 0;
+        const total = ag + wd;
+        seabedIn.value = total > 0 ? total : '';
+        state.calcInputs.marineSeabedDepth = total;
+      }
+      validateMarineElevations();
+      syncStateFromInputs();
+      runCalculationsEngine();
+    };
+
+    if (airGapIn) airGapIn.addEventListener('input', updateSeabedFromElevations);
+    if (waterDepthIn) waterDepthIn.addEventListener('input', updateSeabedFromElevations);
+
+    if (seabedIn) {
+      seabedIn.addEventListener('input', () => {
+        state.calcInputs.marineSeabedOverride = true;
+        if (resetSeabedBtn) resetSeabedBtn.style.display = 'inline';
+        validateMarineElevations();
+        syncStateFromInputs();
+        runCalculationsEngine();
+      });
+    }
+
+    if (resetSeabedBtn) {
+      resetSeabedBtn.addEventListener('click', () => {
+        state.calcInputs.marineSeabedOverride = false;
+        resetSeabedBtn.style.display = 'none';
+        updateSeabedFromElevations();
+      });
+    }
+
+    const returnsToggle = container.querySelector('#marine-returns-mode-toggle');
+    if (returnsToggle) {
+      returnsToggle.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const mode = e.currentTarget.getAttribute('data-marine-mode');
+          returnsToggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          state.calcInputs.marineReturnsMode = mode;
+          state.hasRiser = (mode === 'risered');
+          state.sectionType = mode;
+          const riserGroup = container.querySelector('#marine-riser-id-group');
+          if (riserGroup) riserGroup.style.display = (mode === 'risered' ? 'block' : 'none');
+          validateMarineElevations();
+          syncStateFromInputs();
+          runCalculationsEngine();
+        });
+      });
+    }
+
+    if (casingSelect) {
+      casingSelect.addEventListener('change', () => {
+        if (casingSelect.value && casingSelect.value !== 'custom' && casingIdIn) {
+          casingIdIn.value = casingSelect.value;
+          state.calcInputs.marineCasingID = casingSelect.value;
+          state.casingID = casingSelect.value;
+          validateMarineElevations();
+          syncStateFromInputs();
+          runCalculationsEngine();
+        }
+      });
+    }
+
+    if (casingIdIn) {
+      casingIdIn.addEventListener('input', () => {
+        state.calcInputs.marineCasingID = casingIdIn.value;
+        state.casingID = casingIdIn.value;
+        if (casingSelect) {
+          const match = Array.from(casingSelect.options).find(o => o.value === casingIdIn.value);
+          casingSelect.value = match ? match.value : 'custom';
+        }
+        validateMarineElevations();
+        syncStateFromInputs();
+        runCalculationsEngine();
+      });
+    }
+
+    if (holeSizeIn) {
+      holeSizeIn.addEventListener('input', () => {
+        state.calcInputs.marineHoleSize = holeSizeIn.value;
+        state.selectedHoleSize = holeSizeIn.value;
+        const titleEl = document.querySelector(`#screen-${state.flowType}-calculations .screen-title`);
+        if (titleEl) titleEl.textContent = `${holeSizeIn.value}" Hole`;
+        validateMarineElevations();
+        syncStateFromInputs();
+        runCalculationsEngine();
+      });
+    }
+
+    if (pumpOutIn) {
+      pumpOutIn.addEventListener('input', () => {
+        state.calcInputs.marinePumpOutput = pumpOutIn.value;
+        syncStateFromInputs();
+        runCalculationsEngine();
+      });
+    }
+
+    // Initial validation
+    setTimeout(validateMarineElevations, 0);
+  }
+
   // Run Calculations initially when button is clicked or after setup
   const runCalcBtn = container.querySelector('#' + 'run-calc-btn');
   if (runCalcBtn) {
@@ -5405,6 +6352,12 @@ function renderCalculations() {
         // Skip optional RKB elevation
         if (input.id === 'rkb-elevation-calc') {
           return;
+        }
+        // Skip riser, choke, and marine elevation fields if omitted or in riserless mode
+        if (state.flowType === 'subsea' && (state.hasRiser === false || state.sectionType === 'riserless')) {
+          if (['riserlength-calc', 'choke-len-calc', 'air-gap-calc', 'water-depth-calc'].includes(input.id)) {
+            return;
+          }
         }
 
         if (input.value === '' || input.value === null || input.value === undefined) {
@@ -5453,7 +6406,8 @@ function renderCalculations() {
           state.calcInputs.hasRun = true;
           localStorage.setItem('calcInputs', JSON.stringify(state.calcInputs));
           container.querySelector('#' + 'results-dashboard-wrapper').style.display = 'grid';
-          container.querySelector('#' + 'kill-sheet-btn-card').style.display = 'block';
+          const ksCard = container.querySelector('#' + 'kill-sheet-btn-card');
+          if (ksCard) ksCard.style.display = 'block';
           
           runCalculationsEngine();
           saveCalculationToHistory('dashboard');
@@ -5511,8 +6465,21 @@ function runCalculationsEngine() {
   // Inputs might be entered in feet if unit is bbl/ft.
   // We perform math in meters and L/m, then convert the output to target unit (Liters or Barrels).
 
-  // Converters to meter scale
-  const toMeters = (len) => isBblFt ? len / 3.28084 : len;
+  const isRiserless = (state.flowType === 'subsea' && (state.hasRiser === false || state.sectionType === 'riserless'));
+  if (isRiserless) {
+    inputs.riserLength = 0;
+    inputs.chokeLength = 0;
+    inputs.airGap = 0;
+    inputs.waterDepth = 0;
+    inputs.bopStatus = 'open';
+  }
+
+  // Converters to meter scale - safe against null, undefined or empty string
+  const toMeters = (len) => {
+    const num = parseFloat(len);
+    if (isNaN(num)) return 0;
+    return isBblFt ? num / 3.28084 : num;
+  };
 
   // Depths in meters
   const holeMD = toMeters(inputs.holeMD || 0);
@@ -5527,32 +6494,39 @@ function runCalculationsEngine() {
   const dpLength2 = toMeters(inputs.dpLength2 || 0);
   const dpLength3 = toMeters(inputs.dpLength3 || 0);
 
-  // Capacities in L/m
-  const dcCap = ref.capacities.DC; // always stored in L/m in ref
-  const dcCap2 = ref.capacities.DC2 || 0;
-  const dcCap3 = ref.capacities.DC3 || 0;
-  const hwdpCap = ref.capacities.HWDP;
-  const dpCap = ref.capacities.DP;
-  const dpCap2 = ref.capacities.DP2 || 0;
-  const dpCap3 = ref.capacities.DP3 || 0;
+  // Capacities in L/m with safe fallbacks
+  const curHole = state.selectedHoleSize || '26';
+  const curCasing = (state.flowType === 'subsea' && state.casingOD) ? state.casingOD : (DB.holeToPreviousCasing[curHole] || '30');
+  const curCasingID = (state.flowType === 'subsea' && state.casingID) ? state.casingID : null;
 
-  const ohDcCap = ref.openHoleAnnular.DC;
-  const ohDcCap2 = ref.openHoleAnnular.DC2 || 0;
-  const ohDcCap3 = ref.openHoleAnnular.DC3 || 0;
-  const ohHwdpCap = ref.openHoleAnnular.HWDP;
-  const ohDpCap = ref.openHoleAnnular.DP;
-  const ohDpCap2 = ref.openHoleAnnular.DP2 || 0;
-  const ohDpCap3 = ref.openHoleAnnular.DP3 || 0;
+  const caps = (ref && ref.capacities) ? ref.capacities : {};
+  const dcCap = (caps.DC !== undefined && !isNaN(caps.DC) && caps.DC > 0) ? caps.DC : getPipeCapacity('DC', state.drillstring.dcSize || '6-1/2');
+  const dcCap2 = caps.DC2 || 0;
+  const dcCap3 = caps.DC3 || 0;
+  const hwdpCap = (caps.HWDP !== undefined && !isNaN(caps.HWDP) && caps.HWDP > 0) ? caps.HWDP : getPipeCapacity('HWDP', state.drillstring.hwdpSize || '5');
+  const dpCap = (caps.DP !== undefined && !isNaN(caps.DP) && caps.DP > 0) ? caps.DP : getPipeCapacity('DP', state.drillstring.dpSize || '5');
+  const dpCap2 = caps.DP2 || 0;
+  const dpCap3 = caps.DP3 || 0;
 
-  const casDcCap = ref.casingAnnular.DC;
-  const casDcCap2 = ref.casingAnnular.DC2 || 0;
-  const casDcCap3 = ref.casingAnnular.DC3 || 0;
-  const casHwdpCap = ref.casingAnnular.HWDP;
-  const casDpCap = ref.casingAnnular.DP;
-  const casDpCap2 = ref.casingAnnular.DP2 || 0;
-  const casDpCap3 = ref.casingAnnular.DP3 || 0;
+  const ohCaps = (ref && ref.openHoleAnnular) ? ref.openHoleAnnular : {};
+  const ohDcCap = (ohCaps.DC !== undefined && !isNaN(ohCaps.DC) && ohCaps.DC > 0) ? ohCaps.DC : getOHAnnularCapacity(curHole, 'DC', state.drillstring.dcSize || '6-1/2');
+  const ohDcCap2 = ohCaps.DC2 || 0;
+  const ohDcCap3 = ohCaps.DC3 || 0;
+  const ohHwdpCap = (ohCaps.HWDP !== undefined && !isNaN(ohCaps.HWDP) && ohCaps.HWDP > 0) ? ohCaps.HWDP : getOHAnnularCapacity(curHole, 'HWDP', state.drillstring.hwdpSize || '5');
+  const ohDpCap = (ohCaps.DP !== undefined && !isNaN(ohCaps.DP) && ohCaps.DP > 0) ? ohCaps.DP : getOHAnnularCapacity(curHole, 'DP', state.drillstring.dpSize || '5');
+  const ohDpCap2 = ohCaps.DP2 || 0;
+  const ohDpCap3 = ohCaps.DP3 || 0;
 
-  const pumpOutput = ref.pumpOutput; // Nominal L/stroke
+  const casCaps = (ref && ref.casingAnnular) ? ref.casingAnnular : {};
+  const casDcCap = (casCaps.DC !== undefined && !isNaN(casCaps.DC) && casCaps.DC > 0) ? casCaps.DC : getCasingAnnularCapacity(curCasing, 'DC', state.drillstring.dcSize || '6-1/2', curCasingID);
+  const casDcCap2 = casCaps.DC2 || 0;
+  const casDcCap3 = casCaps.DC3 || 0;
+  const casHwdpCap = (casCaps.HWDP !== undefined && !isNaN(casCaps.HWDP) && casCaps.HWDP > 0) ? casCaps.HWDP : getCasingAnnularCapacity(curCasing, 'HWDP', state.drillstring.hwdpSize || '5', curCasingID);
+  const casDpCap = (casCaps.DP !== undefined && !isNaN(casCaps.DP) && casCaps.DP > 0) ? casCaps.DP : getCasingAnnularCapacity(curCasing, 'DP', state.drillstring.dpSize || '5', curCasingID);
+  const casDpCap2 = casCaps.DP2 || 0;
+  const casDpCap3 = casCaps.DP3 || 0;
+
+  const pumpOutput = (ref && ref.pumpOutput !== undefined && !isNaN(ref.pumpOutput) && ref.pumpOutput > 0) ? ref.pumpOutput : 18.69;
   const pumpEfficiency = 1.0; // Permanently set to 100% (1.0)
   const effectivePumpOutput = pumpOutput * pumpEfficiency; // L/stroke
 
@@ -5560,6 +6534,282 @@ function runCalculationsEngine() {
   const stringVolume = (dcLength * dcCap) + (dcLength2 * dcCap2) + (dcLength3 * dcCap3) +
     (hwdpLength * hwdpCap) +
     (dpLength * dpCap) + (dpLength2 * dpCap2) + (dpLength3 * dpCap3);
+
+  const spm = parseFloat(state.calcInputs.spm) || 60;
+  const fmtTime = (stks) => {
+    const min = spm > 0 ? (stks / spm) : 0;
+    const h = Math.floor(min / 60);
+    const m = (min % 60).toFixed(1);
+    return h > 0 ? `${h}h ${m}m (${min.toFixed(1)} min)` : `${min.toFixed(1)} min`;
+  };
+
+  // ==========================================
+  // SUBSEA CALCULATION ENGINE & EXPANDED RESULTS
+  // ==========================================
+  if (state.flowType === 'subsea') {
+    const holeSizeNum = parseFloat(inputs.marineHoleSize || state.selectedHoleSize || 36);
+    const airGapM = toMeters(inputs.marineAirGap !== undefined ? inputs.marineAirGap : 25);
+    const waterDepthM = toMeters(inputs.marineWaterDepth !== undefined ? inputs.marineWaterDepth : 300);
+    const seabedM = toMeters(inputs.marineSeabedDepth !== undefined ? inputs.marineSeabedDepth : (airGapM + waterDepthM));
+    const returnsMode = inputs.marineReturnsMode || (state.hasRiser === false || state.sectionType === 'riserless' ? 'riserless' : 'risered');
+    const isWithRiser = (returnsMode === 'risered');
+    const casingIdNum = parseFloat(inputs.marineCasingID || state.casingID || (holeSizeNum >= 26 ? 28.0 : 18.73));
+    const riserIdNum = parseFloat(inputs.marineRiserID || 18.75);
+    const riserLenM = isWithRiser ? toMeters(inputs.riserLength || seabedM) : 0;
+    const poBbl = effectivePumpOutput > 0 ? (effectivePumpOutput / 158.987) : 0.1176;
+
+    // Call Centralized Marine Segment Engine
+    const mRes = WellControlEngine.calculateMarineSegmentVolumes({
+      holeSize: holeSizeNum,
+      casingID: casingIdNum,
+      airGap: airGapM,
+      waterDepth: waterDepthM,
+      seabedDepth: seabedM,
+      returnsMode: returnsMode,
+      hasRiser: isWithRiser,
+      riserID: riserIdNum,
+      riserLength: riserLenM,
+      holeMD: holeMD,
+      shoeMD: shoeMD,
+      dcLength: dcLength,
+      dcLength2: dcLength2,
+      dcLength3: dcLength3,
+      dcOD: parseFloat(String(state.drillstring.dcSize || 6.5).replace('-', '.')),
+      dcID: 2.8125,
+      hwdpLength: hwdpLength,
+      hwdpOD: parseFloat(state.drillstring.hwdpSize || 5.0),
+      hwdpID: 3.0,
+      dpLength: dpLength,
+      dpLength2: dpLength2,
+      dpLength3: dpLength3,
+      dpOD: parseFloat(state.drillstring.dpSize || 5.0),
+      dpID: 4.276,
+      pumpOutput: poBbl > 0 ? poBbl : 0.1176,
+      spm: spm
+    }, ref, { useRefCapacities: true, capacitiesInLiters: true });
+
+    // Store results in state for History and Kill Data Sheet
+    state.calcInputs.stringVolumeBbl = mRes.volumes.stringVolume;
+    state.calcInputs.openHoleVolumeBbl = mRes.volumes.openHoleAnnularVolume;
+    state.calcInputs.casedAnnularVolumeBbl = mRes.volumes.casedAnnularVolume;
+    state.calcInputs.annularVolumeBbl = mRes.volumes.totalAnnulusVolume;
+    state.calcInputs.totalSystemVolumeBbl = mRes.volumes.totalSystemVolume;
+    state.calcInputs.surfaceToBitStrokes = mRes.strokes.surfaceToBitStrokes;
+    state.calcInputs.bitToShoeStrokes = mRes.strokes.bitToShoeStrokes;
+    state.calcInputs.shoeToSurfaceStrokes = mRes.strokes.shoeToSeabedStrokes;
+    state.calcInputs.shoeToSeabedStrokes = mRes.strokes.shoeToSeabedStrokes;
+    state.calcInputs.bottomsUpStrokes = mRes.strokes.bottomsUpStrokes;
+    state.calcInputs.totalCycleStrokes = mRes.strokes.totalCycleStrokes;
+
+    const mVols = mRes.volumes;
+    const mStks = mRes.strokes;
+    const mInts = mRes.intervals;
+
+    const fmtVolDisplay = (bblVal) => {
+      if (unit === 'L/m') {
+        const liters = bblVal * 158.987;
+        return `${liters.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="unit-lbl">L</span>`;
+      }
+      return `${bblVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit-lbl">bbl</span>`;
+    };
+
+    const fmtVolText = (bblVal) => {
+      if (unit === 'L/m') {
+        return `${(bblVal * 158.987).toFixed(1)} L`;
+      }
+      return `${bblVal.toFixed(2)} bbl`;
+    };
+
+    resultsWrapper.innerHTML = `
+      <div class="subsea-calc-results" style="grid-column: span 2; display: flex; flex-direction: column; gap: 14px;">
+        <!-- Pump Summary Row -->
+        <div class="content-card" style="padding: 10px 14px; background: var(--bg-subtle, #f5f0eb); display: flex; justify-content: space-between; align-items: center; border-radius: 8px; border-left: 4px solid var(--accent-color);">
+          <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">
+            ${t('Pump Output', 'Pump Output')}: <strong style="color:var(--text-primary);">${poBbl.toFixed(4)} bbl/stk</strong>
+          </span>
+          <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">
+            ${t('Pump Rate', 'Pump Rate')}: <strong style="color:var(--text-primary);">${spm} SPM</strong>
+          </span>
+        </div>
+
+        <!-- SECTION: VOLUMES -->
+        <div style="font-size:0.85rem; font-weight:700; text-transform:uppercase; color:var(--text-primary); letter-spacing:0.5px;">
+          ${t('Volumes Breakdown', 'Volumes Breakdown')}
+        </div>
+        <div class="results-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">A. ${t('String Volume', 'String Volume')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.stringVolume)}</span>
+          </div>
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">B. ${t('Open Hole Volume (Annular)', 'Open Hole Volume (Annular)')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.openHoleAnnularVolume)}</span>
+          </div>
+          <div class="result-card">
+            <span class="result-label">${t('Plain Open Hole (Geometric)', 'Plain Open Hole (Geometric)')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.openHoleGeometricVolume)}</span>
+          </div>
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">C. ${t('Cased Hole Annular Volume', 'Cased Hole Annular Volume')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.casedAnnularVolume)}</span>
+          </div>
+          <div class="result-card">
+            <span class="result-label">${t('Plain Cased Hole (Geometric)', 'Plain Cased Hole (Geometric)')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.casedGeometricVolume)}</span>
+          </div>
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">D. ${t('Bit to Seabed Annulus', 'Bit to Seabed Annulus')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.bitToSeabedAnnularVolume)}</span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">(B + C)</span>
+          </div>
+          ${isWithRiser ? `
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">E. ${t('Riser Annular Volume', 'Riser Annular Volume')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.riserAnnularVolume)}</span>
+          </div>
+          ` : ''}
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">${t('Total Annulus Volume', 'Total Annulus Volume')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.totalAnnulusVolume)}</span>
+          </div>
+          <div class="result-card" style="border-left: 4px solid var(--accent-color); grid-column: span 2;">
+            <span class="result-label">G. ${t('Total System Volume', 'Total System Volume')}</span>
+            <span class="result-value">${fmtVolDisplay(mVols.totalSystemVolume)}</span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">(A + Total Annulus)</span>
+          </div>
+        </div>
+
+        <!-- SECTION: STROKES & TIME -->
+        <div style="font-size:0.85rem; font-weight:700; text-transform:uppercase; color:var(--text-primary); letter-spacing:0.5px; margin-top:6px;">
+          ${t('Strokes & Circulation Time', 'Strokes & Circulation Time')}
+        </div>
+        <div class="results-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">${t('Surface to Bit', 'Surface to Bit')}</span>
+            <span class="result-value">${mStks.surfaceToBitStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+              ${fmtVolText(mVols.stringVolume)} | ${fmtTime(mStks.surfaceToBitStrokes)}
+            </span>
+            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
+              ${mInts.surfaceToBit}
+            </span>
+          </div>
+
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">${t('Bit to Shoe (Open Hole)', 'Bit to Shoe (Open Hole)')}</span>
+            <span class="result-value">${mStks.bitToShoeStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+              ${fmtVolText(mVols.openHoleAnnularVolume)} | ${fmtTime(mStks.bitToShoeStrokes)}
+            </span>
+            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
+              ${mInts.bitToShoe}
+            </span>
+          </div>
+
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">${t('Shoe to Seabed (Cased Hole)', 'Shoe to Seabed (Cased Hole)')}</span>
+            <span class="result-value">${mStks.shoeToSeabedStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+              ${fmtVolText(mVols.casedAnnularVolume)} | ${fmtTime(mStks.shoeToSeabedStrokes)}
+            </span>
+            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
+              ${mInts.shoeToSeabed}
+            </span>
+          </div>
+
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">${t('Bit to Seabed', 'Bit to Seabed')}</span>
+            <span class="result-value">${mStks.bitToSeabedStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+              ${fmtVolText(mVols.bitToSeabedAnnularVolume)} | ${fmtTime(mStks.bitToSeabedStrokes)}
+            </span>
+            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
+              ${mInts.bitToSeabed}
+            </span>
+          </div>
+
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">${isWithRiser ? t('Bottoms-Up (Rig Floor)', 'Bottoms-Up (Rig Floor)') : t('Bottoms-up to seabed (riserless)', 'Bottoms-up to seabed (riserless)')}</span>
+            <span class="result-value">${mStks.bottomsUpStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+              ${fmtVolText(isWithRiser ? mVols.totalAnnulusVolume : mVols.bitToSeabedAnnularVolume)} | ${fmtTime(mStks.bottomsUpStrokes)}
+            </span>
+            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
+              ${mInts.bottomsUp}
+            </span>
+          </div>
+
+          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
+            <span class="result-label">${t('Total Cycle', 'Total Cycle')}</span>
+            <span class="result-value">${mStks.totalCycleStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
+            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+              ${fmtVolText(mVols.totalSystemVolume)} | ${fmtTime(mStks.totalCycleStrokes)}
+            </span>
+            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
+              ${mInts.totalCycle}
+            </span>
+          </div>
+        </div>
+
+        <!-- Copy Summary Button -->
+        <button type="button" id="copy-volume-summary-btn" class="btn btn-secondary" style="width:100%; margin-top:6px; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          ${t('Copy Volume & Stroke Summary', 'Copy Volume & Stroke Summary')}
+        </button>
+
+        <div class="wc-footer-advisory" data-i18n="Advisory only. Follow your well control manual.">
+          ${t('Advisory only. Follow your well control manual.', 'Advisory only. Follow your well control manual.')}
+        </div>
+      </div>
+    `;
+
+    // Hook up copy summary button
+    const copyBtn = document.getElementById('copy-volume-summary-btn');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        const summaryText = [
+          `--- WELL CONTROL VOLUME SUMMARY ---`,
+          `Hole Size: ${holeSizeNum}" | Mode: ${returnsMode.toUpperCase()}`,
+          `Air Gap: ${airGapM} m | Water Depth: ${waterDepthM} m | Seabed Depth: ${seabedM} m`,
+          `Hole MD: ${holeMD} m | Shoe MD: ${shoeMD} m | Casing ID: ${casingIdNum}"`,
+          `Pump Output: ${poBbl.toFixed(4)} bbl/stk | Pump Rate: ${spm} SPM`,
+          ``,
+          `VOLUMES:`,
+          `- String Volume: ${fmtVolText(mVols.stringVolume)} (${mStks.surfaceToBitStrokes.toLocaleString()} stks, ${fmtTime(mStks.surfaceToBitStrokes)})`,
+          `- Open Hole Annular: ${fmtVolText(mVols.openHoleAnnularVolume)} (${mStks.bitToShoeStrokes.toLocaleString()} stks, ${fmtTime(mStks.bitToShoeStrokes)})`,
+          `- Open Hole Geometric: ${fmtVolText(mVols.openHoleGeometricVolume)}`,
+          `- Cased Hole Annular: ${fmtVolText(mVols.casedAnnularVolume)} (${mStks.shoeToSeabedStrokes.toLocaleString()} stks, ${fmtTime(mStks.shoeToSeabedStrokes)})`,
+          `- Cased Hole Geometric: ${fmtVolText(mVols.casedGeometricVolume)}`,
+          `- Bit to Seabed Annular: ${fmtVolText(mVols.bitToSeabedAnnularVolume)} (${mStks.bitToSeabedStrokes.toLocaleString()} stks, ${fmtTime(mStks.bitToSeabedStrokes)})`,
+          isWithRiser ? `- Riser Annular: ${fmtVolText(mVols.riserAnnularVolume)}` : null,
+          `- Total Annulus: ${fmtVolText(mVols.totalAnnulusVolume)}`,
+          `- Total System Volume: ${fmtVolText(mVols.totalSystemVolume)} (${mStks.totalCycleStrokes.toLocaleString()} stks, ${fmtTime(mStks.totalCycleStrokes)})`,
+          ``,
+          `STROKES & CIRCULATION TIME:`,
+          `- Surface to Bit (${mInts.surfaceToBit}): ${mStks.surfaceToBitStrokes.toLocaleString()} stks (${fmtTime(mStks.surfaceToBitStrokes)})`,
+          `- Bit to Shoe (${mInts.bitToShoe}): ${mStks.bitToShoeStrokes.toLocaleString()} stks (${fmtTime(mStks.bitToShoeStrokes)})`,
+          `- Shoe to Seabed (${mInts.shoeToSeabed}): ${mStks.shoeToSeabedStrokes.toLocaleString()} stks (${fmtTime(mStks.shoeToSeabedStrokes)})`,
+          `- Bit to Seabed (${mInts.bitToSeabed}): ${mStks.bitToSeabedStrokes.toLocaleString()} stks (${fmtTime(mStks.bitToSeabedStrokes)})`,
+          `- Bottoms-Up (${mInts.bottomsUp}): ${mStks.bottomsUpStrokes.toLocaleString()} stks (${fmtTime(mStks.bottomsUpStrokes)})`,
+          `- Total Cycle (${mInts.totalCycle}): ${mStks.totalCycleStrokes.toLocaleString()} stks (${fmtTime(mStks.totalCycleStrokes)})`
+        ].filter(Boolean).join('\n');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(summaryText).then(() => {
+            showToast("Volume & Stroke summary copied to clipboard!");
+          }).catch(() => {
+            showToast("Summary copied to clipboard!");
+          });
+        } else {
+          showToast("Volume & Stroke summary copied!");
+        }
+      };
+    }
+    return;
+  }
 
   // Helper to get intersection of drillstring components
   const getIntersect = (pStart, pEnd, sStart, sEnd) => {
@@ -5664,7 +6914,8 @@ function runCalculationsEngine() {
     annularVolume = openHoleVolume + casingAnnularVolume;
   } else {
     // Subsea stack calculations
-    const riserLength = toMeters(inputs.riserLength); // from RKB down to BOP at seabed
+    const hasRiser = (state.hasRiser !== false && state.sectionType !== 'riserless');
+    const riserLength = hasRiser ? toMeters(inputs.riserLength) : 0; // from RKB down to BOP at seabed
 
     // Open Hole interval: [Shoe MD, Hole MD]
     const dcInOH = getIntersect(dcStart, dcEnd, shoeMD, holeMD);
@@ -5701,7 +6952,11 @@ function runCalculationsEngine() {
 
     annularVolBelowBop = openHoleVolume + casingAnnularVolume;
 
-    if (inputs.bopStatus === 'open') {
+    if (!hasRiser) {
+      riserVolume = 0;
+      chokeVolume = 0;
+      annularVolume = annularVolBelowBop;
+    } else if (inputs.bopStatus === 'open') {
       // BOP Open: Annular volume includes Marine Riser
       // Riser interval: [0, Riser Length]
       const dpInRiser = getIntersect(dpStart, dpEnd, 0, riserLength);
@@ -5738,27 +6993,21 @@ function runCalculationsEngine() {
   // Total System Volume
   const totalSystemVolume = stringVolume + annularVolume;
 
-  const spm = parseFloat(state.calcInputs.spm) || 60;
-  const fmtTime = (stks) => {
-    const min = spm > 0 ? (stks / spm) : 0;
-    const h = Math.floor(min / 60);
-    const m = (min % 60).toFixed(1);
-    return h > 0 ? `${h}h ${m}m (${min.toFixed(1)} min)` : `${min.toFixed(1)} min`;
-  };
-
   // Strokes calculations (strictly checked: Volume in L divided by Pump Output in L/stroke)
   const surfaceToBitStrokes = effectivePumpOutput > 0 ? (stringVolume / effectivePumpOutput) : 0;
   const bitToShoeStrokes = effectivePumpOutput > 0 ? (openHoleVolume / effectivePumpOutput) : 0;
   const totalCycleStrokes = effectivePumpOutput > 0 ? (totalSystemVolume / effectivePumpOutput) : 0;
   const bottomsUpStrokes = effectivePumpOutput > 0 ? (annularVolume / effectivePumpOutput) : 0;
-  const strokesToBop = effectivePumpOutput > 0 ? (annularVolBelowBop / effectivePumpOutput) : 0;
+  const strokesToBop = (effectivePumpOutput > 0 && state.flowType === 'subsea' && state.hasRiser !== false && state.sectionType !== 'riserless') ? (annularVolBelowBop / effectivePumpOutput) : 0;
 
-  const chokeLenMeters = toMeters(inputs.chokeLength || (inputs.riserLength || 200));
-  const chokeLineVolLiters = chokeLenMeters * (ref.chokeCapacity || 3.167);
+  const chokeLenMeters = (state.flowType === 'subsea' && state.hasRiser !== false && state.sectionType !== 'riserless') ? toMeters(inputs.chokeLength || (inputs.riserLength || 200)) : 0;
+  const chokeLineVolLiters = (state.flowType === 'subsea' && state.hasRiser !== false && state.sectionType !== 'riserless') ? chokeLenMeters * (ref.chokeCapacity || 3.167) : 0;
   const chokeLineStrokes = effectivePumpOutput > 0 ? (chokeLineVolLiters / effectivePumpOutput) : 0;
 
   const shoeToSurfaceStrokes = effectivePumpOutput > 0 ? (casingAnnularVolume / effectivePumpOutput) : 0;
   state.calcInputs.surfaceToBitStrokes = surfaceToBitStrokes;
+  state.calcInputs.bitToShoeStrokes = bitToShoeStrokes;
+  state.calcInputs.totalCycleStrokes = totalCycleStrokes;
   state.calcInputs.bottomsUpStrokes = bottomsUpStrokes;
   state.calcInputs.shoeToSurfaceStrokes = shoeToSurfaceStrokes;
   state.calcInputs.stringVolumeBbl = stringVolume / 158.987294928;
@@ -5787,7 +7036,7 @@ function runCalculationsEngine() {
     <div class="result-card">
       <span class="result-label">${t('Annular Volume', 'Annular Volume')}</span>
       <span class="result-value">${displayVol(annularVolume)}</span>
-      ${state.flowType === 'subsea' ? `
+      ${(state.flowType === 'subsea' && state.hasRiser !== false && state.sectionType !== 'riserless') ? `
         <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
           ${t('Below BOP', 'Below BOP')}: ${convertVolume(annularVolBelowBop, unit).toFixed(1)} ${isBbl ? 'bbl' : 'L'} | 
           ${inputs.bopStatus === 'open' ? `${t('Riser', 'Riser')}: ${convertVolume(riserVolume, unit).toFixed(1)}` : `${t('Choke', 'Choke')}: ${convertVolume(chokeVolume, unit).toFixed(1)}`} ${isBbl ? 'bbl' : 'L'}
@@ -5834,7 +7083,7 @@ function runCalculationsEngine() {
     </div>
     ` : ''}
 
-    ${state.flowType === 'subsea' ? `
+    ${(state.flowType === 'subsea' && state.hasRiser !== false && state.sectionType !== 'riserless') ? `
     <div class="result-card" style="border-left: 4px solid var(--accent-color);">
       <span class="result-label">${t('Bit to Subsea BOP Strokes', 'Bit to Subsea BOP Strokes')}</span>
       <span class="result-value">${Math.round(strokesToBop).toLocaleString()} <span class="unit-lbl">strokes</span></span>

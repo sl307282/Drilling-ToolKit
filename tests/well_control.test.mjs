@@ -507,6 +507,250 @@ assert.ok(30 < WellControlConfig.JACKUP_MARINE_ELEVATION_MIN_HOLE_IN, 'Custom 30
 
 console.log('PASSED: Jackup gating rules and marine elevation logic verified!\n');
 
+// -----------------------------------------------------------------
+// TEST 9: SUBSEA RISERLESS CALCULATIONS & ACCEPTANCE CHECKS
+// -----------------------------------------------------------------
+console.log('--- TEST 9: Subsea Riserless Calculations & Acceptance Checks ---');
+
+// 9.1 Config & Hole Options Verification
+const subseaCfg = WellControlConfig.SUBSEA_HOLE_CONFIGS;
+assert.ok(subseaCfg, 'WellControlConfig.SUBSEA_HOLE_CONFIGS must exist');
+assert.ok(subseaCfg.riserless, 'SUBSEA_HOLE_CONFIGS.riserless must exist');
+assert.ok(subseaCfg.risered, 'SUBSEA_HOLE_CONFIGS.risered must exist');
+
+const riserlessVals = subseaCfg.riserless.map(c => c.val);
+assert.deepStrictEqual(riserlessVals, ['42', '36', '26', 'custom_riserless'], 'Riserless section must contain 42", 36", 26", and custom_riserless');
+
+const riseredVals = subseaCfg.risered.map(c => c.val);
+assert.deepStrictEqual(riseredVals, ['17.5', '12.25', '8.5', 'custom_riser'], 'Riser section must contain 17 1/2", 12 1/4", 8 1/2", and custom_riser');
+
+// 26" must be ONLY in riserless
+assert.ok(riserlessVals.includes('26'), '26" must be in Riserless');
+assert.ok(!riseredVals.includes('26'), '26" must NOT be in Risered');
+
+// Check conductor casing defaults: 26" -> 30", 36" -> 30", 42" -> 36"
+const cfg26 = WellControlConfig.getSubseaHoleConfig('26', 'riserless');
+assert.strictEqual(cfg26.conductorCasingOD, 30, '26" hole conductor casing OD must be 30"');
+assert.strictEqual(cfg26.hasRiser, false, '26" hole hasRiser must be false');
+
+const cfg36 = WellControlConfig.getSubseaHoleConfig('36', 'riserless');
+assert.strictEqual(cfg36.conductorCasingOD, 30, '36" hole conductor casing OD must be 30"');
+assert.strictEqual(cfg36.hasRiser, false, '36" hole hasRiser must be false');
+
+const cfg42 = WellControlConfig.getSubseaHoleConfig('42', 'riserless');
+assert.strictEqual(cfg42.conductorCasingOD, 36, '42" hole conductor casing OD must be 36"');
+assert.strictEqual(cfg42.hasRiser, false, '42" hole hasRiser must be false');
+
+console.log('PASSED: Subsea hole configuration and defaults verified!');
+
+// 9.2 Capacity Presets & Formula Verification for 42", 36", and Custom Riserless
+const ohPresets = WellControlConfig.ANNULAR_PRESETS_BBL_M.openHole;
+assert.ok(ohPresets['42'], '42" open hole presets must exist');
+assert.strictEqual(ohPresets['42']['6-1/2_DC'], 5.4487, '42" OH DC 1 (6-1/2") preset must be 5.4487 bbl/m');
+assert.strictEqual(ohPresets['42']['5_HWDP'], 5.5739, '42" OH HWDP (5") preset must be 5.5739 bbl/m');
+assert.strictEqual(ohPresets['42']['5_DP'], 5.5739, '42" OH DP 1 (5") preset must be 5.5739 bbl/m');
+
+assert.ok(ohPresets['36'], '36" open hole presets must exist');
+assert.strictEqual(ohPresets['36']['6-1/2_DC'], 3.9562, '36" OH DC 1 (6-1/2") preset must be 3.9562 bbl/m');
+assert.strictEqual(ohPresets['36']['5_HWDP'], 4.0814, '36" OH HWDP (5") preset must be 4.0814 bbl/m');
+assert.strictEqual(ohPresets['36']['5_DP'], 4.0814, '36" OH DP 1 (5") preset must be 4.0814 bbl/m');
+
+// Safe fallback formula: (Hole_ID² - Pipe_OD²) / 1029.4 * 3.28084
+const customHoleFormulaBblM = (hOD, pOD) => ((hOD * hOD - pOD * pOD) / 1029.4) * 3.28084;
+const custom20_5 = customHoleFormulaBblM(20, 5);
+assert.ok(Math.abs(custom20_5 - 1.1950) < 0.01, 'Custom 20" hole with 5" pipe matches custom formula (~1.195 bbl/m)');
+
+// Test engine fallback when reference annular capacities are completely omitted or undefined
+const fallbackInputs42 = {
+  flowType: 'subsea',
+  hasRiser: false,
+  sectionType: 'riserless',
+  selectedHoleSize: '42',
+  holeOD: 42,
+  casingOD: 36,
+  casingID: 34,
+  holeMD: 500,
+  holeTVD: 500,
+  shoeMD: 200,
+  shoeTVD: 200,
+  dcLength: 100,
+  hwdpLength: 50,
+  dpLength: 350,
+  riserLength: undefined, // omitted/undefined
+  waterDepth: null,       // omitted/null
+  airGap: undefined,      // omitted/undefined
+  chokeLength: null,      // omitted/null
+  pumpOutput: 0.12,
+  spm: 60
+};
+
+// Calculate with EMPTY ref (testing safe fallback)
+const fallbackRes42 = WellControlEngine.calculateVolumesAndStrokes(fallbackInputs42, {});
+assert.ok(!isNaN(fallbackRes42.openHoleVolume) && fallbackRes42.openHoleVolume > 0, '42" OH volume must calculate with fallback');
+assert.ok(!isNaN(fallbackRes42.annularVolume) && fallbackRes42.annularVolume > 0, '42" Annular volume must calculate with fallback');
+assert.ok(!isNaN(fallbackRes42.totalSystemVolume) && fallbackRes42.totalSystemVolume > 0, '42" Total system volume must calculate with fallback');
+assert.ok(!isNaN(fallbackRes42.surfaceToBitStrokes) && fallbackRes42.surfaceToBitStrokes > 0, '42" Surface to bit strokes must be valid');
+assert.ok(!isNaN(fallbackRes42.bitToShoeStrokes) && fallbackRes42.bitToShoeStrokes > 0, '42" Bit to shoe strokes must be valid');
+assert.ok(!isNaN(fallbackRes42.bottomsUpStrokes) && fallbackRes42.bottomsUpStrokes > 0, '42" Bottoms-up strokes must be valid');
+assert.ok(!isNaN(fallbackRes42.totalCycleStrokes) && fallbackRes42.totalCycleStrokes > 0, '42" Total cycle strokes must be valid');
+assert.strictEqual(fallbackRes42.riserVolume, 0, '42" Riser volume must be 0');
+assert.strictEqual(fallbackRes42.chokeVolume, 0, '42" Choke volume must be 0');
+assert.strictEqual(fallbackRes42.strokesToBop, 0, '42" Strokes to BOP must be 0');
+
+// Same for 36"
+const fallbackInputs36 = {
+  ...fallbackInputs42,
+  selectedHoleSize: '36',
+  holeOD: 36,
+  casingOD: 30,
+  casingID: 28
+};
+const fallbackRes36 = WellControlEngine.calculateVolumesAndStrokes(fallbackInputs36, {});
+assert.ok(!isNaN(fallbackRes36.openHoleVolume) && fallbackRes36.openHoleVolume > 0, '36" OH volume must calculate with fallback');
+assert.ok(!isNaN(fallbackRes36.totalCycleStrokes) && fallbackRes36.totalCycleStrokes > 0, '36" Total cycle strokes must be valid');
+
+console.log('PASSED: Annular capacity presets, custom formula fallbacks, and omitted riserless inputs verified for 42" and 36"!');
+
+// 9.3 Engine Riserless Volume and Stroke Calculations
+const riserlessEngineInputs = {
+  flowType: 'subsea',
+  hasRiser: false,
+  sectionType: 'riserless',
+  holeMD: 3000,
+  holeTVD: 3000,
+  shoeMD: 1000,
+  shoeTVD: 1000,
+  riserLength: 500, // passed but engine MUST force to 0
+  chokeLength: 500, // passed but engine MUST force to 0
+  bopStatus: 'closed', // passed but engine MUST force to 'open'
+  dcLength: 200,
+  hwdpLength: 100,
+  dpLength: 2700,
+  pumpOutput: 0.11756,
+  spm: 60
+};
+
+const riserlessEngineRef = {
+  pumpOutput: 0.11756,
+  capacities: {
+    DC: 3.86,
+    HWDP: 9.15,
+    DP: 9.15
+  },
+  openHoleAnnular: {
+    DC: 321.90,
+    HWDP: 328.71,
+    DP: 329.10
+  },
+  casingAnnular: {
+    DC: 375.59,
+    HWDP: 383.05,
+    DP: 383.70
+  },
+  riserAnnular: 189.52,
+  chokeCapacity: 3.167
+};
+
+const riserlessRes = WellControlEngine.calculateVolumesAndStrokes(riserlessEngineInputs, riserlessEngineRef);
+
+assert.strictEqual(riserlessRes.hasRiser, false, 'hasRiser must be false');
+assert.strictEqual(riserlessRes.sectionType, 'riserless', 'sectionType must be riserless');
+assert.strictEqual(riserlessRes.riserVolume, 0, 'Riser volume must be 0 in riserless mode');
+assert.strictEqual(riserlessRes.chokeVolume, 0, 'Choke volume must be 0 in riserless mode');
+assert.strictEqual(riserlessRes.strokesToBop, 0, 'Strokes to BOP must be 0 in riserless mode');
+assert.strictEqual(riserlessRes.riserDisplacementStrokes, 0, 'Riser displacement strokes must be 0 in riserless mode');
+assert.strictEqual(riserlessRes.chokeLineStrokes, 0, 'Choke line strokes must be 0 in riserless mode');
+
+// Annular volume must equal openHoleVolume + casingAnnularVolume
+assert.strictEqual(riserlessRes.annularVolume, riserlessRes.openHoleVolume + riserlessRes.casingAnnularVolume, 'Annular volume must be sum of OH and casing only');
+assert.strictEqual(riserlessRes.totalSystemVolume, riserlessRes.stringVolume + riserlessRes.annularVolume, 'Total system volume must exclude riser and choke');
+
+// Total cycle strokes must be totalSystemVolume / pumpOutput
+const expectedTotalStrokes = riserlessRes.totalSystemVolume / riserlessEngineInputs.pumpOutput;
+assert.strictEqual(riserlessRes.totalCycleStrokes, expectedTotalStrokes, 'Total cycle strokes matches total system volume / pump output');
+
+console.log('PASSED: Engine riserless calculation verified: riserLength=0, chokeLength=0, riser/choke volumes=0, strokes excluded!');
+
+// 9.4 Risered Section Unchanged Verification
+const riseredEngineInputs = {
+  ...riserlessEngineInputs,
+  hasRiser: true,
+  sectionType: 'risered',
+  riserLength: 500,
+  chokeLength: 500,
+  bopStatus: 'open'
+};
+const riseredRes = WellControlEngine.calculateVolumesAndStrokes(riseredEngineInputs, riserlessEngineRef);
+assert.strictEqual(riseredRes.hasRiser, true, 'hasRiser must be true');
+assert.strictEqual(riseredRes.sectionType, 'risered', 'sectionType must be risered');
+assert.ok(riseredRes.riserVolume > 0, 'Riser volume must be > 0 for risered subsea stack');
+assert.ok(riseredRes.strokesToBop > 0, 'Strokes to BOP must be > 0 for risered subsea stack');
+
+console.log('PASSED: Risered subsea section calculations remain completely unchanged!\n');
+
+// --- TEST 10: Subsea 36" Riserless Marine Elevations & Segment Volumes Verification ---
+console.log('--- TEST 10: Subsea 36" Riserless Marine Elevations & Segment Volumes Verification ---');
+const marineTestInputs = {
+  holeSize: 36,
+  airGap: 25,
+  waterDepth: 300,
+  seabedDepth: 325,
+  returnsMode: 'riserless',
+  hasRiser: false,
+  sectionType: 'riserless',
+  casingID: 28.0,
+  holeMD: 800,
+  shoeMD: 500,
+  dcLength: 100,
+  dcOD: 6.5,
+  dcID: 2.8125,
+  hwdpLength: 50,
+  hwdpOD: 5.0,
+  hwdpID: 3.0,
+  dpLength: 650,
+  dpOD: 5.0,
+  dpID: 4.276,
+  pumpOutput: 0.1176,
+  spm: 60
+};
+
+const marineRes = WellControlEngine.calculateMarineSegmentVolumes(marineTestInputs);
+
+console.log(`String Volume: ${marineRes.volumes.stringVolume.toFixed(2)} bbl (Expected: ~41.83 bbl)`);
+console.log(`Surface to Bit Strokes: ${marineRes.strokes.surfaceToBitStrokes} stks (Expected: 356 stks)`);
+assert.ok(Math.abs(marineRes.volumes.stringVolume - 41.83) <= 0.1, `String volume mismatch: ${marineRes.volumes.stringVolume}`);
+assert.strictEqual(marineRes.strokes.surfaceToBitStrokes, 356, `Surface-to-bit strokes mismatch: ${marineRes.strokes.surfaceToBitStrokes}`);
+
+console.log(`Open Hole Annular Volume: ${marineRes.volumes.openHoleAnnularVolume.toFixed(2)} bbl (Expected: 1209.76 bbl)`);
+console.log(`Open Hole Geometric Volume: ${marineRes.volumes.openHoleGeometricVolume.toFixed(2)} bbl (Expected: 1239.16 bbl)`);
+console.log(`Bit to Shoe Strokes: ${marineRes.strokes.bitToShoeStrokes} stks (Expected: 10288 stks)`);
+assert.ok(Math.abs(marineRes.volumes.openHoleAnnularVolume - 1209.76) <= 0.1, `OH Annular mismatch: ${marineRes.volumes.openHoleAnnularVolume}`);
+assert.ok(Math.abs(marineRes.volumes.openHoleGeometricVolume - 1239.16) <= 0.1, `OH Geo mismatch: ${marineRes.volumes.openHoleGeometricVolume}`);
+assert.strictEqual(marineRes.strokes.bitToShoeStrokes, 10288, `Bit-to-shoe strokes mismatch: ${marineRes.strokes.bitToShoeStrokes}`);
+
+console.log(`Cased Annular Volume: ${marineRes.volumes.casedAnnularVolume.toFixed(2)} bbl (Expected: 423.33 bbl)`);
+console.log(`Cased Geometric Volume: ${marineRes.volumes.casedGeometricVolume.toFixed(2)} bbl (Expected: 437.28 bbl)`);
+console.log(`Shoe to Seabed Strokes: ${marineRes.strokes.shoeToSeabedStrokes} stks (Expected: 3600 stks)`);
+assert.ok(Math.abs(marineRes.volumes.casedAnnularVolume - 423.33) <= 0.1, `Cased Annular mismatch: ${marineRes.volumes.casedAnnularVolume}`);
+assert.ok(Math.abs(marineRes.volumes.casedGeometricVolume - 437.28) <= 0.1, `Cased Geo mismatch: ${marineRes.volumes.casedGeometricVolume}`);
+assert.strictEqual(marineRes.strokes.shoeToSeabedStrokes, 3600, `Shoe-to-seabed strokes mismatch: ${marineRes.strokes.shoeToSeabedStrokes}`);
+
+console.log(`Bit to Seabed Annulus: ${marineRes.volumes.bitToSeabedAnnularVolume.toFixed(2)} bbl (Expected: 1633.09 bbl)`);
+console.log(`Bit to Seabed Strokes: ${marineRes.strokes.bitToSeabedStrokes} stks (Expected: 13887 stks)`);
+assert.ok(Math.abs(marineRes.volumes.bitToSeabedAnnularVolume - 1633.09) <= 0.1, `Bit to Seabed mismatch: ${marineRes.volumes.bitToSeabedAnnularVolume}`);
+assert.strictEqual(marineRes.strokes.bitToSeabedStrokes, 13887, `Bit-to-seabed strokes mismatch: ${marineRes.strokes.bitToSeabedStrokes}`);
+
+console.log(`Total System Volume: ${marineRes.volumes.totalSystemVolume.toFixed(2)} bbl (Expected: 1674.92 bbl)`);
+console.log(`Total Cycle Strokes: ${marineRes.strokes.totalCycleStrokes} stks (Expected: 14243 stks)`);
+assert.ok(Math.abs(marineRes.volumes.totalSystemVolume - 1674.92) <= 0.1, `Total system mismatch: ${marineRes.volumes.totalSystemVolume}`);
+assert.strictEqual(marineRes.strokes.totalCycleStrokes, 14243, `Total cycle strokes mismatch: ${marineRes.strokes.totalCycleStrokes}`);
+
+// Bottoms-up in riserless mode equals Bit-to-Seabed
+assert.strictEqual(marineRes.strokes.bottomsUpStrokes, marineRes.strokes.bitToSeabedStrokes, 'Bottoms-up must equal bit-to-seabed in riserless mode');
+assert.strictEqual(marineRes.volumes.riserAnnularVolume, 0, 'Riser annular volume must be 0 in riserless mode');
+
+console.log('PASSED: Subsea 36" riserless marine segment calculations match exact hand-calculated oilfield formulas!\n');
+
 console.log('====================================================');
 console.log('   ALL WELL CONTROL REGRESSION TESTS PASSED!        ');
 console.log('====================================================');
