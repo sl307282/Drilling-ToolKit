@@ -63,3 +63,32 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+// Automatically synchronize web assets from root project into Android assets on every build
+tasks.register('copyWebAssetsToAndroid', Copy) {
+    from('../../') {
+        include 'index.html', 'style.css', 'units_engine.js', 'well_control_config.js',
+                'well_control_engine.js', 'well_control_pdf.js', 'collapsing_header.js',
+                'icons.js', 'app.js', 'translations.js', 'tubulars_db.js',
+                'cementing_engine.js', 'cementing_common.js', 'cementing_ui.js',
+                'cementing_surface_ui.js', 'cementing_pdf.js', 'roboto_font.js',
+                'jspdf.umd.min.js', 'jspdf.plugin.autotable.min.js', 'html2canvas.min.js',
+                'logo.png', 'firebase-app-compat.js', 'firebase-remote-config-compat.js'
+    }
+    from('../../fonts') {
+        into 'fonts'
+    }
+    from('../../stuckpipe') {
+        into 'stuckpipe'
+    }
+    into 'src/main/assets/public'
+}
+
+tasks.register('copyCapacitorConfigToAndroid', Copy) {
+    from('../../capacitor.config.json')
+    into 'src/main/assets'
+}
+
+preBuild.dependsOn('copyWebAssetsToAndroid')
+preBuild.dependsOn('copyCapacitorConfigToAndroid')
+

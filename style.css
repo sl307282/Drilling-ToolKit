@@ -7122,5 +7122,126 @@ body.dark .report-btn-done {
   border-top: 1px dashed var(--border-subtle);
 }
 
+/* ==========================================================================
+   Combined Volume, Strokes & Circulation Time Table
+   ========================================================================== */
+.wc-combined-card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-subtle);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.05));
+  border-left: 4px solid var(--accent-color);
+  overflow: hidden;
+}
+
+.wc-combined-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.wc-combined-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wc-combined-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  table-layout: auto;
+}
+
+.wc-combined-table th {
+  padding: 8px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.wc-combined-table th.col-left,
+.wc-combined-table td.col-left {
+  text-align: left;
+}
+
+.wc-combined-table th.col-right,
+.wc-combined-table td.col-right {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-combined-table td {
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  vertical-align: top;
+  color: var(--text-primary);
+}
+
+.wc-seg-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.wc-seg-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.wc-val-main {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-val-unit {
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+.wc-time-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+}
+
+.wc-row-total {
+  border-top: 2px solid var(--accent-color) !important;
+  background: rgba(141, 119, 101, 0.08);
+}
+
+.wc-row-total td {
+  border-bottom: none !important;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.wc-row-total .wc-seg-title,
+.wc-row-total .wc-val-main {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+[data-theme="dark"] .wc-row-total {
+  background: rgba(197, 182, 170, 0.12);
+}
+
+
 
 

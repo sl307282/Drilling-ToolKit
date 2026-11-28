@@ -6448,19 +6448,29 @@ function runCalculationsEngine() {
     const mStks = mRes.strokes;
     const mInts = mRes.intervals;
 
-    const fmtVolDisplay = (bblVal) => {
+    const volUnitLabel = (unit === 'L/m') ? 'L' : 'bbl';
+    const fmtVolVal = (bblVal) => {
+      if (bblVal === undefined || bblVal === null || isNaN(bblVal)) return '-';
       if (unit === 'L/m') {
         const liters = bblVal * 158.987;
-        return `${liters.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="unit-lbl">L</span>`;
+        return liters.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
       }
-      return `${bblVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit-lbl">bbl</span>`;
+      return bblVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
-    const fmtVolText = (bblVal) => {
-      if (unit === 'L/m') {
-        return `${(bblVal * 158.987).toFixed(1)} L`;
-      }
-      return `${bblVal.toFixed(2)} bbl`;
+    const fmtTimeParts = (stks) => {
+      if (!stks || stks <= 0 || spm <= 0) return { primary: '-', secondary: '' };
+      const totalMin = stks / spm;
+      const h = Math.floor(totalMin / 60);
+      const m = (totalMin % 60).toFixed(1);
+      const primary = h > 0 ? `${h}h ${m}m` : `${m}m`;
+      const secondary = `${totalMin.toFixed(1)} min`;
+      return { primary, secondary };
+    };
+
+    const fmtStks = (stks) => {
+      if (!stks || stks <= 0) return '-';
+      return Math.round(stks).toLocaleString();
     };
 
     resultsWrapper.innerHTML = `
@@ -6475,133 +6485,136 @@ function runCalculationsEngine() {
           </span>
         </div>
 
-        <!-- SECTION: VOLUMES -->
-        <div style="font-size:0.85rem; font-weight:700; text-transform:uppercase; color:var(--text-primary); letter-spacing:0.5px;">
-          ${t('Volumes Breakdown', 'Volumes Breakdown')}
+        <!-- COMBINED SECTION: VOLUME, STROKES & CIRCULATION TIME -->
+        <div class="wc-combined-card">
+          <div class="wc-combined-title">
+            ${t('Volume, Strokes & Circulation Time', 'Volume, Strokes & Circulation Time')}
+          </div>
+          <div class="wc-combined-table-wrap">
+            <table class="wc-combined-table">
+              <thead>
+                <tr>
+                  <th class="col-left" style="width: 38%;">${t('Segment', 'Segment')}</th>
+                  <th class="col-right" style="width: 22%;">${t('Volume', 'Volume')} (${volUnitLabel})</th>
+                  <th class="col-right" style="width: 18%;">${t('Strokes', 'Strokes')}</th>
+                  <th class="col-right" style="width: 22%;">${t('Time', 'Time')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Row 1: String -->
+                <tr>
+                  <td class="col-left">
+                    <div class="wc-seg-title">${t('String (Surface to Bit)', 'String (Surface to Bit)')}</div>
+                    <div class="wc-seg-sub">${mInts.surfaceToBit} &bull; A</div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtVolVal(mVols.stringVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtStks(mStks.surfaceToBitStrokes)} <span class="wc-val-unit">${mStks.surfaceToBitStrokes > 0 ? 'stks' : ''}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtTimeParts(mStks.surfaceToBitStrokes).primary}</div>
+                    ${fmtTimeParts(mStks.surfaceToBitStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.surfaceToBitStrokes).secondary}</div>` : ''}
+                  </td>
+                </tr>
+
+                <!-- Row 2: Open Hole Annulus -->
+                <tr>
+                  <td class="col-left">
+                    <div class="wc-seg-title">${t('Open Hole Annulus (Bit to Shoe)', 'Open Hole Annulus (Bit to Shoe)')}</div>
+                    <div class="wc-seg-sub">${mInts.bitToShoe} &bull; B</div>
+                    <div class="wc-seg-sub">Geometric: ${fmtVolVal(mVols.openHoleGeometricVolume)} ${volUnitLabel}</div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtVolVal(mVols.openHoleAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtStks(mStks.bitToShoeStrokes)} <span class="wc-val-unit">${mStks.bitToShoeStrokes > 0 ? 'stks' : ''}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtTimeParts(mStks.bitToShoeStrokes).primary}</div>
+                    ${fmtTimeParts(mStks.bitToShoeStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.bitToShoeStrokes).secondary}</div>` : ''}
+                  </td>
+                </tr>
+
+                <!-- Row 3: Cased Hole Annulus -->
+                <tr>
+                  <td class="col-left">
+                    <div class="wc-seg-title">${t('Cased Hole Annulus (Shoe to Seabed)', 'Cased Hole Annulus (Shoe to Seabed)')}</div>
+                    <div class="wc-seg-sub">${mInts.shoeToSeabed} &bull; C</div>
+                    <div class="wc-seg-sub">Geometric: ${fmtVolVal(mVols.casedGeometricVolume)} ${volUnitLabel}</div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtVolVal(mVols.casedAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtStks(mStks.shoeToSeabedStrokes)} <span class="wc-val-unit">${mStks.shoeToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtTimeParts(mStks.shoeToSeabedStrokes).primary}</div>
+                    ${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary}</div>` : ''}
+                  </td>
+                </tr>
+
+                <!-- Row 4: Bit to Seabed -->
+                <tr>
+                  <td class="col-left">
+                    <div class="wc-seg-title">${t('Bit to Seabed (Total Annulus)', 'Bit to Seabed (Total Annulus)')}</div>
+                    <div class="wc-seg-sub">${mInts.bitToSeabed} &bull; (B + C)</div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtVolVal(mVols.bitToSeabedAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtStks(mStks.bitToSeabedStrokes)} <span class="wc-val-unit">${mStks.bitToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtTimeParts(mStks.bitToSeabedStrokes).primary}</div>
+                    ${fmtTimeParts(mStks.bitToSeabedStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.bitToSeabedStrokes).secondary}</div>` : ''}
+                  </td>
+                </tr>
+
+                <!-- Row 5: Bottoms-Up to Seabed (Riserless) -->
+                <tr>
+                  <td class="col-left">
+                    <div class="wc-seg-title">${isWithRiser ? t('Bottoms-Up (Rig Floor)', 'Bottoms-Up (Rig Floor)') : t('Bottoms-Up to Seabed (Riserless)', 'Bottoms-Up to Seabed (Riserless)')}</div>
+                    <div class="wc-seg-sub">${mInts.bottomsUp}</div>
+                    ${isWithRiser && mVols.riserAnnularVolume > 0 ? `<div class="wc-seg-sub">Riser Annulus: ${fmtVolVal(mVols.riserAnnularVolume)} ${volUnitLabel}</div>` : ''}
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtVolVal(isWithRiser ? mVols.totalAnnulusVolume : mVols.bitToSeabedAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtStks(mStks.bottomsUpStrokes)} <span class="wc-val-unit">${mStks.bottomsUpStrokes > 0 ? 'stks' : ''}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtTimeParts(mStks.bottomsUpStrokes).primary}</div>
+                    ${fmtTimeParts(mStks.bottomsUpStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.bottomsUpStrokes).secondary}</div>` : ''}
+                  </td>
+                </tr>
+
+                <!-- Row 6: Total System / Total Cycle -->
+                <tr class="wc-row-total">
+                  <td class="col-left">
+                    <div class="wc-seg-title">${t('Total System / Total Cycle', 'Total System / Total Cycle')}</div>
+                    <div class="wc-seg-sub">${mInts.totalCycle} &bull; (A + Total Annulus)</div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtVolVal(mVols.totalSystemVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtStks(mStks.totalCycleStrokes)} <span class="wc-val-unit">${mStks.totalCycleStrokes > 0 ? 'stks' : ''}</span></div>
+                  </td>
+                  <td class="col-right">
+                    <div class="wc-val-main">${fmtTimeParts(mStks.totalCycleStrokes).primary}</div>
+                    ${fmtTimeParts(mStks.totalCycleStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.totalCycleStrokes).secondary}</div>` : ''}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="results-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">A. ${t('String Volume', 'String Volume')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.stringVolume)}</span>
-          </div>
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">B. ${t('Open Hole Volume (Annular)', 'Open Hole Volume (Annular)')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.openHoleAnnularVolume)}</span>
-          </div>
-          <div class="result-card">
-            <span class="result-label">${t('Plain Open Hole (Geometric)', 'Plain Open Hole (Geometric)')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.openHoleGeometricVolume)}</span>
-          </div>
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">C. ${t('Cased Hole Annular Volume', 'Cased Hole Annular Volume')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.casedAnnularVolume)}</span>
-          </div>
-          <div class="result-card">
-            <span class="result-label">${t('Plain Cased Hole (Geometric)', 'Plain Cased Hole (Geometric)')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.casedGeometricVolume)}</span>
-          </div>
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">D. ${t('Bit to Seabed Annulus', 'Bit to Seabed Annulus')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.bitToSeabedAnnularVolume)}</span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">(B + C)</span>
-          </div>
-          ${isWithRiser ? `
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">E. ${t('Riser Annular Volume', 'Riser Annular Volume')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.riserAnnularVolume)}</span>
-          </div>
-          ` : ''}
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">${t('Total Annulus Volume', 'Total Annulus Volume')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.totalAnnulusVolume)}</span>
-          </div>
-          <div class="result-card" style="border-left: 4px solid var(--accent-color); grid-column: span 2;">
-            <span class="result-label">G. ${t('Total System Volume', 'Total System Volume')}</span>
-            <span class="result-value">${fmtVolDisplay(mVols.totalSystemVolume)}</span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">(A + Total Annulus)</span>
-          </div>
-        </div>
-
-        <!-- SECTION: STROKES & TIME -->
-        <div style="font-size:0.85rem; font-weight:700; text-transform:uppercase; color:var(--text-primary); letter-spacing:0.5px; margin-top:6px;">
-          ${t('Strokes & Circulation Time', 'Strokes & Circulation Time')}
-        </div>
-        <div class="results-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">${t('Surface to Bit', 'Surface to Bit')}</span>
-            <span class="result-value">${mStks.surfaceToBitStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-              ${fmtVolText(mVols.stringVolume)} | ${fmtTime(mStks.surfaceToBitStrokes)}
-            </span>
-            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
-              ${mInts.surfaceToBit}
-            </span>
-          </div>
-
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">${t('Bit to Shoe (Open Hole)', 'Bit to Shoe (Open Hole)')}</span>
-            <span class="result-value">${mStks.bitToShoeStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-              ${fmtVolText(mVols.openHoleAnnularVolume)} | ${fmtTime(mStks.bitToShoeStrokes)}
-            </span>
-            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
-              ${mInts.bitToShoe}
-            </span>
-          </div>
-
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">${t('Shoe to Seabed (Cased Hole)', 'Shoe to Seabed (Cased Hole)')}</span>
-            <span class="result-value">${mStks.shoeToSeabedStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-              ${fmtVolText(mVols.casedAnnularVolume)} | ${fmtTime(mStks.shoeToSeabedStrokes)}
-            </span>
-            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
-              ${mInts.shoeToSeabed}
-            </span>
-          </div>
-
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">${t('Bit to Seabed', 'Bit to Seabed')}</span>
-            <span class="result-value">${mStks.bitToSeabedStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-              ${fmtVolText(mVols.bitToSeabedAnnularVolume)} | ${fmtTime(mStks.bitToSeabedStrokes)}
-            </span>
-            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
-              ${mInts.bitToSeabed}
-            </span>
-          </div>
-
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">${isWithRiser ? t('Bottoms-Up (Rig Floor)', 'Bottoms-Up (Rig Floor)') : t('Bottoms-up to seabed (riserless)', 'Bottoms-up to seabed (riserless)')}</span>
-            <span class="result-value">${mStks.bottomsUpStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-              ${fmtVolText(isWithRiser ? mVols.totalAnnulusVolume : mVols.bitToSeabedAnnularVolume)} | ${fmtTime(mStks.bottomsUpStrokes)}
-            </span>
-            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
-              ${mInts.bottomsUp}
-            </span>
-          </div>
-
-          <div class="result-card" style="border-left: 4px solid var(--accent-color);">
-            <span class="result-label">${t('Total Cycle', 'Total Cycle')}</span>
-            <span class="result-value">${mStks.totalCycleStrokes.toLocaleString()} <span class="unit-lbl">stks</span></span>
-            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
-              ${fmtVolText(mVols.totalSystemVolume)} | ${fmtTime(mStks.totalCycleStrokes)}
-            </span>
-            <span style="font-size:0.7rem; color:var(--accent-color); font-weight:600; margin-top:2px;">
-              ${mInts.totalCycle}
-            </span>
-          </div>
-        </div>
-
-        <!-- Copy Summary Button -->
-        <button type="button" id="copy-volume-summary-btn" class="btn btn-secondary" style="width:100%; margin-top:6px; display:flex; align-items:center; justify-content:center; gap:8px;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          ${t('Copy Volume & Stroke Summary', 'Copy Volume & Stroke Summary')}
-        </button>
 
         <div class="wc-footer-advisory" data-i18n="Advisory only. Follow your well control manual.">
           ${t('Advisory only. Follow your well control manual.', 'Advisory only. Follow your well control manual.')}
@@ -6609,48 +6622,6 @@ function runCalculationsEngine() {
       </div>
     `;
 
-    // Hook up copy summary button
-    const copyBtn = document.getElementById('copy-volume-summary-btn');
-    if (copyBtn) {
-      copyBtn.onclick = () => {
-        const summaryText = [
-          `--- WELL CONTROL VOLUME SUMMARY ---`,
-          `Hole Size: ${holeSizeNum}" | Mode: ${returnsMode.toUpperCase()}`,
-          `Air Gap: ${airGapM} m | Water Depth: ${waterDepthM} m | Seabed Depth: ${seabedM} m`,
-          `Hole MD: ${holeMD} m | Shoe MD: ${shoeMD} m | Casing ID: ${casingIdNum}"`,
-          `Pump Output: ${poBbl.toFixed(4)} bbl/stk | Pump Rate: ${spm} SPM`,
-          ``,
-          `VOLUMES:`,
-          `- String Volume: ${fmtVolText(mVols.stringVolume)} (${mStks.surfaceToBitStrokes.toLocaleString()} stks, ${fmtTime(mStks.surfaceToBitStrokes)})`,
-          `- Open Hole Annular: ${fmtVolText(mVols.openHoleAnnularVolume)} (${mStks.bitToShoeStrokes.toLocaleString()} stks, ${fmtTime(mStks.bitToShoeStrokes)})`,
-          `- Open Hole Geometric: ${fmtVolText(mVols.openHoleGeometricVolume)}`,
-          `- Cased Hole Annular: ${fmtVolText(mVols.casedAnnularVolume)} (${mStks.shoeToSeabedStrokes.toLocaleString()} stks, ${fmtTime(mStks.shoeToSeabedStrokes)})`,
-          `- Cased Hole Geometric: ${fmtVolText(mVols.casedGeometricVolume)}`,
-          `- Bit to Seabed Annular: ${fmtVolText(mVols.bitToSeabedAnnularVolume)} (${mStks.bitToSeabedStrokes.toLocaleString()} stks, ${fmtTime(mStks.bitToSeabedStrokes)})`,
-          isWithRiser ? `- Riser Annular: ${fmtVolText(mVols.riserAnnularVolume)}` : null,
-          `- Total Annulus: ${fmtVolText(mVols.totalAnnulusVolume)}`,
-          `- Total System Volume: ${fmtVolText(mVols.totalSystemVolume)} (${mStks.totalCycleStrokes.toLocaleString()} stks, ${fmtTime(mStks.totalCycleStrokes)})`,
-          ``,
-          `STROKES & CIRCULATION TIME:`,
-          `- Surface to Bit (${mInts.surfaceToBit}): ${mStks.surfaceToBitStrokes.toLocaleString()} stks (${fmtTime(mStks.surfaceToBitStrokes)})`,
-          `- Bit to Shoe (${mInts.bitToShoe}): ${mStks.bitToShoeStrokes.toLocaleString()} stks (${fmtTime(mStks.bitToShoeStrokes)})`,
-          `- Shoe to Seabed (${mInts.shoeToSeabed}): ${mStks.shoeToSeabedStrokes.toLocaleString()} stks (${fmtTime(mStks.shoeToSeabedStrokes)})`,
-          `- Bit to Seabed (${mInts.bitToSeabed}): ${mStks.bitToSeabedStrokes.toLocaleString()} stks (${fmtTime(mStks.bitToSeabedStrokes)})`,
-          `- Bottoms-Up (${mInts.bottomsUp}): ${mStks.bottomsUpStrokes.toLocaleString()} stks (${fmtTime(mStks.bottomsUpStrokes)})`,
-          `- Total Cycle (${mInts.totalCycle}): ${mStks.totalCycleStrokes.toLocaleString()} stks (${fmtTime(mStks.totalCycleStrokes)})`
-        ].filter(Boolean).join('\n');
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(summaryText).then(() => {
-            showToast("Volume & Stroke summary copied to clipboard!");
-          }).catch(() => {
-            showToast("Summary copied to clipboard!");
-          });
-        } else {
-          showToast("Volume & Stroke summary copied!");
-        }
-      };
-    }
     return;
   }
 
