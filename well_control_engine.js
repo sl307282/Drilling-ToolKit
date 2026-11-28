@@ -1275,11 +1275,165 @@
     };
   }
 
+  /**
+   * Three-way Marine Elevations solver:
+   * Core relationship: Seabed Depth from RKB = Air Gap + Water Depth.
+   * Tracks up to 2 most recently edited fields; the 3rd field is computed.
+   */
+  function solveMarineElevations(params) {
+    const ALL_FIELDS = ['airGap', 'waterDepth', 'seabed'];
+    const round2 = (v) => {
+      const r = Math.round((v + Number.EPSILON) * 100) / 100;
+      return r === 0 ? 0 : r;
+    };
+    const formatClean = (v) => String(round2(v));
+
+    const parseTok = (raw) => {
+      if (raw === null || raw === undefined) return { status: 'empty', val: null };
+      if (typeof raw === 'number') {
+        if (!Number.isFinite(raw)) return { status: 'invalid', val: null };
+        return raw < 0 ? { status: 'negative', val: raw } : { status: 'valid', val: raw };
+      }
+      const s = String(raw).trim().replace(',', '.');
+      if (s === '') return { status: 'empty', val: null };
+      // Reject partial decimal/exponent tokens safely without NaN
+      if (s === '-' || s === '+' || s === '.' || s === '-.' || s === '+.' || /[eE][+-]?$/.test(s)) {
+        return { status: 'invalid', val: null };
+      }
+      const num = Number(s);
+      if (!Number.isFinite(num)) return { status: 'invalid', val: null };
+      return num < 0 ? { status: 'negative', val: num } : { status: 'valid', val: num };
+    };
+
+    const rawValues = {
+      airGap: params && params.airGap !== undefined && params.airGap !== null ? String(params.airGap) : '',
+      waterDepth: params && params.waterDepth !== undefined && params.waterDepth !== null ? String(params.waterDepth) : '',
+      seabed: params && params.seabed !== undefined && params.seabed !== null ? String(params.seabed) : ''
+    };
+    const changedField = (params && ALL_FIELDS.includes(params.changedField)) ? params.changedField : null;
+    const prevAutoField = (params && ALL_FIELDS.includes(params.prevAutoField)) ? params.prevAutoField : null;
+    let nextOrder = Array.isArray(params && params.editOrder)
+      ? params.editOrder.filter((f, idx, arr) => ALL_FIELDS.includes(f) && arr.indexOf(f) === idx)
+      : [];
+
+    if (params && params.badInput) {
+      return {
+        values: rawValues,
+        editOrder: nextOrder,
+        autoField: prevAutoField,
+        error: null,
+        ignoredInvalid: true
+      };
+    }
+
+    const parsed = {
+      airGap: parseTok(rawValues.airGap),
+      waterDepth: parseTok(rawValues.waterDepth),
+      seabed: parseTok(rawValues.seabed)
+    };
+
+    if (changedField && parsed[changedField].status === 'invalid') {
+      return {
+        values: rawValues,
+        editOrder: nextOrder,
+        autoField: prevAutoField,
+        error: null,
+        ignoredInvalid: true
+      };
+    }
+
+    const nextValues = {
+      airGap: parsed.airGap.status === 'invalid' ? '' : rawValues.airGap,
+      waterDepth: parsed.waterDepth.status === 'invalid' ? '' : rawValues.waterDepth,
+      seabed: parsed.seabed.status === 'invalid' ? '' : rawValues.seabed
+    };
+
+    if (changedField) {
+      if (parsed[changedField].status === 'empty') {
+        nextValues[changedField] = '';
+        nextOrder = nextOrder.filter((f) => f !== changedField);
+        if (prevAutoField && prevAutoField !== changedField && nextOrder.length < 2) {
+          nextValues[prevAutoField] = '';
+        }
+      } else {
+        nextOrder = nextOrder.filter((f) => f !== changedField && parsed[f].status !== 'empty' && parsed[f].status !== 'invalid');
+        nextOrder.push(changedField);
+        if (nextOrder.length > 2) {
+          nextOrder = nextOrder.slice(nextOrder.length - 2);
+        }
+      }
+    } else {
+      nextOrder = nextOrder.filter((f) => parsed[f].status !== 'empty' && parsed[f].status !== 'invalid').slice(-2);
+    }
+
+    // Check negative direct input
+    const negField = nextOrder.find((f) => parsed[f].status === 'negative');
+    if (negField) {
+      const targetIfAny = nextOrder.length === 2 ? ALL_FIELDS.find((f) => !nextOrder.includes(f)) : null;
+      if (targetIfAny) nextValues[targetIfAny] = '';
+      return {
+        values: nextValues,
+        editOrder: nextOrder,
+        autoField: null,
+        error: { field: negField, message: 'Elevation values cannot be negative' }
+      };
+    }
+
+    if (nextOrder.length < 2) {
+      return {
+        values: nextValues,
+        editOrder: nextOrder,
+        autoField: null,
+        error: null
+      };
+    }
+
+    const target = ALL_FIELDS.find((f) => !nextOrder.includes(f));
+    if (changedField === target && parsed[target].status === 'empty') {
+      return {
+        values: nextValues,
+        editOrder: nextOrder,
+        autoField: null,
+        error: null
+      };
+    }
+
+    let error = null;
+    if (target === 'seabed') {
+      const sum = round2(parsed.airGap.val + parsed.waterDepth.val);
+      nextValues.seabed = formatClean(sum);
+    } else if (target === 'airGap') {
+      const diff = round2(parsed.seabed.val - parsed.waterDepth.val);
+      if (diff < 0) {
+        nextValues.airGap = '';
+        error = { field: 'airGap', message: 'Seabed Depth must be greater than Water Depth' };
+      } else {
+        nextValues.airGap = formatClean(diff);
+      }
+    } else if (target === 'waterDepth') {
+      const diff = round2(parsed.seabed.val - parsed.airGap.val);
+      if (diff < 0) {
+        nextValues.waterDepth = '';
+        error = { field: 'waterDepth', message: 'Seabed Depth must be greater than Air Gap' };
+      } else {
+        nextValues.waterDepth = formatClean(diff);
+      }
+    }
+
+    return {
+      values: nextValues,
+      editOrder: nextOrder,
+      autoField: target,
+      error
+    };
+  }
+
   return {
     getIntersect,
     roundKmw,
     calculateVolumesAndStrokes,
     calculateMarineSegmentVolumes,
+    solveMarineElevations,
     validateWellControlInputs,
     getPressureStatus,
     calculateKillSheet,

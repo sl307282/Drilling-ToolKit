@@ -601,12 +601,15 @@ const saveCalculationToHistory = (type, resultsData, warningsList) => {
     delete storedInputs.hasSurfaceConductor;
     delete storedInputs.conductorAnnular;
   }
+  delete storedInputs.marineElevationError;
   if (state.flowType !== 'subsea' || (state.hasRiser !== false && state.sectionType !== 'riserless')) {
     delete storedInputs.marineAirGap;
     delete storedInputs.marineWaterDepth;
     delete storedInputs.marineSeabedDepth;
     delete storedInputs.seabedDepth;
     delete storedInputs.marineReturnsMode;
+    delete storedInputs.marineEditOrder;
+    delete storedInputs.marineAutoField;
   }
   const newEntry = {
     id: Date.now(),
@@ -1493,6 +1496,9 @@ window.refreshCurrentScreenOnLanguageChange = function() {
         const rkbElev = readInput('rkb-elevation-calc'); if (rkbElev !== null) state.calcInputs.rkbGroundElevation = rkbElev;
         const airGapVal = readInput('air-gap-calc'); if (airGapVal !== null) state.calcInputs.airGap = airGapVal;
         const waterDepthVal = readInput('water-depth-calc'); if (waterDepthVal !== null) state.calcInputs.waterDepth = waterDepthVal;
+        const mAirGap = readInput('marine-air-gap'); if (mAirGap !== null) state.calcInputs.marineAirGap = mAirGap;
+        const mWaterDepth = readInput('marine-water-depth'); if (mWaterDepth !== null) state.calcInputs.marineWaterDepth = mWaterDepth;
+        const mSeabed = readInput('marine-seabed-depth'); if (mSeabed !== null) state.calcInputs.marineSeabedDepth = mSeabed;
         const riserLenVal = readInput('riserlength-calc'); if (riserLenVal !== null) state.calcInputs.riserLength = riserLenVal;
         const chokeLenVal = readInput('choke-len-calc'); if (chokeLenVal !== null) state.calcInputs.chokeLength = chokeLenVal;
 
@@ -4827,6 +4833,13 @@ function renderReferenceValues() {
       localStorage.setItem('globalUnit', newUnit);
 
       // Convert active calculations inputs if unit changes depth scale (meters <-> feet)
+      const scaleDepthField = (val, factor) => {
+        if (val === undefined || val === null || val === '') return val;
+        const n = parseFloat(val);
+        if (isNaN(n)) return val;
+        const scaled = Math.round((n * factor + Number.EPSILON) * 100) / 100;
+        return String(scaled === 0 ? 0 : scaled);
+      };
       if (oldUnit !== 'bbl/ft' && newUnit === 'bbl/ft') {
         // Meters to Feet
         state.calcInputs.holeMD = (state.calcInputs.holeMD * 3.28084).toFixed(1);
@@ -4842,6 +4855,9 @@ function renderReferenceValues() {
         state.calcInputs.dpLength3 = (state.calcInputs.dpLength3 * 3.28084).toFixed(1);
         state.calcInputs.riserLength = (state.calcInputs.riserLength * 3.28084).toFixed(1);
         state.calcInputs.chokeLength = (state.calcInputs.chokeLength * 3.28084).toFixed(1);
+        state.calcInputs.marineAirGap = scaleDepthField(state.calcInputs.marineAirGap, 3.28084);
+        state.calcInputs.marineWaterDepth = scaleDepthField(state.calcInputs.marineWaterDepth, 3.28084);
+        state.calcInputs.marineSeabedDepth = scaleDepthField(state.calcInputs.marineSeabedDepth, 3.28084);
       } else if (oldUnit === 'bbl/ft' && newUnit !== 'bbl/ft') {
         // Feet to Meters
         state.calcInputs.holeMD = (state.calcInputs.holeMD / 3.28084).toFixed(1);
@@ -4857,6 +4873,9 @@ function renderReferenceValues() {
         state.calcInputs.dpLength3 = (state.calcInputs.dpLength3 / 3.28084).toFixed(1);
         state.calcInputs.riserLength = (state.calcInputs.riserLength / 3.28084).toFixed(1);
         state.calcInputs.chokeLength = (state.calcInputs.chokeLength / 3.28084).toFixed(1);
+        state.calcInputs.marineAirGap = scaleDepthField(state.calcInputs.marineAirGap, 1 / 3.28084);
+        state.calcInputs.marineWaterDepth = scaleDepthField(state.calcInputs.marineWaterDepth, 1 / 3.28084);
+        state.calcInputs.marineSeabedDepth = scaleDepthField(state.calcInputs.marineSeabedDepth, 1 / 3.28084);
       }
 
       showToast(`Global unit system switched to: ${newUnit}`);
@@ -5569,11 +5588,46 @@ function renderCalculations() {
   }
   let marineCard = null;
   if (isRiserlessSubsea) {
-    if (state.calcInputs.marineAirGap === undefined || state.calcInputs.marineAirGap === '') state.calcInputs.marineAirGap = 25;
-    if (state.calcInputs.marineWaterDepth === undefined || state.calcInputs.marineWaterDepth === '') state.calcInputs.marineWaterDepth = 300;
-    if (state.calcInputs.marineSeabedDepth === undefined || state.calcInputs.marineSeabedDepth === '') {
-      state.calcInputs.marineSeabedDepth = (parseFloat(state.calcInputs.marineAirGap) || 25) + (parseFloat(state.calcInputs.marineWaterDepth) || 300);
+    const allElevUndefined = (state.calcInputs.marineAirGap === undefined &&
+      state.calcInputs.marineWaterDepth === undefined &&
+      state.calcInputs.marineSeabedDepth === undefined);
+    if (allElevUndefined) {
+      state.calcInputs.marineAirGap = 25;
+      state.calcInputs.marineWaterDepth = 300;
+      state.calcInputs.marineSeabedDepth = 325;
+      state.calcInputs.marineEditOrder = ['airGap', 'waterDepth'];
+      state.calcInputs.marineAutoField = 'seabed';
+      state.calcInputs.marineElevationError = null;
     }
+
+    if (!Array.isArray(state.calcInputs.marineEditOrder)) {
+      const hasAG = state.calcInputs.marineAirGap !== undefined && state.calcInputs.marineAirGap !== '' && state.calcInputs.marineAirGap !== null;
+      const hasWD = state.calcInputs.marineWaterDepth !== undefined && state.calcInputs.marineWaterDepth !== '' && state.calcInputs.marineWaterDepth !== null;
+      const hasSB = state.calcInputs.marineSeabedDepth !== undefined && state.calcInputs.marineSeabedDepth !== '' && state.calcInputs.marineSeabedDepth !== null;
+      if (hasAG && hasWD) {
+        state.calcInputs.marineEditOrder = ['airGap', 'waterDepth'];
+        state.calcInputs.marineAutoField = 'seabed';
+      } else if (hasWD && hasSB) {
+        state.calcInputs.marineEditOrder = ['waterDepth', 'seabed'];
+        state.calcInputs.marineAutoField = 'airGap';
+      } else if (hasAG && hasSB) {
+        state.calcInputs.marineEditOrder = ['airGap', 'seabed'];
+        state.calcInputs.marineAutoField = 'waterDepth';
+      } else if (hasSB) {
+        state.calcInputs.marineEditOrder = ['seabed'];
+        state.calcInputs.marineAutoField = null;
+      } else if (hasWD) {
+        state.calcInputs.marineEditOrder = ['waterDepth'];
+        state.calcInputs.marineAutoField = null;
+      } else if (hasAG) {
+        state.calcInputs.marineEditOrder = ['airGap'];
+        state.calcInputs.marineAutoField = null;
+      } else {
+        state.calcInputs.marineEditOrder = [];
+        state.calcInputs.marineAutoField = null;
+      }
+    }
+
     const curHoleNum = parseFloat(state.selectedHoleSize) || 36;
     state.hasRiser = false;
     state.sectionType = 'riserless';
@@ -5586,10 +5640,11 @@ function renderCalculations() {
       state.calcInputs.marinePumpOutput = state.reference && state.reference.pumpOutput ? (convertPumpOutput(state.reference.pumpOutput, 'bbl/m')).toFixed(4) : '0.1176';
     }
 
-    const airGapVal = state.calcInputs.marineAirGap;
-    const waterDepthVal = state.calcInputs.marineWaterDepth;
-    const seabedDepthVal = state.calcInputs.marineSeabedDepth;
-    const isSeabedOverridden = !!state.calcInputs.marineSeabedOverride;
+    const fmtInitVal = (v) => (v === undefined || v === null || Number.isNaN(v)) ? '' : v;
+    const airGapVal = fmtInitVal(state.calcInputs.marineAirGap);
+    const waterDepthVal = fmtInitVal(state.calcInputs.marineWaterDepth);
+    const seabedDepthVal = fmtInitVal(state.calcInputs.marineSeabedDepth);
+    const activeAutoField = state.calcInputs.marineAutoField || null;
 
     marineCard = document.createElement('div');
     marineCard.id = 'subsea-marine-elevations-card';
@@ -5597,32 +5652,41 @@ function renderCalculations() {
     marineCard.style.borderLeft = '4px solid var(--accent-color)';
     marineCard.style.marginBottom = '15px';
     marineCard.innerHTML = `
-      <h3 style="font-size:0.95rem; margin-bottom:15px; font-weight:600;">${t('Marine Elevations', 'Marine Elevations')}</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-size:0.95rem; margin:0; font-weight:600;">${t('Marine Elevations', 'Marine Elevations')}</h3>
+        <button type="button" id="marine-clear-btn" class="wc-marine-clear-btn">${t('Clear', 'Clear')}</button>
+      </div>
       
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:12px;">
         <div class="form-group">
-          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Air Gap', 'Air Gap')} (${dUnit})</label>
+          <div class="wc-marine-label-row">
+            <label for="marine-air-gap">${t('Air Gap', 'Air Gap')} (${dUnit})</label>
+            <span id="marine-auto-badge-airGap" class="wc-marine-auto-badge" style="display:${activeAutoField === 'airGap' ? 'inline-flex' : 'none'};">${t('auto', 'auto')}</span>
+          </div>
           <div style="position:relative; width:100%;">
-            <input type="number" step="any" class="form-input" id="marine-air-gap" value="${airGapVal}" style="width:100%; padding-right:25px;">
+            <input type="number" step="any" inputmode="decimal" class="form-input" id="marine-air-gap" value="${airGapVal}" placeholder="0" style="width:100%; padding-right:25px;">
             ${editIcon}
           </div>
         </div>
         <div class="form-group">
-          <label style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Water Depth', 'Water Depth')} (${dUnit})</label>
+          <div class="wc-marine-label-row">
+            <label for="marine-water-depth">${t('Water Depth', 'Water Depth')} (${dUnit})</label>
+            <span id="marine-auto-badge-waterDepth" class="wc-marine-auto-badge" style="display:${activeAutoField === 'waterDepth' ? 'inline-flex' : 'none'};">${t('auto', 'auto')}</span>
+          </div>
           <div style="position:relative; width:100%;">
-            <input type="number" step="any" class="form-input" id="marine-water-depth" value="${waterDepthVal}" style="width:100%; padding-right:25px;">
+            <input type="number" step="any" inputmode="decimal" class="form-input" id="marine-water-depth" value="${waterDepthVal}" placeholder="0" style="width:100%; padding-right:25px;">
             ${editIcon}
           </div>
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom:6px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <label style="margin-bottom:0; font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-primary);">${t('Seabed Depth from RKB', 'Seabed Depth from RKB')} (${dUnit})</label>
-          <button type="button" id="reset-seabed-auto" style="border:none; background:none; font-size:0.75rem; color:var(--accent-color); font-weight:600; cursor:pointer; padding:0; display:${isSeabedOverridden ? 'inline' : 'none'};">${t('Reset to Auto', 'Reset to Auto')}</button>
+        <div class="wc-marine-label-row">
+          <label for="marine-seabed-depth">${t('Seabed Depth from RKB', 'Seabed Depth from RKB')} (${dUnit})</label>
+          <span id="marine-auto-badge-seabed" class="wc-marine-auto-badge" style="display:${activeAutoField === 'seabed' ? 'inline-flex' : 'none'};">${t('auto', 'auto')}</span>
         </div>
         <div style="position:relative; width:100%;">
-          <input type="number" step="any" class="form-input" id="marine-seabed-depth" value="${seabedDepthVal}" style="width:100%; padding-right:25px; ${isSeabedOverridden ? '' : 'background-color:var(--input-disabled-bg);'}">
+          <input type="number" step="any" inputmode="decimal" class="form-input" id="marine-seabed-depth" value="${seabedDepthVal}" placeholder="0" style="width:100%; padding-right:25px;">
           ${editIcon}
         </div>
         <div id="marine-seabed-error" class="validation-error" style="color:var(--danger-color, #d32f2f); font-size:0.75rem; margin-top:4px; display:none;"></div>
@@ -5907,11 +5971,18 @@ function renderCalculations() {
     state.calcInputs.dpLength3 = getVal(container.querySelector('#' + 'dp-len-calc-3'));
 
     if (state.flowType === 'subsea') {
-      const getVal = (el) => el && el.value !== '' ? (parseFloat(String(el.value).replace(',', '.')) || 0) : '';
+      const getVal = (el) => {
+        if (!el || el.value === '' || (el.validity && el.validity.badInput)) return '';
+        const n = parseFloat(String(el.value).replace(',', '.'));
+        return isNaN(n) ? '' : n;
+      };
       if (isRiserlessSubsea) {
-        state.calcInputs.marineAirGap = getVal(container.querySelector('#marine-air-gap'));
-        state.calcInputs.marineWaterDepth = getVal(container.querySelector('#marine-water-depth'));
-        state.calcInputs.marineSeabedDepth = getVal(container.querySelector('#marine-seabed-depth'));
+        const agEl = container.querySelector('#marine-air-gap');
+        const wdEl = container.querySelector('#marine-water-depth');
+        const sbEl = container.querySelector('#marine-seabed-depth');
+        if (agEl && !(agEl.validity && agEl.validity.badInput)) state.calcInputs.marineAirGap = getVal(agEl);
+        if (wdEl && !(wdEl.validity && wdEl.validity.badInput)) state.calcInputs.marineWaterDepth = getVal(wdEl);
+        if (sbEl && !(sbEl.validity && sbEl.validity.badInput)) state.calcInputs.marineSeabedDepth = getVal(sbEl);
 
         state.calcInputs.airGap = state.calcInputs.marineAirGap;
         state.calcInputs.waterDepth = state.calcInputs.marineWaterDepth;
@@ -6132,25 +6203,39 @@ function renderCalculations() {
   }
 
   // ==========================================
-  // Marine Elevations Validation & Event Listeners (Riserless Only)
+  // Marine Elevations Validation & 3-Way Auto-Calculation (Riserless Only)
   // ==========================================
   const validateMarineElevations = () => {
     if (!isRiserlessSubsea) return true;
 
+    const airGapEl = container.querySelector('#marine-air-gap');
+    const waterDepthEl = container.querySelector('#marine-water-depth');
     const seabedEl = container.querySelector('#marine-seabed-depth');
     const shoeMEl = container.querySelector('#shoe-md-calc');
     const holeMEl = container.querySelector('#hole-md-calc');
 
-    const seabedVal = parseFloat(seabedEl ? seabedEl.value : '') || 0;
+    const rawSeabed = seabedEl ? String(seabedEl.value).trim() : '';
+    const seabedVal = rawSeabed === '' ? NaN : parseFloat(rawSeabed.replace(',', '.'));
     const shoeMVal = parseFloat(shoeMEl ? shoeMEl.value : '') || 0;
     const holeMVal = parseFloat(holeMEl ? holeMEl.value : '') || 0;
+    const solverErr = state.calcInputs.marineElevationError || null;
+
+    if (airGapEl) airGapEl.style.border = '';
+    if (waterDepthEl) waterDepthEl.style.border = '';
+    if (seabedEl) seabedEl.style.border = '';
 
     let hasBlockingError = false;
 
-    // Seabed error: Seabed depth must be > 0 and < Shoe MD
     const seabedErrEl = container.querySelector('#marine-seabed-error');
     if (seabedErrEl) {
-      if (seabedVal <= 0) {
+      if (solverErr && solverErr.message) {
+        seabedErrEl.textContent = t(solverErr.message, solverErr.message);
+        seabedErrEl.style.display = 'block';
+        if (seabedEl) seabedEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        if (solverErr.field === 'airGap' && waterDepthEl) waterDepthEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        if (solverErr.field === 'waterDepth' && airGapEl) airGapEl.style.border = '2px solid var(--danger-color, #d32f2f)';
+        hasBlockingError = true;
+      } else if (isNaN(seabedVal) || seabedVal <= 0) {
         seabedErrEl.textContent = t('Seabed depth must be greater than 0', 'Seabed depth must be greater than 0');
         seabedErrEl.style.display = 'block';
         if (seabedEl) seabedEl.style.border = '2px solid var(--danger-color, #d32f2f)';
@@ -6162,14 +6247,13 @@ function renderCalculations() {
         hasBlockingError = true;
       } else {
         seabedErrEl.style.display = 'none';
-        if (seabedEl) seabedEl.style.border = '';
       }
     }
 
     // Shoe MD error: Shoe MD must be > Seabed and <= Hole MD
     const shoeErrEl = container.querySelector('#shoe-md-marine-error');
     if (shoeErrEl) {
-      if (shoeMVal > 0 && seabedVal > 0 && shoeMVal <= seabedVal) {
+      if (shoeMVal > 0 && !isNaN(seabedVal) && seabedVal > 0 && shoeMVal <= seabedVal) {
         shoeErrEl.textContent = t('Shoe is above the seabed', 'Shoe is above the seabed');
         shoeErrEl.style.display = 'block';
         if (shoeMEl) shoeMEl.style.border = '2px solid var(--danger-color, #d32f2f)';
@@ -6205,43 +6289,88 @@ function renderCalculations() {
     const airGapIn = container.querySelector('#marine-air-gap');
     const waterDepthIn = container.querySelector('#marine-water-depth');
     const seabedIn = container.querySelector('#marine-seabed-depth');
-    const resetSeabedBtn = container.querySelector('#reset-seabed-auto');
+    const clearElevBtn = container.querySelector('#marine-clear-btn');
 
-    const updateSeabedFromElevations = () => {
-      if (!state.calcInputs.marineSeabedOverride && seabedIn) {
-        const ag = parseFloat(airGapIn ? airGapIn.value : 0) || 0;
-        const wd = parseFloat(waterDepthIn ? waterDepthIn.value : 0) || 0;
-        const total = ag + wd;
-        seabedIn.value = total > 0 ? total : '';
-        state.calcInputs.marineSeabedDepth = total;
+    const marineEls = {
+      airGap: airGapIn,
+      waterDepth: waterDepthIn,
+      seabed: seabedIn
+    };
+
+    const syncAutoBadges = (activeAuto) => {
+      ['airGap', 'waterDepth', 'seabed'].forEach((f) => {
+        const badge = container.querySelector(`#marine-auto-badge-${f}`);
+        if (badge) {
+          badge.style.display = (activeAuto === f) ? 'inline-flex' : 'none';
+        }
+      });
+    };
+
+    const handleMarineFieldInput = (changedField) => {
+      const activeEl = marineEls[changedField];
+      if (!activeEl) return;
+      if (activeEl.validity && activeEl.validity.badInput) {
+        return; // Ignore partial decimal/sign/exponent input until valid or cleared
       }
+
+      const solved = WellControlEngine.solveMarineElevations({
+        airGap: airGapIn ? airGapIn.value : '',
+        waterDepth: waterDepthIn ? waterDepthIn.value : '',
+        seabed: seabedIn ? seabedIn.value : '',
+        editOrder: state.calcInputs.marineEditOrder,
+        prevAutoField: state.calcInputs.marineAutoField,
+        changedField,
+        badInput: false
+      });
+
+      if (solved.ignoredInvalid) return;
+
+      state.calcInputs.marineEditOrder = solved.editOrder;
+      state.calcInputs.marineAutoField = solved.autoField;
+      state.calcInputs.marineElevationError = solved.error;
+
+      // Never overwrite the currently focused/edited field or disturb its cursor
+      ['airGap', 'waterDepth', 'seabed'].forEach((f) => {
+        const el = marineEls[f];
+        if (!el || f === changedField || document.activeElement === el) return;
+        const nextVal = solved.values[f] !== undefined && solved.values[f] !== null ? String(solved.values[f]) : '';
+        if (el.value !== nextVal) {
+          el.value = nextVal;
+        }
+      });
+
+      syncAutoBadges(solved.autoField);
       validateMarineElevations();
       syncStateFromInputs();
       runCalculationsEngine();
     };
 
-    if (airGapIn) airGapIn.addEventListener('input', updateSeabedFromElevations);
-    if (waterDepthIn) waterDepthIn.addEventListener('input', updateSeabedFromElevations);
+    if (airGapIn) airGapIn.addEventListener('input', () => handleMarineFieldInput('airGap'));
+    if (waterDepthIn) waterDepthIn.addEventListener('input', () => handleMarineFieldInput('waterDepth'));
+    if (seabedIn) seabedIn.addEventListener('input', () => handleMarineFieldInput('seabed'));
 
-    if (seabedIn) {
-      seabedIn.addEventListener('input', () => {
-        state.calcInputs.marineSeabedOverride = true;
-        if (resetSeabedBtn) resetSeabedBtn.style.display = 'inline';
+    if (clearElevBtn) {
+      clearElevBtn.addEventListener('click', () => {
+        if (airGapIn) airGapIn.value = '';
+        if (waterDepthIn) waterDepthIn.value = '';
+        if (seabedIn) seabedIn.value = '';
+        state.calcInputs.marineAirGap = '';
+        state.calcInputs.marineWaterDepth = '';
+        state.calcInputs.marineSeabedDepth = '';
+        state.calcInputs.airGap = '';
+        state.calcInputs.waterDepth = '';
+        state.calcInputs.seabedDepth = '';
+        state.calcInputs.marineEditOrder = [];
+        state.calcInputs.marineAutoField = null;
+        state.calcInputs.marineElevationError = null;
+        syncAutoBadges(null);
         validateMarineElevations();
         syncStateFromInputs();
         runCalculationsEngine();
       });
     }
 
-    if (resetSeabedBtn) {
-      resetSeabedBtn.addEventListener('click', () => {
-        state.calcInputs.marineSeabedOverride = false;
-        resetSeabedBtn.style.display = 'none';
-        updateSeabedFromElevations();
-      });
-    }
-
-    // Initial validation
+    syncAutoBadges(state.calcInputs.marineAutoField || null);
     setTimeout(validateMarineElevations, 0);
   }
 
@@ -6266,11 +6395,9 @@ function renderCalculations() {
         if (input.id === 'rkb-elevation-calc') {
           return;
         }
-        // Skip riser, choke, and marine elevation fields if omitted or in riserless mode
-        if (state.flowType === 'subsea' && (state.hasRiser === false || state.sectionType === 'riserless')) {
-          if (['riserlength-calc', 'choke-len-calc', 'air-gap-calc', 'water-depth-calc'].includes(input.id)) {
-            return;
-          }
+        // In riserless mode, Air Gap & Water Depth are optional when Seabed Depth from RKB is provided directly (Case D)
+        if (isRiserlessSubsea && ['marine-air-gap', 'marine-water-depth', 'riserlength-calc', 'choke-len-calc', 'air-gap-calc', 'water-depth-calc'].includes(input.id)) {
+          return;
         }
 
         if (input.value === '' || input.value === null || input.value === undefined) {
@@ -6283,6 +6410,11 @@ function renderCalculations() {
 
       if (hasError) {
         showToast("Required input missing");
+        return;
+      }
+
+      if (isRiserlessSubsea && !validateMarineElevations()) {
+        showToast((state.calcInputs.marineElevationError && state.calcInputs.marineElevationError.message) || "Verify Marine Elevations");
         return;
       }
 
@@ -6461,9 +6593,10 @@ function runCalculationsEngine() {
   // ==========================================
   if (isRiserless) {
     const holeSizeNum = parseFloat(state.selectedHoleSize || (ref && ref.selectedHoleSize) || 36);
-    const airGapM = toMeters(inputs.marineAirGap !== undefined ? inputs.marineAirGap : 25);
-    const waterDepthM = toMeters(inputs.marineWaterDepth !== undefined ? inputs.marineWaterDepth : 300);
-    const seabedM = toMeters(inputs.marineSeabedDepth !== undefined ? inputs.marineSeabedDepth : (airGapM + waterDepthM));
+    const allUninit = (inputs.marineAirGap === undefined && inputs.marineWaterDepth === undefined && inputs.marineSeabedDepth === undefined);
+    const airGapM = toMeters(allUninit ? 25 : (inputs.marineAirGap || 0));
+    const waterDepthM = toMeters(allUninit ? 300 : (inputs.marineWaterDepth || 0));
+    const seabedM = toMeters(allUninit ? 325 : (inputs.marineSeabedDepth !== undefined && inputs.marineSeabedDepth !== '' ? inputs.marineSeabedDepth : (airGapM + waterDepthM)));
     const returnsMode = 'riserless';
     const isWithRiser = false;
     state.calcInputs.marineReturnsMode = returnsMode;

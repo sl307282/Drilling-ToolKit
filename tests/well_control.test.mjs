@@ -769,6 +769,201 @@ assert.ok(Math.abs(customMarineRes.volumes.openHoleAnnularVolume - (197000 / 158
 
 console.log('PASSED: Subsea 36" riserless marine segment calculations match exact hand-calculated oilfield formulas!\n');
 
+// TEST 11: 3-Way Marine Elevations Solver & Case D Calculation
+console.log('--- TEST 11: 3-Way Marine Elevations Solver & Case D Calculation ---');
+assert.strictEqual(typeof WellControlEngine.solveMarineElevations, 'function', 'solveMarineElevations exported');
+
+// Case A: Air Gap + Water Depth -> Seabed (auto)
+const caseA = WellControlEngine.solveMarineElevations({
+    airGap: '25',
+    waterDepth: '300',
+    seabed: '',
+    editOrder: ['airGap'],
+    changedField: 'waterDepth',
+    prevAutoField: null,
+});
+assert.deepStrictEqual(caseA.values, { airGap: '25', waterDepth: '300', seabed: '325' }, 'Case A computes seabed=325');
+assert.deepStrictEqual(caseA.editOrder, ['airGap', 'waterDepth'], 'Case A editOrder tracks 2 most recent');
+assert.strictEqual(caseA.autoField, 'seabed', 'Case A marks seabed auto');
+assert.strictEqual(caseA.error, null, 'Case A has no error');
+
+// Sequence: from Case A (25, 300 -> 325), user edits Seabed = 400 -> Air Gap becomes auto = 100
+const seqEdit = WellControlEngine.solveMarineElevations({
+    airGap: '25',
+    waterDepth: '300',
+    seabed: '400',
+    editOrder: caseA.editOrder,
+    changedField: 'seabed',
+    prevAutoField: caseA.autoField,
+});
+assert.deepStrictEqual(seqEdit.values, { airGap: '100', waterDepth: '300', seabed: '400' }, 'Sequence edit recalculates airGap=100');
+assert.deepStrictEqual(seqEdit.editOrder, ['waterDepth', 'seabed'], 'Sequence drops oldest edited field (airGap)');
+assert.strictEqual(seqEdit.autoField, 'airGap', 'Sequence marks airGap auto');
+assert.strictEqual(seqEdit.error, null, 'Sequence has no error');
+
+// Case B: Water Depth + Seabed -> Air Gap (auto)
+const caseB = WellControlEngine.solveMarineElevations({
+    airGap: '',
+    waterDepth: '300',
+    seabed: '325',
+    editOrder: ['waterDepth'],
+    changedField: 'seabed',
+    prevAutoField: null,
+});
+assert.deepStrictEqual(caseB.values, { airGap: '25', waterDepth: '300', seabed: '325' }, 'Case B computes airGap=25');
+assert.deepStrictEqual(caseB.editOrder, ['waterDepth', 'seabed']);
+assert.strictEqual(caseB.autoField, 'airGap');
+assert.strictEqual(caseB.error, null);
+
+// Case C: Air Gap + Seabed -> Water Depth (auto)
+const caseC = WellControlEngine.solveMarineElevations({
+    airGap: '25',
+    waterDepth: '',
+    seabed: '325',
+    editOrder: ['airGap'],
+    changedField: 'seabed',
+    prevAutoField: null,
+});
+assert.deepStrictEqual(caseC.values, { airGap: '25', waterDepth: '300', seabed: '325' }, 'Case C computes waterDepth=300');
+assert.deepStrictEqual(caseC.editOrder, ['airGap', 'seabed']);
+assert.strictEqual(caseC.autoField, 'waterDepth');
+assert.strictEqual(caseC.error, null);
+
+// Case D: Only Seabed entered -> Air Gap & Water Depth stay blank, no autoField, no error
+const caseD = WellControlEngine.solveMarineElevations({
+    airGap: '',
+    waterDepth: '',
+    seabed: '325',
+    editOrder: [],
+    changedField: 'seabed',
+    prevAutoField: null,
+});
+assert.deepStrictEqual(caseD.values, { airGap: '', waterDepth: '', seabed: '325' }, 'Case D keeps airGap & waterDepth empty');
+assert.deepStrictEqual(caseD.editOrder, ['seabed']);
+assert.strictEqual(caseD.autoField, null);
+assert.strictEqual(caseD.error, null);
+
+// Negative cases: seabed < waterDepth or seabed < airGap
+const negWater = WellControlEngine.solveMarineElevations({
+    airGap: '',
+    waterDepth: '300',
+    seabed: '200',
+    editOrder: ['waterDepth'],
+    changedField: 'seabed',
+    prevAutoField: null,
+});
+assert.strictEqual(negWater.values.airGap, '', 'Negative diff leaves calculated airGap blank');
+assert.strictEqual(negWater.autoField, 'airGap');
+assert.ok(negWater.error && negWater.error.message, 'Negative waterDepth vs seabed returns inline error');
+
+const negAir = WellControlEngine.solveMarineElevations({
+    airGap: '25',
+    waterDepth: '',
+    seabed: '10',
+    editOrder: ['airGap'],
+    changedField: 'seabed',
+    prevAutoField: null,
+});
+assert.strictEqual(negAir.values.waterDepth, '', 'Negative airGap vs seabed leaves waterDepth blank');
+assert.strictEqual(negAir.autoField, 'waterDepth');
+assert.ok(negAir.error && negAir.error.message, 'Negative airGap vs seabed returns inline error');
+
+// Floating-point rounding stability (0.1 + 0.2 -> '0.3')
+const floatTest = WellControlEngine.solveMarineElevations({
+    airGap: '0.1',
+    waterDepth: '0.2',
+    seabed: '',
+    editOrder: ['airGap'],
+    changedField: 'waterDepth',
+    prevAutoField: null,
+});
+assert.strictEqual(floatTest.values.seabed, '0.3', 'Avoids IEEE-754 float noise (0.1 + 0.2 === 0.3)');
+
+const floatSub = WellControlEngine.solveMarineElevations({
+    airGap: '24.65',
+    waterDepth: '',
+    seabed: '324.9',
+    editOrder: ['airGap'],
+    changedField: 'seabed',
+    prevAutoField: null,
+});
+assert.strictEqual(floatSub.values.waterDepth, '300.25', 'Subtracts decimals cleanly to 2dp');
+
+// Invalid / partial numeric tokens & badInput
+assert.strictEqual(
+    WellControlEngine.solveMarineElevations({
+        airGap: '25',
+        waterDepth: '',
+        seabed: '325',
+        editOrder: ['airGap', 'seabed'],
+        changedField: 'waterDepth',
+        badInput: true,
+    }).ignoredInvalid,
+    true,
+    'badInput=true ignores transient edit'
+);
+for (const tok of ['-', '.', '1e']) {
+    assert.strictEqual(
+        WellControlEngine.solveMarineElevations({
+            airGap: tok,
+            waterDepth: '300',
+            seabed: '',
+            editOrder: ['waterDepth'],
+            changedField: 'airGap',
+        }).ignoredInvalid,
+        true,
+        `Partial token "${tok}" is ignored safely`
+    );
+}
+
+// Clearing fields one-by-one clears stale auto value when < 2 edited fields remain
+const afterClearWd = WellControlEngine.solveMarineElevations({
+    airGap: '25',
+    waterDepth: '',
+    seabed: '325',
+    editOrder: ['airGap', 'waterDepth'],
+    changedField: 'waterDepth',
+    prevAutoField: 'seabed',
+});
+assert.deepStrictEqual(afterClearWd.values, { airGap: '25', waterDepth: '', seabed: '' }, 'Clearing edited field wipes stale auto seabed');
+assert.deepStrictEqual(afterClearWd.editOrder, ['airGap']);
+assert.strictEqual(afterClearWd.autoField, null);
+
+const afterClearAg = WellControlEngine.solveMarineElevations({
+    airGap: '',
+    waterDepth: '',
+    seabed: '',
+    editOrder: afterClearWd.editOrder,
+    changedField: 'airGap',
+    prevAutoField: afterClearWd.autoField,
+});
+assert.deepStrictEqual(afterClearAg.values, { airGap: '', waterDepth: '', seabed: '' });
+assert.deepStrictEqual(afterClearAg.editOrder, []);
+assert.strictEqual(afterClearAg.autoField, null);
+
+// Case D full calculation output (airGap=0, waterDepth=0, seabedDepth=325) must match Case A (25, 300, 325)
+const calcCaseA = WellControlEngine.calculateMarineSegmentVolumes({
+    ...marineTestInputs,
+    airGap: 25,
+    waterDepth: 300,
+    seabedDepth: 325,
+});
+const calcCaseD = WellControlEngine.calculateMarineSegmentVolumes({
+    ...marineTestInputs,
+    airGap: 0,
+    waterDepth: 0,
+    seabedDepth: 325,
+});
+assert.strictEqual(calcCaseD.volumes.casedAnnularVolume, calcCaseA.volumes.casedAnnularVolume, 'Case D Cased Annular volume matches Case A');
+assert.strictEqual(calcCaseD.volumes.openHoleAnnularVolume, calcCaseA.volumes.openHoleAnnularVolume, 'Case D Open Hole Annular volume matches Case A');
+assert.strictEqual(calcCaseD.volumes.bitToSeabedAnnularVolume, calcCaseA.volumes.bitToSeabedAnnularVolume, 'Case D Bit-to-Seabed matches Case A');
+assert.strictEqual(calcCaseD.volumes.totalSystemVolume, calcCaseA.volumes.totalSystemVolume, 'Case D Total System volume matches Case A');
+assert.strictEqual(calcCaseD.strokes.shoeToSeabedStrokes, calcCaseA.strokes.shoeToSeabedStrokes, 'Case D Shoe-to-Seabed strokes match Case A');
+assert.strictEqual(calcCaseD.strokes.bottomsUpStrokes, calcCaseA.strokes.bottomsUpStrokes, 'Case D Bottoms-Up strokes match Case A');
+assert.strictEqual(calcCaseD.strokes.totalCycleStrokes, calcCaseA.strokes.totalCycleStrokes, 'Case D Total Cycle strokes match Case A');
+
+console.log('PASSED: 3-way Marine Elevations solver & Case D calculations verified!\n');
+
 console.log('====================================================');
 console.log('   ALL WELL CONTROL REGRESSION TESTS PASSED!        ');
 console.log('====================================================');
