@@ -5817,13 +5817,13 @@ function renderCalculations() {
   if (state.flowType === 'subsea') {
     if (!isRiserlessSubsea) {
       bopToggleMarkup = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-          <button class="btn btn-primary" id="run-calc-btn" style="padding: 12px 20px; font-size: 0.9rem; margin-bottom: 0; white-space: nowrap;">${t('Calculate', 'Calculate')}</button>
-          <div class="bop-toggle-container" style="margin-bottom: 0; align-items: flex-end;">
-            <span class="bop-toggle-label" style="margin-bottom: 5px;">
+        <div class="wc-calc-action-row">
+          <button class="btn btn-primary" id="run-calc-btn">${t('Calculate', 'Calculate')}</button>
+          <div class="bop-toggle-container wc-bop-pill">
+            <span class="bop-toggle-label">
               ${t('BOP:', 'BOP:')} <strong style="color:var(--text-primary); font-weight:700;">${state.calcInputs.bopStatus === 'closed' ? t('CLOSED', 'CLOSED') : t('OPEN', 'OPEN')}</strong>
             </span>
-            <label class="switch bop-switch" style="margin-top: 4px;">
+            <label class="switch bop-switch">
               <input type="checkbox" id="bop-status-toggle" ${state.calcInputs.bopStatus === 'closed' ? 'checked' : ''}>
               <span class="slider"></span>
             </label>
@@ -6467,7 +6467,9 @@ function renderCalculations() {
               
               setTimeout(() => {
                 const wrapper = container.querySelector('#' + 'results-dashboard-wrapper');
-                if (wrapper) scrollToResultsSection(wrapper, 'smooth');
+                const scrollTarget = (!isRiserlessSubsea && wrapper && wrapper.querySelector('.wc-section-header-title')) || wrapper;
+                if (scrollTarget) scrollToResultsSection(scrollTarget, 'smooth');
+                if (wrapper && typeof fitWcMetricValues === 'function') fitWcMetricValues(wrapper);
               }, 50);
             });
           });
@@ -6490,9 +6492,90 @@ function renderCalculations() {
   if (_navDirection === 'back' && state.calcInputs.hasRun) {
     setTimeout(() => {
       const resultsWrap = container.querySelector('#' + 'results-dashboard-wrapper');
-      if (resultsWrap) scrollToResultsSection(resultsWrap, 'auto');
+      const scrollTarget = (!isRiserlessSubsea && resultsWrap && resultsWrap.querySelector('.wc-section-header-title')) || resultsWrap;
+      if (scrollTarget) scrollToResultsSection(scrollTarget, 'auto');
     }, 50);
   }
+}
+
+// Shared card builder & metric auto-fit helpers for Subsea results (Riserless & With Riser)
+function formatWcTimeParts(stks, spm) {
+  if (!stks || stks <= 0 || !spm || spm <= 0) return { primary: '-', secondary: '' };
+  const totalMin = stks / spm;
+  const h = Math.floor(totalMin / 60);
+  const m = (totalMin % 60).toFixed(1);
+  return {
+    primary: h > 0 ? `${h}h ${m}m` : `${m}m`,
+    secondary: `${totalMin.toFixed(1)} min`
+  };
+}
+
+function buildWcSegmentCardHtml({
+  title,
+  tag = '',
+  isTotal = false,
+  subtitle = '',
+  volStr = '-',
+  volUnit = '',
+  stksStr = '-',
+  stksUnit = '',
+  timePrimary = '-',
+  timeSecondary = '',
+  footerLabel = '',
+  footerVal = '',
+  volLabel,
+  stksLabel,
+  timeLabel
+}) {
+  const cardCls = isTotal ? 'wc-seg-card wc-seg-card-total' : 'wc-seg-card';
+  const tagCls = isTotal ? 'wc-tag-chip wc-tag-chip-total' : 'wc-tag-chip';
+  return `
+    <div class="${cardCls}">
+      <div class="wc-seg-header">
+        <span class="wc-seg-title">${title}</span>
+        ${tag ? `<span class="${tagCls}">${tag}</span>` : ''}
+      </div>
+      ${subtitle ? `<div class="wc-seg-subtitle">${subtitle}</div>` : ''}
+      <div class="wc-metric-strip">
+        <div class="wc-metric-col">
+          <div class="wc-metric-lbl">${volLabel}</div>
+          <div class="wc-metric-val">${volStr}${volUnit ? ` <span class="wc-metric-unit">${volUnit}</span>` : ''}</div>
+        </div>
+        <div class="wc-metric-col">
+          <div class="wc-metric-lbl">${stksLabel}</div>
+          <div class="wc-metric-val">${stksStr}${stksUnit ? ` <span class="wc-metric-unit">${stksUnit}</span>` : ''}</div>
+        </div>
+        <div class="wc-metric-col">
+          <div class="wc-metric-lbl">${timeLabel}</div>
+          <div class="wc-metric-val">${timePrimary}</div>
+          ${timeSecondary ? `<div class="wc-metric-sub">${timeSecondary}</div>` : ''}
+        </div>
+      </div>
+      ${footerLabel && footerVal ? `
+        <div class="wc-seg-footer">
+          <span class="wc-seg-footer-lbl">${footerLabel}</span>
+          <span class="wc-seg-footer-val">${footerVal}</span>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function fitWcMetricValues(wrapperEl) {
+  if (!wrapperEl) return;
+  requestAnimationFrame(() => {
+    const els = wrapperEl.querySelectorAll('.wc-metric-val, .wc-metric-sub');
+    els.forEach((el) => {
+      el.style.fontSize = '';
+      if (el.clientWidth <= 0) return;
+      let curPx = parseFloat(getComputedStyle(el).fontSize);
+      if (isNaN(curPx)) return;
+      while (el.scrollWidth > el.clientWidth + 0.5 && curPx > 9.5) {
+        curPx = Math.max(9.5, curPx - 0.5);
+        el.style.fontSize = `${curPx}px`;
+      }
+    });
+  });
 }
 
 // Engine to compute values and update Dashboard Results
@@ -6662,20 +6745,105 @@ function runCalculationsEngine() {
       return bblVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
-    const fmtTimeParts = (stks) => {
-      if (!stks || stks <= 0 || spm <= 0) return { primary: '-', secondary: '' };
-      const totalMin = stks / spm;
-      const h = Math.floor(totalMin / 60);
-      const m = (totalMin % 60).toFixed(1);
-      const primary = h > 0 ? `${h}h ${m}m` : `${m}m`;
-      const secondary = `${totalMin.toFixed(1)} min`;
-      return { primary, secondary };
-    };
+    const fmtTimeParts = (stks) => formatWcTimeParts(stks, spm);
 
     const fmtStks = (stks) => {
       if (!stks || stks <= 0) return '-';
       return Math.round(stks).toLocaleString();
     };
+
+    const riserlessCardsHtml = [
+      buildWcSegmentCardHtml({
+        title: t('String (Surface to Bit)', 'String (Surface to Bit)'),
+        tag: 'A',
+        subtitle: mInts.surfaceToBit,
+        volLabel: t('VOLUME', 'VOLUME'),
+        volStr: fmtVolVal(mVols.stringVolume),
+        volUnit: volUnitLabel,
+        stksLabel: t('STROKES', 'STROKES'),
+        stksStr: fmtStks(mStks.surfaceToBitStrokes),
+        stksUnit: mStks.surfaceToBitStrokes > 0 ? 'stks' : '',
+        timeLabel: t('TIME', 'TIME'),
+        timePrimary: fmtTimeParts(mStks.surfaceToBitStrokes).primary,
+        timeSecondary: fmtTimeParts(mStks.surfaceToBitStrokes).secondary
+      }),
+      buildWcSegmentCardHtml({
+        title: t('Open Hole Annulus (Bit to Shoe)', 'Open Hole Annulus (Bit to Shoe)'),
+        tag: 'B',
+        subtitle: mInts.bitToShoe,
+        volLabel: t('VOLUME', 'VOLUME'),
+        volStr: fmtVolVal(mVols.openHoleAnnularVolume),
+        volUnit: volUnitLabel,
+        stksLabel: t('STROKES', 'STROKES'),
+        stksStr: fmtStks(mStks.bitToShoeStrokes),
+        stksUnit: mStks.bitToShoeStrokes > 0 ? 'stks' : '',
+        timeLabel: t('TIME', 'TIME'),
+        timePrimary: fmtTimeParts(mStks.bitToShoeStrokes).primary,
+        timeSecondary: fmtTimeParts(mStks.bitToShoeStrokes).secondary,
+        footerLabel: t('Geometric Volume', 'Geometric Volume'),
+        footerVal: `${fmtVolVal(mVols.openHoleGeometricVolume)} ${volUnitLabel}`
+      }),
+      buildWcSegmentCardHtml({
+        title: t('Cased Hole Annulus (Shoe to Seabed)', 'Cased Hole Annulus (Shoe to Seabed)'),
+        tag: 'C',
+        subtitle: mInts.shoeToSeabed,
+        volLabel: t('VOLUME', 'VOLUME'),
+        volStr: fmtVolVal(mVols.casedAnnularVolume),
+        volUnit: volUnitLabel,
+        stksLabel: t('STROKES', 'STROKES'),
+        stksStr: fmtStks(mStks.shoeToSeabedStrokes),
+        stksUnit: mStks.shoeToSeabedStrokes > 0 ? 'stks' : '',
+        timeLabel: t('TIME', 'TIME'),
+        timePrimary: fmtTimeParts(mStks.shoeToSeabedStrokes).primary,
+        timeSecondary: fmtTimeParts(mStks.shoeToSeabedStrokes).secondary,
+        footerLabel: t('Geometric Volume', 'Geometric Volume'),
+        footerVal: `${fmtVolVal(mVols.casedGeometricVolume)} ${volUnitLabel}`
+      }),
+      buildWcSegmentCardHtml({
+        title: t('Bit to Seabed (Total Annulus)', 'Bit to Seabed (Total Annulus)'),
+        tag: 'B + C',
+        subtitle: mInts.bitToSeabed,
+        volLabel: t('VOLUME', 'VOLUME'),
+        volStr: fmtVolVal(mVols.bitToSeabedAnnularVolume),
+        volUnit: volUnitLabel,
+        stksLabel: t('STROKES', 'STROKES'),
+        stksStr: fmtStks(mStks.bitToSeabedStrokes),
+        stksUnit: mStks.bitToSeabedStrokes > 0 ? 'stks' : '',
+        timeLabel: t('TIME', 'TIME'),
+        timePrimary: fmtTimeParts(mStks.bitToSeabedStrokes).primary,
+        timeSecondary: fmtTimeParts(mStks.bitToSeabedStrokes).secondary
+      }),
+      buildWcSegmentCardHtml({
+        title: isWithRiser ? t('Bottoms-Up (Rig Floor)', 'Bottoms-Up (Rig Floor)') : t('Bottoms-Up to Seabed (Riserless)', 'Bottoms-Up to Seabed (Riserless)'),
+        subtitle: mInts.bottomsUp,
+        volLabel: t('VOLUME', 'VOLUME'),
+        volStr: fmtVolVal(isWithRiser ? mVols.totalAnnulusVolume : mVols.bitToSeabedAnnularVolume),
+        volUnit: volUnitLabel,
+        stksLabel: t('STROKES', 'STROKES'),
+        stksStr: fmtStks(mStks.bottomsUpStrokes),
+        stksUnit: mStks.bottomsUpStrokes > 0 ? 'stks' : '',
+        timeLabel: t('TIME', 'TIME'),
+        timePrimary: fmtTimeParts(mStks.bottomsUpStrokes).primary,
+        timeSecondary: fmtTimeParts(mStks.bottomsUpStrokes).secondary,
+        footerLabel: (isWithRiser && mVols.riserAnnularVolume > 0) ? t('Riser Annulus', 'Riser Annulus') : '',
+        footerVal: (isWithRiser && mVols.riserAnnularVolume > 0) ? `${fmtVolVal(mVols.riserAnnularVolume)} ${volUnitLabel}` : ''
+      }),
+      buildWcSegmentCardHtml({
+        title: t('Total System / Total Cycle', 'Total System / Total Cycle'),
+        tag: 'A + Total Annulus',
+        isTotal: true,
+        subtitle: `${mInts.totalCycle} &bull; (A + Total Annulus)`,
+        volLabel: t('TOTAL VOLUME', 'TOTAL VOLUME'),
+        volStr: fmtVolVal(mVols.totalSystemVolume),
+        volUnit: volUnitLabel,
+        stksLabel: t('TOTAL STROKES', 'TOTAL STROKES'),
+        stksStr: fmtStks(mStks.totalCycleStrokes),
+        stksUnit: mStks.totalCycleStrokes > 0 ? 'stks' : '',
+        timeLabel: t('TOTAL TIME', 'TOTAL TIME'),
+        timePrimary: fmtTimeParts(mStks.totalCycleStrokes).primary,
+        timeSecondary: fmtTimeParts(mStks.totalCycleStrokes).secondary
+      })
+    ].join('');
 
     resultsWrapper.innerHTML = `
       <div class="subsea-calc-results" style="grid-column: span 2; display: flex; flex-direction: column; gap: 14px; padding-bottom: 80px;">
@@ -6695,162 +6863,7 @@ function runCalculationsEngine() {
         </div>
 
         <div class="wc-seg-cards-wrap" style="display: flex; flex-direction: column; gap: 12px;">
-          <!-- Card 1: String -->
-          <div class="wc-seg-card">
-            <div class="wc-seg-header">
-              <span class="wc-seg-title">${t('String (Surface to Bit)', 'String (Surface to Bit)')}</span>
-              <span class="wc-tag-chip">A</span>
-            </div>
-            <div class="wc-seg-subtitle">${mInts.surfaceToBit}</div>
-            <div class="wc-metric-strip">
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
-                <div class="wc-metric-val">${fmtVolVal(mVols.stringVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
-                <div class="wc-metric-val">${fmtStks(mStks.surfaceToBitStrokes)} <span class="wc-metric-unit">${mStks.surfaceToBitStrokes > 0 ? 'stks' : ''}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
-                <div class="wc-metric-val">${fmtTimeParts(mStks.surfaceToBitStrokes).primary}</div>
-                ${fmtTimeParts(mStks.surfaceToBitStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.surfaceToBitStrokes).secondary}</div>` : ''}
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2: Open Hole Annulus -->
-          <div class="wc-seg-card">
-            <div class="wc-seg-header">
-              <span class="wc-seg-title">${t('Open Hole Annulus (Bit to Shoe)', 'Open Hole Annulus (Bit to Shoe)')}</span>
-              <span class="wc-tag-chip">B</span>
-            </div>
-            <div class="wc-seg-subtitle">${mInts.bitToShoe}</div>
-            <div class="wc-metric-strip">
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
-                <div class="wc-metric-val">${fmtVolVal(mVols.openHoleAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
-                <div class="wc-metric-val">${fmtStks(mStks.bitToShoeStrokes)} <span class="wc-metric-unit">${mStks.bitToShoeStrokes > 0 ? 'stks' : ''}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
-                <div class="wc-metric-val">${fmtTimeParts(mStks.bitToShoeStrokes).primary}</div>
-                ${fmtTimeParts(mStks.bitToShoeStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.bitToShoeStrokes).secondary}</div>` : ''}
-              </div>
-            </div>
-            <div class="wc-seg-footer">
-              <span class="wc-seg-footer-lbl">${t('Geometric Volume', 'Geometric Volume')}</span>
-              <span class="wc-seg-footer-val">${fmtVolVal(mVols.openHoleGeometricVolume)} ${volUnitLabel}</span>
-            </div>
-          </div>
-
-          <!-- Card 3: Cased Hole Annulus -->
-          <div class="wc-seg-card">
-            <div class="wc-seg-header">
-              <span class="wc-seg-title">${t('Cased Hole Annulus (Shoe to Seabed)', 'Cased Hole Annulus (Shoe to Seabed)')}</span>
-              <span class="wc-tag-chip">C</span>
-            </div>
-            <div class="wc-seg-subtitle">${mInts.shoeToSeabed}</div>
-            <div class="wc-metric-strip">
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
-                <div class="wc-metric-val">${fmtVolVal(mVols.casedAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
-                <div class="wc-metric-val">${fmtStks(mStks.shoeToSeabedStrokes)} <span class="wc-metric-unit">${mStks.shoeToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
-                <div class="wc-metric-val">${fmtTimeParts(mStks.shoeToSeabedStrokes).primary}</div>
-                ${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary}</div>` : ''}
-              </div>
-            </div>
-            <div class="wc-seg-footer">
-              <span class="wc-seg-footer-lbl">${t('Geometric Volume', 'Geometric Volume')}</span>
-              <span class="wc-seg-footer-val">${fmtVolVal(mVols.casedGeometricVolume)} ${volUnitLabel}</span>
-            </div>
-          </div>
-
-          <!-- Card 4: Bit to Seabed -->
-          <div class="wc-seg-card">
-            <div class="wc-seg-header">
-              <span class="wc-seg-title">${t('Bit to Seabed (Total Annulus)', 'Bit to Seabed (Total Annulus)')}</span>
-              <span class="wc-tag-chip">B + C</span>
-            </div>
-            <div class="wc-seg-subtitle">${mInts.bitToSeabed}</div>
-            <div class="wc-metric-strip">
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
-                <div class="wc-metric-val">${fmtVolVal(mVols.bitToSeabedAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
-                <div class="wc-metric-val">${fmtStks(mStks.bitToSeabedStrokes)} <span class="wc-metric-unit">${mStks.bitToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
-                <div class="wc-metric-val">${fmtTimeParts(mStks.bitToSeabedStrokes).primary}</div>
-                ${fmtTimeParts(mStks.bitToSeabedStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.bitToSeabedStrokes).secondary}</div>` : ''}
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 5: Bottoms-Up to Seabed -->
-          <div class="wc-seg-card">
-            <div class="wc-seg-header">
-              <span class="wc-seg-title">${isWithRiser ? t('Bottoms-Up (Rig Floor)', 'Bottoms-Up (Rig Floor)') : t('Bottoms-Up to Seabed (Riserless)', 'Bottoms-Up to Seabed (Riserless)')}</span>
-            </div>
-            <div class="wc-seg-subtitle">${mInts.bottomsUp}</div>
-            <div class="wc-metric-strip">
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
-                <div class="wc-metric-val">${fmtVolVal(isWithRiser ? mVols.totalAnnulusVolume : mVols.bitToSeabedAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
-                <div class="wc-metric-val">${fmtStks(mStks.bottomsUpStrokes)} <span class="wc-metric-unit">${mStks.bottomsUpStrokes > 0 ? 'stks' : ''}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
-                <div class="wc-metric-val">${fmtTimeParts(mStks.bottomsUpStrokes).primary}</div>
-                ${fmtTimeParts(mStks.bottomsUpStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.bottomsUpStrokes).secondary}</div>` : ''}
-              </div>
-            </div>
-            ${(isWithRiser && mVols.riserAnnularVolume > 0) ? `
-              <div class="wc-seg-footer">
-                <span class="wc-seg-footer-lbl">${t('Riser Annulus', 'Riser Annulus')}</span>
-                <span class="wc-seg-footer-val">${fmtVolVal(mVols.riserAnnularVolume)} ${volUnitLabel}</span>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- Card 6: Total System / Total Cycle (Highlighted Summary Card) -->
-          <div class="wc-seg-card wc-seg-card-total">
-            <div class="wc-seg-header">
-              <span class="wc-seg-title">${t('Total System / Total Cycle', 'Total System / Total Cycle')}</span>
-              <span class="wc-tag-chip wc-tag-chip-total">A + Total Annulus</span>
-            </div>
-            <div class="wc-seg-subtitle">${mInts.totalCycle} &bull; (A + Total Annulus)</div>
-            <div class="wc-metric-strip">
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TOTAL VOLUME', 'TOTAL VOLUME')}</div>
-                <div class="wc-metric-val">${fmtVolVal(mVols.totalSystemVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TOTAL STROKES', 'TOTAL STROKES')}</div>
-                <div class="wc-metric-val">${fmtStks(mStks.totalCycleStrokes)} <span class="wc-metric-unit">${mStks.totalCycleStrokes > 0 ? 'stks' : ''}</span></div>
-              </div>
-              <div class="wc-metric-col">
-                <div class="wc-metric-lbl">${t('TOTAL TIME', 'TOTAL TIME')}</div>
-                <div class="wc-metric-val">${fmtTimeParts(mStks.totalCycleStrokes).primary}</div>
-                ${fmtTimeParts(mStks.totalCycleStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.totalCycleStrokes).secondary}</div>` : ''}
-              </div>
-            </div>
-          </div>
+          ${riserlessCardsHtml}
         </div>
 
         <div class="wc-footer-advisory" data-i18n="Advisory only. Follow your well control manual.">
@@ -6859,6 +6872,7 @@ function runCalculationsEngine() {
       </div>
     `;
 
+    fitWcMetricValues(resultsWrapper);
     return;
   }
 
@@ -7068,6 +7082,195 @@ function runCalculationsEngine() {
   state.calcInputs.stringVolumeBbl = stringVolume / 158.987294928;
   state.calcInputs.annularVolumeBbl = annularVolume / 158.987294928;
   state.calcInputs.totalSystemVolumeBbl = totalSystemVolume / 158.987294928;
+
+  // Subsea With Riser: Card-wise layout (reusing shared buildWcSegmentCardHtml component)
+  if (state.flowType === 'subsea') {
+    const isBopClosed = (inputs.bopStatus === 'closed');
+    const bopStateLabel = isBopClosed ? t('CLOSED', 'CLOSED') : t('OPEN', 'OPEN');
+    const poBbl = effectivePumpOutput > 0 ? (effectivePumpOutput / 158.987294928) : 0;
+    const riserStrokes = effectivePumpOutput > 0 ? (riserVolume / effectivePumpOutput) : 0;
+    const riserLenM = toMeters(inputs.riserLength || 0);
+    const volUnitLabel = isBbl ? 'bbl' : 'L';
+    const dUnitLbl = isBblFt ? 'ft' : 'm';
+
+    const fmtDepthVal = (metersVal) => {
+      const scaled = isBblFt ? (metersVal * 3.28084) : metersVal;
+      return Math.round(scaled * 100) / 100;
+    };
+    const fmtRange = (startM, endM) => (
+      (holeMD > 0 || endM > 0 || startM > 0)
+        ? `${fmtDepthVal(startM)} ${dUnitLbl} – ${fmtDepthVal(endM)} ${dUnitLbl}`
+        : '-'
+    );
+    const fmtRiserVol = (litersVal) => {
+      if (litersVal === undefined || litersVal === null || isNaN(litersVal) || litersVal <= 0) return '-';
+      const converted = convertVolume(litersVal, unit);
+      if (unit === 'L/m') {
+        return converted.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+      }
+      return converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    const fmtStksVal = (stks) => ((!stks || stks <= 0) ? '-' : Math.round(stks).toLocaleString());
+    const fmtTime = (stks) => formatWcTimeParts(stks, spm);
+
+    const lblVol = t('VOLUME', 'VOLUME');
+    const lblStks = t('STROKES', 'STROKES');
+    const lblTime = t('TIME', 'TIME');
+
+    const strVol = fmtRiserVol(stringVolume);
+    const ohVol = fmtRiserVol(openHoleVolume);
+    const bopVol = fmtRiserVol(annularVolBelowBop);
+    const rsrVol = fmtRiserVol(riserVolume);
+    const annVol = fmtRiserVol(annularVolume);
+    const ckVol = fmtRiserVol(chokeLineVolLiters);
+    const totVol = fmtRiserVol(totalSystemVolume);
+
+    const cards = [
+      buildWcSegmentCardHtml({
+        title: t('String (Surface to Bit)', 'String (Surface to Bit)'),
+        tag: 'A',
+        subtitle: fmtRange(0, holeMD),
+        volLabel: lblVol,
+        volStr: strVol,
+        volUnit: strVol !== '-' ? volUnitLabel : '',
+        stksLabel: lblStks,
+        stksStr: fmtStksVal(surfaceToBitStrokes),
+        stksUnit: surfaceToBitStrokes > 0 ? 'stks' : '',
+        timeLabel: lblTime,
+        timePrimary: fmtTime(surfaceToBitStrokes).primary,
+        timeSecondary: fmtTime(surfaceToBitStrokes).secondary
+      }),
+      buildWcSegmentCardHtml({
+        title: t('Open Hole Annulus (Bit to Shoe)', 'Open Hole Annulus (Bit to Shoe)'),
+        tag: 'B',
+        subtitle: fmtRange(shoeMD, holeMD),
+        volLabel: lblVol,
+        volStr: ohVol,
+        volUnit: ohVol !== '-' ? volUnitLabel : '',
+        stksLabel: lblStks,
+        stksStr: fmtStksVal(bitToShoeStrokes),
+        stksUnit: bitToShoeStrokes > 0 ? 'stks' : '',
+        timeLabel: lblTime,
+        timePrimary: fmtTime(bitToShoeStrokes).primary,
+        timeSecondary: fmtTime(bitToShoeStrokes).secondary
+      }),
+      buildWcSegmentCardHtml({
+        title: t('Annulus Below BOP', 'Annulus Below BOP'),
+        tag: '3',
+        subtitle: `${t('Bit to Subsea BOP', 'Bit to Subsea BOP')} &bull; ${fmtRange(riserLenM, holeMD)}`,
+        volLabel: lblVol,
+        volStr: bopVol,
+        volUnit: bopVol !== '-' ? volUnitLabel : '',
+        stksLabel: lblStks,
+        stksStr: fmtStksVal(strokesToBop),
+        stksUnit: strokesToBop > 0 ? 'stks' : '',
+        timeLabel: lblTime,
+        timePrimary: fmtTime(strokesToBop).primary,
+        timeSecondary: fmtTime(strokesToBop).secondary
+      })
+    ];
+
+    if (!isBopClosed) {
+      cards.push(buildWcSegmentCardHtml({
+        title: t('Riser Annulus', 'Riser Annulus'),
+        tag: '4',
+        subtitle: `${t('Subsea BOP to Surface', 'Subsea BOP to Surface')} &bull; ${riserLenM > 0 ? fmtRange(0, riserLenM) : '-'}`,
+        volLabel: lblVol,
+        volStr: rsrVol,
+        volUnit: rsrVol !== '-' ? volUnitLabel : '',
+        stksLabel: lblStks,
+        stksStr: fmtStksVal(riserStrokes),
+        stksUnit: riserStrokes > 0 ? 'stks' : '',
+        timeLabel: lblTime,
+        timePrimary: fmtTime(riserStrokes).primary,
+        timeSecondary: fmtTime(riserStrokes).secondary
+      }));
+    }
+
+    const totalAnnulusTag = isBopClosed ? (chokeVolume > 0 ? '3 + 6' : '3') : '3 + 4';
+    const totalAnnulusSub = isBopClosed
+      ? (chokeVolume > 0
+          ? `${t('Below BOP + Choke Line', 'Below BOP + Choke Line')} &bull; ${fmtRange(0, holeMD)}`
+          : `${t('Below BOP (Choke len: 0)', 'Below BOP (Choke len: 0)')} &bull; ${fmtRange(riserLenM, holeMD)}`)
+      : `${t('Below BOP + Riser', 'Below BOP + Riser')} &bull; ${fmtRange(0, holeMD)}`;
+
+    cards.push(buildWcSegmentCardHtml({
+      title: t('Total Annulus (Bottoms-Up)', 'Total Annulus (Bottoms-Up)'),
+      tag: totalAnnulusTag,
+      subtitle: totalAnnulusSub,
+      volLabel: lblVol,
+      volStr: annVol,
+      volUnit: annVol !== '-' ? volUnitLabel : '',
+      stksLabel: lblStks,
+      stksStr: fmtStksVal(bottomsUpStrokes),
+      stksUnit: bottomsUpStrokes > 0 ? 'stks' : '',
+      timeLabel: lblTime,
+      timePrimary: fmtTime(bottomsUpStrokes).primary,
+      timeSecondary: fmtTime(bottomsUpStrokes).secondary
+    }));
+
+    cards.push(buildWcSegmentCardHtml({
+      title: t('Choke / Kill Line', 'Choke / Kill Line'),
+      tag: isBopClosed ? '6' : '',
+      subtitle: `${chokeLenMeters > 0 ? `${fmtDepthVal(chokeLenMeters)} ${dUnitLbl}` : '-'} &bull; ${t('Subsea BOP to Surface', 'Subsea BOP to Surface')}`,
+      volLabel: lblVol,
+      volStr: ckVol,
+      volUnit: ckVol !== '-' ? volUnitLabel : '',
+      stksLabel: lblStks,
+      stksStr: fmtStksVal(chokeLineStrokes),
+      stksUnit: chokeLineStrokes > 0 ? 'stks' : '',
+      timeLabel: lblTime,
+      timePrimary: fmtTime(chokeLineStrokes).primary,
+      timeSecondary: fmtTime(chokeLineStrokes).secondary
+    }));
+
+    cards.push(buildWcSegmentCardHtml({
+      title: t('Total System / Total Cycle', 'Total System / Total Cycle'),
+      tag: 'A + Total Annulus',
+      isTotal: true,
+      subtitle: `${t('Full Circulation', 'Full Circulation')} &bull; (A + Total Annulus)`,
+      volLabel: t('TOTAL VOLUME', 'TOTAL VOLUME'),
+      volStr: totVol,
+      volUnit: totVol !== '-' ? volUnitLabel : '',
+      stksLabel: t('TOTAL STROKES', 'TOTAL STROKES'),
+      stksStr: fmtStksVal(totalCycleStrokes),
+      stksUnit: totalCycleStrokes > 0 ? 'stks' : '',
+      timeLabel: t('TOTAL TIME', 'TOTAL TIME'),
+      timePrimary: fmtTime(totalCycleStrokes).primary,
+      timeSecondary: fmtTime(totalCycleStrokes).secondary
+    }));
+
+    resultsWrapper.innerHTML = `
+      <div class="subsea-calc-results" style="grid-column: span 2; display: flex; flex-direction: column; gap: 14px; padding-bottom: 4px;">
+        <div class="content-card wc-pump-summary-strip">
+          <span class="wc-pump-summary-item">
+            ${t('Pump Output', 'Pump Output')}: <strong>${poBbl > 0 ? `${poBbl.toFixed(4)} bbl/stk` : '-'}</strong>
+          </span>
+          <span class="wc-pump-summary-item">
+            ${t('Pump Rate', 'Pump Rate')}: <strong>${spm > 0 ? `${spm} SPM` : '-'}</strong>
+          </span>
+          <span class="wc-bop-status-pill ${isBopClosed ? 'is-closed' : 'is-open'}">
+            ${t('BOP:', 'BOP:')} ${bopStateLabel}
+          </span>
+        </div>
+
+        <div class="wc-section-header-title">
+          ${t('Volume, Strokes & Circulation Time', 'Volume, Strokes & Circulation Time')}
+        </div>
+
+        <div class="wc-seg-cards-wrap">
+          ${cards.join('')}
+        </div>
+
+        <div class="wc-footer-advisory" data-i18n="Advisory only. Follow your well control manual.">
+          ${t('Advisory only. Follow your well control manual.', 'Advisory only. Follow your well control manual.')}
+        </div>
+      </div>
+    `;
+
+    fitWcMetricValues(resultsWrapper);
+    return;
+  }
 
   // Convert results volumes to user's selected display unit (Liters vs Barrels)
   const displayVol = (litersVal) => {
