@@ -6474,7 +6474,7 @@ function runCalculationsEngine() {
     };
 
     resultsWrapper.innerHTML = `
-      <div class="subsea-calc-results" style="grid-column: span 2; display: flex; flex-direction: column; gap: 14px;">
+      <div class="subsea-calc-results" style="grid-column: span 2; display: flex; flex-direction: column; gap: 14px; padding-bottom: 80px;">
         <!-- Pump Summary Row -->
         <div class="content-card" style="padding: 10px 14px; background: var(--bg-subtle, #f5f0eb); display: flex; justify-content: space-between; align-items: center; border-radius: 8px; border-left: 4px solid var(--accent-color);">
           <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">
@@ -6485,134 +6485,167 @@ function runCalculationsEngine() {
           </span>
         </div>
 
-        <!-- COMBINED SECTION: VOLUME, STROKES & CIRCULATION TIME -->
-        <div class="wc-combined-card">
-          <div class="wc-combined-title">
-            ${t('Volume, Strokes & Circulation Time', 'Volume, Strokes & Circulation Time')}
+        <!-- COMBINED SECTION: VOLUME, STROKES & CIRCULATION TIME (CARD-WISE) -->
+        <div class="wc-section-header-title">
+          ${t('Volume, Strokes & Circulation Time', 'Volume, Strokes & Circulation Time')}
+        </div>
+
+        <div class="wc-seg-cards-wrap" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Card 1: String -->
+          <div class="wc-seg-card">
+            <div class="wc-seg-header">
+              <span class="wc-seg-title">${t('String (Surface to Bit)', 'String (Surface to Bit)')}</span>
+              <span class="wc-tag-chip">A</span>
+            </div>
+            <div class="wc-seg-subtitle">${mInts.surfaceToBit}</div>
+            <div class="wc-metric-strip">
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
+                <div class="wc-metric-val">${fmtVolVal(mVols.stringVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
+                <div class="wc-metric-val">${fmtStks(mStks.surfaceToBitStrokes)} <span class="wc-metric-unit">${mStks.surfaceToBitStrokes > 0 ? 'stks' : ''}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
+                <div class="wc-metric-val">${fmtTimeParts(mStks.surfaceToBitStrokes).primary}</div>
+                ${fmtTimeParts(mStks.surfaceToBitStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.surfaceToBitStrokes).secondary}</div>` : ''}
+              </div>
+            </div>
           </div>
-          <div class="wc-combined-table-wrap">
-            <table class="wc-combined-table">
-              <thead>
-                <tr>
-                  <th class="col-left" style="width: 38%;">${t('Segment', 'Segment')}</th>
-                  <th class="col-right" style="width: 22%;">${t('Volume', 'Volume')} (${volUnitLabel})</th>
-                  <th class="col-right" style="width: 18%;">${t('Strokes', 'Strokes')}</th>
-                  <th class="col-right" style="width: 22%;">${t('Time', 'Time')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- Row 1: String -->
-                <tr>
-                  <td class="col-left">
-                    <div class="wc-seg-title">${t('String (Surface to Bit)', 'String (Surface to Bit)')}</div>
-                    <div class="wc-seg-sub">${mInts.surfaceToBit} &bull; A</div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtVolVal(mVols.stringVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtStks(mStks.surfaceToBitStrokes)} <span class="wc-val-unit">${mStks.surfaceToBitStrokes > 0 ? 'stks' : ''}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtTimeParts(mStks.surfaceToBitStrokes).primary}</div>
-                    ${fmtTimeParts(mStks.surfaceToBitStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.surfaceToBitStrokes).secondary}</div>` : ''}
-                  </td>
-                </tr>
 
-                <!-- Row 2: Open Hole Annulus -->
-                <tr>
-                  <td class="col-left">
-                    <div class="wc-seg-title">${t('Open Hole Annulus (Bit to Shoe)', 'Open Hole Annulus (Bit to Shoe)')}</div>
-                    <div class="wc-seg-sub">${mInts.bitToShoe} &bull; B</div>
-                    <div class="wc-seg-sub">Geometric: ${fmtVolVal(mVols.openHoleGeometricVolume)} ${volUnitLabel}</div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtVolVal(mVols.openHoleAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtStks(mStks.bitToShoeStrokes)} <span class="wc-val-unit">${mStks.bitToShoeStrokes > 0 ? 'stks' : ''}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtTimeParts(mStks.bitToShoeStrokes).primary}</div>
-                    ${fmtTimeParts(mStks.bitToShoeStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.bitToShoeStrokes).secondary}</div>` : ''}
-                  </td>
-                </tr>
+          <!-- Card 2: Open Hole Annulus -->
+          <div class="wc-seg-card">
+            <div class="wc-seg-header">
+              <span class="wc-seg-title">${t('Open Hole Annulus (Bit to Shoe)', 'Open Hole Annulus (Bit to Shoe)')}</span>
+              <span class="wc-tag-chip">B</span>
+            </div>
+            <div class="wc-seg-subtitle">${mInts.bitToShoe}</div>
+            <div class="wc-metric-strip">
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
+                <div class="wc-metric-val">${fmtVolVal(mVols.openHoleAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
+                <div class="wc-metric-val">${fmtStks(mStks.bitToShoeStrokes)} <span class="wc-metric-unit">${mStks.bitToShoeStrokes > 0 ? 'stks' : ''}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
+                <div class="wc-metric-val">${fmtTimeParts(mStks.bitToShoeStrokes).primary}</div>
+                ${fmtTimeParts(mStks.bitToShoeStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.bitToShoeStrokes).secondary}</div>` : ''}
+              </div>
+            </div>
+            <div class="wc-seg-footer">
+              <span class="wc-seg-footer-lbl">${t('Geometric Volume', 'Geometric Volume')}</span>
+              <span class="wc-seg-footer-val">${fmtVolVal(mVols.openHoleGeometricVolume)} ${volUnitLabel}</span>
+            </div>
+          </div>
 
-                <!-- Row 3: Cased Hole Annulus -->
-                <tr>
-                  <td class="col-left">
-                    <div class="wc-seg-title">${t('Cased Hole Annulus (Shoe to Seabed)', 'Cased Hole Annulus (Shoe to Seabed)')}</div>
-                    <div class="wc-seg-sub">${mInts.shoeToSeabed} &bull; C</div>
-                    <div class="wc-seg-sub">Geometric: ${fmtVolVal(mVols.casedGeometricVolume)} ${volUnitLabel}</div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtVolVal(mVols.casedAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtStks(mStks.shoeToSeabedStrokes)} <span class="wc-val-unit">${mStks.shoeToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtTimeParts(mStks.shoeToSeabedStrokes).primary}</div>
-                    ${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary}</div>` : ''}
-                  </td>
-                </tr>
+          <!-- Card 3: Cased Hole Annulus -->
+          <div class="wc-seg-card">
+            <div class="wc-seg-header">
+              <span class="wc-seg-title">${t('Cased Hole Annulus (Shoe to Seabed)', 'Cased Hole Annulus (Shoe to Seabed)')}</span>
+              <span class="wc-tag-chip">C</span>
+            </div>
+            <div class="wc-seg-subtitle">${mInts.shoeToSeabed}</div>
+            <div class="wc-metric-strip">
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
+                <div class="wc-metric-val">${fmtVolVal(mVols.casedAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
+                <div class="wc-metric-val">${fmtStks(mStks.shoeToSeabedStrokes)} <span class="wc-metric-unit">${mStks.shoeToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
+                <div class="wc-metric-val">${fmtTimeParts(mStks.shoeToSeabedStrokes).primary}</div>
+                ${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.shoeToSeabedStrokes).secondary}</div>` : ''}
+              </div>
+            </div>
+            <div class="wc-seg-footer">
+              <span class="wc-seg-footer-lbl">${t('Geometric Volume', 'Geometric Volume')}</span>
+              <span class="wc-seg-footer-val">${fmtVolVal(mVols.casedGeometricVolume)} ${volUnitLabel}</span>
+            </div>
+          </div>
 
-                <!-- Row 4: Bit to Seabed -->
-                <tr>
-                  <td class="col-left">
-                    <div class="wc-seg-title">${t('Bit to Seabed (Total Annulus)', 'Bit to Seabed (Total Annulus)')}</div>
-                    <div class="wc-seg-sub">${mInts.bitToSeabed} &bull; (B + C)</div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtVolVal(mVols.bitToSeabedAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtStks(mStks.bitToSeabedStrokes)} <span class="wc-val-unit">${mStks.bitToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtTimeParts(mStks.bitToSeabedStrokes).primary}</div>
-                    ${fmtTimeParts(mStks.bitToSeabedStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.bitToSeabedStrokes).secondary}</div>` : ''}
-                  </td>
-                </tr>
+          <!-- Card 4: Bit to Seabed -->
+          <div class="wc-seg-card">
+            <div class="wc-seg-header">
+              <span class="wc-seg-title">${t('Bit to Seabed (Total Annulus)', 'Bit to Seabed (Total Annulus)')}</span>
+              <span class="wc-tag-chip">B + C</span>
+            </div>
+            <div class="wc-seg-subtitle">${mInts.bitToSeabed}</div>
+            <div class="wc-metric-strip">
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
+                <div class="wc-metric-val">${fmtVolVal(mVols.bitToSeabedAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
+                <div class="wc-metric-val">${fmtStks(mStks.bitToSeabedStrokes)} <span class="wc-metric-unit">${mStks.bitToSeabedStrokes > 0 ? 'stks' : ''}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
+                <div class="wc-metric-val">${fmtTimeParts(mStks.bitToSeabedStrokes).primary}</div>
+                ${fmtTimeParts(mStks.bitToSeabedStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.bitToSeabedStrokes).secondary}</div>` : ''}
+              </div>
+            </div>
+          </div>
 
-                <!-- Row 5: Bottoms-Up to Seabed (Riserless) -->
-                <tr>
-                  <td class="col-left">
-                    <div class="wc-seg-title">${isWithRiser ? t('Bottoms-Up (Rig Floor)', 'Bottoms-Up (Rig Floor)') : t('Bottoms-Up to Seabed (Riserless)', 'Bottoms-Up to Seabed (Riserless)')}</div>
-                    <div class="wc-seg-sub">${mInts.bottomsUp}</div>
-                    ${isWithRiser && mVols.riserAnnularVolume > 0 ? `<div class="wc-seg-sub">Riser Annulus: ${fmtVolVal(mVols.riserAnnularVolume)} ${volUnitLabel}</div>` : ''}
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtVolVal(isWithRiser ? mVols.totalAnnulusVolume : mVols.bitToSeabedAnnularVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtStks(mStks.bottomsUpStrokes)} <span class="wc-val-unit">${mStks.bottomsUpStrokes > 0 ? 'stks' : ''}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtTimeParts(mStks.bottomsUpStrokes).primary}</div>
-                    ${fmtTimeParts(mStks.bottomsUpStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.bottomsUpStrokes).secondary}</div>` : ''}
-                  </td>
-                </tr>
+          <!-- Card 5: Bottoms-Up to Seabed -->
+          <div class="wc-seg-card">
+            <div class="wc-seg-header">
+              <span class="wc-seg-title">${isWithRiser ? t('Bottoms-Up (Rig Floor)', 'Bottoms-Up (Rig Floor)') : t('Bottoms-Up to Seabed (Riserless)', 'Bottoms-Up to Seabed (Riserless)')}</span>
+            </div>
+            <div class="wc-seg-subtitle">${mInts.bottomsUp}</div>
+            <div class="wc-metric-strip">
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('VOLUME', 'VOLUME')}</div>
+                <div class="wc-metric-val">${fmtVolVal(isWithRiser ? mVols.totalAnnulusVolume : mVols.bitToSeabedAnnularVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('STROKES', 'STROKES')}</div>
+                <div class="wc-metric-val">${fmtStks(mStks.bottomsUpStrokes)} <span class="wc-metric-unit">${mStks.bottomsUpStrokes > 0 ? 'stks' : ''}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TIME', 'TIME')}</div>
+                <div class="wc-metric-val">${fmtTimeParts(mStks.bottomsUpStrokes).primary}</div>
+                ${fmtTimeParts(mStks.bottomsUpStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.bottomsUpStrokes).secondary}</div>` : ''}
+              </div>
+            </div>
+            ${(isWithRiser && mVols.riserAnnularVolume > 0) ? `
+              <div class="wc-seg-footer">
+                <span class="wc-seg-footer-lbl">${t('Riser Annulus', 'Riser Annulus')}</span>
+                <span class="wc-seg-footer-val">${fmtVolVal(mVols.riserAnnularVolume)} ${volUnitLabel}</span>
+              </div>
+            ` : ''}
+          </div>
 
-                <!-- Row 6: Total System / Total Cycle -->
-                <tr class="wc-row-total">
-                  <td class="col-left">
-                    <div class="wc-seg-title">${t('Total System / Total Cycle', 'Total System / Total Cycle')}</div>
-                    <div class="wc-seg-sub">${mInts.totalCycle} &bull; (A + Total Annulus)</div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtVolVal(mVols.totalSystemVolume)} <span class="wc-val-unit">${volUnitLabel}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtStks(mStks.totalCycleStrokes)} <span class="wc-val-unit">${mStks.totalCycleStrokes > 0 ? 'stks' : ''}</span></div>
-                  </td>
-                  <td class="col-right">
-                    <div class="wc-val-main">${fmtTimeParts(mStks.totalCycleStrokes).primary}</div>
-                    ${fmtTimeParts(mStks.totalCycleStrokes).secondary ? `<div class="wc-time-sub">${fmtTimeParts(mStks.totalCycleStrokes).secondary}</div>` : ''}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Card 6: Total System / Total Cycle (Highlighted Summary Card) -->
+          <div class="wc-seg-card wc-seg-card-total">
+            <div class="wc-seg-header">
+              <span class="wc-seg-title">${t('Total System / Total Cycle', 'Total System / Total Cycle')}</span>
+              <span class="wc-tag-chip wc-tag-chip-total">A + Total Annulus</span>
+            </div>
+            <div class="wc-seg-subtitle">${mInts.totalCycle} &bull; (A + Total Annulus)</div>
+            <div class="wc-metric-strip">
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TOTAL VOLUME', 'TOTAL VOLUME')}</div>
+                <div class="wc-metric-val">${fmtVolVal(mVols.totalSystemVolume)} <span class="wc-metric-unit">${volUnitLabel}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TOTAL STROKES', 'TOTAL STROKES')}</div>
+                <div class="wc-metric-val">${fmtStks(mStks.totalCycleStrokes)} <span class="wc-metric-unit">${mStks.totalCycleStrokes > 0 ? 'stks' : ''}</span></div>
+              </div>
+              <div class="wc-metric-col">
+                <div class="wc-metric-lbl">${t('TOTAL TIME', 'TOTAL TIME')}</div>
+                <div class="wc-metric-val">${fmtTimeParts(mStks.totalCycleStrokes).primary}</div>
+                ${fmtTimeParts(mStks.totalCycleStrokes).secondary ? `<div class="wc-metric-sub">${fmtTimeParts(mStks.totalCycleStrokes).secondary}</div>` : ''}
+              </div>
+            </div>
           </div>
         </div>
 

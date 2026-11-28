@@ -7123,124 +7123,193 @@ body.dark .report-btn-done {
 }
 
 /* ==========================================================================
-   Combined Volume, Strokes & Circulation Time Table
+   Combined Volume, Strokes & Circulation Time (Card-Wise Layout)
    ========================================================================== */
-.wc-combined-card {
-  background: var(--card-bg);
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: var(--shadow-subtle);
-  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.05));
-  border-left: 4px solid var(--accent-color);
-  overflow: hidden;
-}
-
-.wc-combined-title {
+.wc-section-header-title {
   font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-primary);
   letter-spacing: 0.5px;
-  margin-bottom: 12px;
+  margin-top: 4px;
+  margin-bottom: -2px;
 }
 
-.wc-combined-table-wrap {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+.wc-seg-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.wc-combined-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-  table-layout: auto;
+.wc-seg-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-subtle, 0 1px 3px rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  border-left: 4px solid var(--accent-color, #8D7765);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.wc-combined-table th {
-  padding: 8px 6px;
+.wc-seg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.wc-seg-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-tag-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-color, #8D7765);
+  background: var(--bg-subtle, rgba(141, 119, 101, 0.12));
+  border: 1px solid var(--border-color, rgba(141, 119, 101, 0.2));
+  padding: 1px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wc-seg-subtitle {
   font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin-bottom: 10px;
+}
+
+.wc-metric-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  align-items: start;
+  padding-top: 4px;
+}
+
+.wc-metric-col {
+  display: flex;
+  flex-direction: column;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.wc-metric-col:not(:first-child) {
+  border-left: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  padding-left: 8px;
+}
+
+.wc-metric-lbl {
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-secondary);
   letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  margin-bottom: 2px;
 }
 
-.wc-combined-table th.col-left,
-.wc-combined-table td.col-left {
-  text-align: left;
-}
-
-.wc-combined-table th.col-right,
-.wc-combined-table td.col-right {
-  text-align: right;
+.wc-metric-val {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.wc-combined-table td {
-  padding: 10px 6px;
-  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
-  vertical-align: top;
-  color: var(--text-primary);
-}
-
-.wc-seg-title {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.82rem;
-  line-height: 1.25;
-}
-
-.wc-seg-sub {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  line-height: 1.35;
-  margin-top: 2px;
-}
-
-.wc-val-main {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.84rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.wc-val-unit {
+.wc-metric-unit {
   font-size: 0.68rem;
   font-weight: 400;
   color: var(--text-secondary);
-  margin-left: 2px;
+  margin-left: 1px;
 }
 
-.wc-time-sub {
-  font-size: 0.7rem;
+.wc-metric-sub {
+  font-size: 0.68rem;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-  margin-top: 1px;
+  margin-top: 2px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.wc-row-total {
-  border-top: 2px solid var(--accent-color) !important;
+.wc-seg-footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.wc-seg-footer-val {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-seg-card-total {
   background: rgba(141, 119, 101, 0.08);
+  border: 1px solid var(--accent-color, #8D7765);
+  border-left: 4px solid var(--accent-color, #8D7765);
 }
 
-.wc-row-total td {
-  border-bottom: none !important;
-  padding-top: 12px;
-  padding-bottom: 12px;
+.wc-seg-card-total .wc-seg-title {
+  font-size: 0.92rem;
+  font-weight: 800;
 }
 
-.wc-row-total .wc-seg-title,
-.wc-row-total .wc-val-main {
-  font-weight: 700;
-  font-size: 0.88rem;
+.wc-seg-card-total .wc-metric-val {
+  font-size: 1.05rem;
 }
 
-[data-theme="dark"] .wc-row-total {
+.wc-tag-chip-total {
+  background: var(--accent-color, #8D7765);
+  color: #ffffff;
+  border-color: var(--accent-color, #8D7765);
+}
+
+[data-theme="dark"] .wc-seg-card-total {
   background: rgba(197, 182, 170, 0.12);
 }
+
+[data-theme="dark"] .wc-metric-col:not(:first-child) {
+  border-left-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .wc-seg-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .wc-tag-chip {
+  background: rgba(197, 182, 170, 0.15);
+  border-color: rgba(197, 182, 170, 0.3);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .wc-tag-chip-total {
+  background: var(--accent-color, #8D7765);
+  color: #141210;
+}
+
 
 
 
